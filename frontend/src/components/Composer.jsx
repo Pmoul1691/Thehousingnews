@@ -1,12 +1,26 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import api from "@/lib/api";
 import { toast } from "sonner";
+
+function formatLocal(iso) {
+  if (!iso) return "";
+  try {
+    const d = new Date(iso);
+    const opts = { hour: "numeric", minute: "2-digit", timeZone: "America/Chicago" };
+    return new Intl.DateTimeFormat("en-US", opts).format(d).toLowerCase().replace(" ", "");
+  } catch { return ""; }
+}
 
 export default function Composer({ onPosted }) {
   const [text, setText] = useState("");
   const [imagePath, setImagePath] = useState("");
   const [uploading, setUploading] = useState(false);
   const [posting, setPosting] = useState(false);
+  const [nextWindow, setNextWindow] = useState(null);
+
+  useEffect(() => {
+    api.get("/release-window").then((r) => setNextWindow(r.data)).catch(() => {});
+  }, []);
 
   const upload = async (file) => {
     if (!file) return;
@@ -29,10 +43,10 @@ export default function Composer({ onPosted }) {
     if (!text.trim()) return;
     setPosting(true);
     try {
-      await api.post("/posts", { text: text.trim(), image_path: imagePath || null });
+      const r = await api.post("/posts", { text: text.trim(), image_path: imagePath || null });
       setText("");
       setImagePath("");
-      toast.success("Posted");
+      toast.success(`Queued for ${formatLocal(r.data.release_at)} CT`);
       onPosted && onPosted();
     } catch (e) {
       toast.error(e?.response?.data?.detail || "Could not post");
@@ -41,9 +55,18 @@ export default function Composer({ onPosted }) {
     }
   };
 
+  const releaseLabel = nextWindow ? formatLocal(nextWindow.next_release_iso) : "";
+
   return (
     <section data-testid="composer" className="border hairline rounded-sm p-6 bg-cream">
-      <p className="uppercase-label mb-3">Write</p>
+      <div className="flex items-center justify-between mb-3">
+        <p className="uppercase-label">Write</p>
+        {releaseLabel && (
+          <p className="font-sans text-xs text-muted-ink" data-testid="composer-next-window">
+            Releases at <span className="font-semibold ink">{releaseLabel} CT</span>
+          </p>
+        )}
+      </div>
       <textarea
         data-testid="composer-text"
         className="w-full bg-cream border-0 focus:outline-none font-serif text-base sm:text-lg ink leading-relaxed min-h-[110px] resize-none"
@@ -71,7 +94,7 @@ export default function Composer({ onPosted }) {
             disabled={posting || !text.trim()}
             className="bg-gold text-cream font-sans font-semibold text-sm px-5 py-2 rounded-sm hover:opacity-90 transition-opacity disabled:opacity-50"
           >
-            {posting ? "Posting..." : "Publish"}
+            {posting ? "Queueing..." : "Queue for release"}
           </button>
         </div>
       </div>

@@ -230,7 +230,7 @@ class TestPosts:
                       headers=bearer(approved_user["token"]))
         assert r.status_code == 422
 
-    def test_create_post_and_public_feed(self, http, base_url, approved_user, bearer):
+    def test_create_post_and_public_feed(self, http, base_url, approved_user, admin_user, bearer):
         unique = f"TEST_POST_{int(time.time()*1000)} Wabansia 4-flat insight."
         r = http.post(f"{base_url}/api/posts",
                       json={"text": unique},
@@ -238,20 +238,48 @@ class TestPosts:
         assert r.status_code == 200, r.text
         data = r.json()
         assert data["post_id"].startswith("post_")
+        assert data["status"] == "pending_release"
+        assert "release_at" in data
         _no_underscore_id(data)
 
-        # Public feed (no auth)
+        # Public feed (no auth) - the freshly created post is queued, must NOT appear yet
+        pub_pre = requests.get(f"{base_url}/api/posts/public")
+        assert pub_pre.status_code == 200
+        assert unique not in [it["text"] for it in pub_pre.json()["items"]]
+
+        # Force release via admin endpoint by setting release_at to past, then call admin/release-now.
+        # We use mongosh to flip the release_at to now-ish so release_batch picks it up.
+        from datetime import datetime as _dt, timezone as _tz
+        past_iso = _dt.now(_tz.utc).isoformat()
+        import subprocess
+        subprocess.run([
+            "mongosh", "--quiet", "--eval",
+            f"use('test_database'); db.posts.updateOne({{post_id: '{data['post_id']}'}}, {{$set: {{release_at: '{past_iso}'}}}});"
+        ], check=True, capture_output=True)
+
+        rel = http.post(f"{base_url}/api/admin/release-now", headers=bearer(admin_user["token"]))
+        assert rel.status_code == 200, rel.text
+        rel_data = rel.json()
+        assert "posts_released" in rel_data
+        assert "emails_sent" in rel_data
+        assert "window" in rel_data
+        assert "kind" in rel_data
+
+        # Now post should appear in public feed
         pub = requests.get(f"{base_url}/api/posts/public")
         assert pub.status_code == 200
         items = pub.json()["items"]
         texts = [it["text"] for it in items]
         assert unique in texts
         _no_underscore_id(pub.json())
-        # Each item has author and post_id, no _id
         for it in items:
             assert "post_id" in it
             assert "author" in it
             assert "_id" not in it
+            assert "reply_count" in it
+            assert "is_released" in it
+            if it["text"] == unique:
+                assert it["is_released"] is True
 
     def test_feed_only_approved(self, http, base_url, needs_app_user, approved_user, bearer):
         # needs_application user gets empty list

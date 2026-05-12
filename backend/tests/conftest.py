@@ -66,6 +66,7 @@ db.user_sessions.deleteMany({{user_id: '{user_id}'}});
 db.applications.deleteMany({{user_id: '{user_id}'}});
 db.profiles.deleteMany({{user_id: '{user_id}'}});
 db.posts.deleteMany({{user_id: '{user_id}'}});
+db.replies.deleteMany({{user_id: '{user_id}'}});
 db.objective_history.deleteMany({{user_id: '{user_id}'}});
 """
     try:

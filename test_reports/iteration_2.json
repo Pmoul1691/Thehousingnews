@@ -1,0 +1,39 @@
+{
+  "summary": "Phase 2 backend testing complete. 29/29 pytest cases pass (100%) covering: batched release (POST /api/posts now stores status=pending_release with release_at next 8:30/17:30 America/Chicago window in UTC ISO), public+home feeds filtering by release_at<=now (queued posts hidden), /api/posts/mine returning queued+released with is_released boolean for approved users and [] for unapproved, reply_count via aggregation on released replies, POST /api/posts/{post_id}/replies (1..300 char, 403 unapproved, 404 not-found), GET /api/posts/{post_id}/replies returns released for guests + own pending for approved author with is_released flag, POST /api/admin/release-now (403 non-admin, returns {posts_released, emails_sent, window, kind}, flips due pending posts+replies to approved). All Phase 1 endpoints still pass: /api/auth/me, applications submit/approve/decline (admin RBAC), profile PUT (exactly 3 objectives, bio<=280, objectives_version bump), no _id leaks anywhere. Brevo digest sends are best-effort and not asserted (per request).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_phase2_batched_release.py",
+    "/app/backend/tests/test_ultradian_backend.py",
+    "/app/backend/tests/conftest.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "scheduler.release_batch builds the digest by selecting status=approved with release_at between previous_window-12h and now. After an immediate admin/release-now triggered well before/after a real window, this 12h window may include unrelated, previously released posts in the email digest. Consider keying the digest off the 'window' bucket the just-flipped rows targeted (e.g., distinct release_at values that match win) or include only docs flipped in this call (use a marker like 'released_in_batch_id'). For real cron at 8:30/17:30 this is fine; flagging for admin/release-now usage clarity.",
+    "release_window.previous_window uses '>' boundaries; if 'before' equals exactly the AM time, it falls to yesterday PM. Likely fine but worth a unit test on equality edge cases.",
+    "routes/posts.py: _attach_meta uses string comparison `p.get('release_at','') <= now_iso` for is_released — works because both are ISO-8601 UTC strings, but a more robust approach would be parsing to datetime. Acceptable today.",
+    "routes/replies.py list_replies does optional auth via try/except on any Exception; HTTPException 401 from get_current_user is swallowed so unauthenticated viewers see only released — correct behavior, but logging the unexpected exceptions (vs auth misses) would help debugging.",
+    "scheduler iterates send_digest_email synchronously for every approved member without batching; for N approved members this is N HTTP calls. Fine at small scale; consider async/concurrent batching at >100 members.",
+    "Server-side admin RBAC for /api/admin/release-now uses is_admin_email (allowlist) rather than the user document's is_admin flag. Both work, but mixing models is inconsistent (applications route uses is_admin flag). Pick one source of truth."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_phase2_batched_release.py (new)",
+    "/app/backend/tests/test_ultradian_backend.py (updated test_create_post_and_public_feed to handle pending_release + admin/release-now flow)",
+    "/app/backend/tests/conftest.py (added db.replies cleanup)"
+  ],
+  "success_rate": {"backend": "100% (29/29)", "frontend": "not tested (per request)"},
+  "test_credentials": "Seeded directly via mongosh into test_database (collections: users, user_sessions). Admin email peter@1691inc.com matches ADMIN_EMAILS allowlist. Bearer tokens supplied via Authorization header.",
+  "seed_data_creation": "Each test fixture (approved_user, needs_app_user, admin_user) seeds a fresh user + session, tears down users/user_sessions/applications/profiles/posts/replies/objective_history on exit.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Phase 2 regression suite is split: /app/backend/tests/test_ultradian_backend.py (Phase 1 + updated post/public-feed test) and /app/backend/tests/test_phase2_batched_release.py (mine, replies, admin release-now, pending-release contract). Tests force release by mutating release_at to now() via mongosh and then calling POST /api/admin/release-now; do not wait on 8:30/17:30 Chicago cron. Run: cd /app/backend && pytest tests/ -v. Brevo emails are intentionally not asserted; release_batch wraps sends in try/except inside services/brevo.py.",
+  "rca of the issue": "n/a - no issues found"
+}

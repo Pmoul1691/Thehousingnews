@@ -159,3 +159,48 @@ def send_application_declined(email: str, name: str) -> dict:
     """)
     add_to_list(email, "Network - Declined", {"FIRSTNAME": name})
     return send_email(email, name, "About your application", html, tags=["ultradian_network", "application_declined"])
+
+
+def _digest_item_html(post: dict) -> str:
+    """One block per post in the digest."""
+    author = post.get("author_name") or "Member"
+    market = post.get("author_market") or ""
+    market_html = f' <span style="color:#AD893E; font-size:12px;">{market}</span>' if market else ""
+    text = (post.get("text") or "")
+    if len(text) > 320:
+        text = text[:320].rstrip() + "..."
+    safe = (text
+            .replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+            .replace("\n", "<br />"))
+    return f"""
+    <div style="border-top:1px solid #E8D4A0; padding:20px 0;">
+      <div style="font-family:'Plus Jakarta Sans', Arial, sans-serif; font-weight:600; font-size:14px; color:#2C2410;">{author}{market_html}</div>
+      <div style="font-family:Georgia, serif; font-size:15px; line-height:1.55; color:#2C2410; margin-top:8px;">{safe}</div>
+    </div>
+    """
+
+
+def send_digest_email(email: str, name: str, window_label: str, kind: str, posts: list[dict]) -> dict:
+    """Send the AM or PM digest of the just-released batch."""
+    count = len(posts)
+    if count == 0:
+        return {"skipped": True, "reason": "empty"}
+    intro_word = "morning" if kind == "am" else "evening"
+    items_html = "".join(_digest_item_html(p) for p in posts[:20])
+    more_note = ""
+    if count > 20:
+        more_note = f'<p style="font-family:Georgia, serif; color:#2C2410; font-size:13px; margin-top:16px;">Plus {count - 20} more in the feed.</p>'
+    html = _wrap(f"""
+      <p>Hi {name},</p>
+      <p>The {intro_word} release just dropped. {count} {'post' if count == 1 else 'posts'} from the room.</p>
+      {items_html}
+      {more_note}
+      <p style="margin-top:24px;">
+        <a href="{os.environ.get('APP_PUBLIC_URL', '')}/feed" style="display:inline-block; background:#AD893E; color:#FDFAF4; padding:10px 20px; text-decoration:none; font-family:'Plus Jakarta Sans', Arial, sans-serif; font-weight:600; font-size:13px;">Open the feed</a>
+      </p>
+      <p style="font-family:Georgia, serif; color:#2C2410;">Pete</p>
+    """)
+    subject = f"The {intro_word} release ({window_label})"
+    return send_email(email, name, subject, html, tags=["ultradian_network", f"digest_{kind}"])

@@ -6,7 +6,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
 from pathlib import Path
-from datetime import datetime, timezone, timedelta
+from datetime import timezone
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
@@ -18,8 +18,11 @@ from routes.auth import setup as setup_auth
 from routes.applications import setup as setup_apps
 from routes.profiles import setup as setup_profiles
 from routes.posts import setup as setup_posts
+from routes.replies import setup as setup_replies
 from routes.uploads import setup as setup_uploads
 from services.object_storage import init_storage
+from services.release_window import next_window, now_chicago
+from services.scheduler import start_scheduler, release_batch
 
 logging.basicConfig(
     level=logging.INFO,
@@ -33,6 +36,7 @@ client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ["DB_NAME"]]
 
 app = FastAPI(title="The Ultradian Network")
+app.state.scheduler = None
 
 app.add_middleware(
     CORSMiddleware,
@@ -59,14 +63,28 @@ async def on_startup():
     await db.applications.create_index("status")
     await db.profiles.create_index("user_id", unique=True)
     await db.posts.create_index("post_id", unique=True)
-    await db.posts.create_index([("created_at", -1)])
-    await db.posts.create_index("user_id")
+    await db.posts.create_index([("release_at", -1)])
+    await db.posts.create_index([("user_id", 1), ("created_at", -1)])
+    await db.posts.create_index("status")
+    await db.replies.create_index("reply_id", unique=True)
+    await db.replies.create_index([("post_id", 1), ("created_at", 1)])
+    await db.replies.create_index("status")
     await db.files.create_index("storage_path")
+    # Start scheduler
+    try:
+        app.state.scheduler = start_scheduler(db)
+    except Exception as e:
+        logger.warning("Scheduler start failed: %s", e)
     logger.info("Startup complete")
 
 
 @app.on_event("shutdown")
 async def on_shutdown():
+    try:
+        if app.state.scheduler:
+            app.state.scheduler.shutdown(wait=False)
+    except Exception:
+        pass
     client.close()
 
 
@@ -78,27 +96,31 @@ async def root():
 
 @app.get("/api/release-window")
 async def release_window():
-    """Compute the next 8:30am or 5:30pm America/Chicago timestamp."""
-    try:
-        from zoneinfo import ZoneInfo
-        tz = ZoneInfo("America/Chicago")
-    except Exception:
-        # Fallback to UTC if tz data missing
-        tz = timezone.utc
-    now_local = datetime.now(tz)
-    am = now_local.replace(hour=8, minute=30, second=0, microsecond=0)
-    pm = now_local.replace(hour=17, minute=30, second=0, microsecond=0)
-    if now_local < am:
-        nxt = am
-    elif now_local < pm:
-        nxt = pm
-    else:
-        nxt = (am + timedelta(days=1))
+    nxt = next_window()
     return {
-        "next_release_iso": nxt.isoformat(),
+        "next_release_iso": nxt.astimezone(timezone.utc).isoformat(),
+        "next_release_local": nxt.isoformat(),
         "next_release_label": nxt.strftime("%-I:%M%p").lower(),
         "timezone": "America/Chicago",
+        "now_local": now_chicago().isoformat(),
     }
+
+
+from fastapi import Cookie, Header, HTTPException
+from services.auth_helpers import get_current_user, is_admin_email
+
+
+@app.post("/api/admin/release-now")
+async def admin_release_now(
+    session_token: str | None = Cookie(default=None),
+    authorization: str | None = Header(default=None),
+):
+    """Admin trigger to fire the release job immediately. Useful for testing or recovery."""
+    user = await get_current_user(db, session_token, authorization)
+    if not is_admin_email(user["email"]):
+        raise HTTPException(status_code=403, detail="Admin only")
+    summary = await release_batch(db)
+    return summary
 
 
 # Mount routers
@@ -106,4 +128,5 @@ app.include_router(setup_auth(db))
 app.include_router(setup_apps(db))
 app.include_router(setup_profiles(db))
 app.include_router(setup_posts(db))
+app.include_router(setup_replies(db))
 app.include_router(setup_uploads(db))
