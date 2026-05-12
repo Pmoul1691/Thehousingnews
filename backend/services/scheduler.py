@@ -71,20 +71,29 @@ async def release_batch(db) -> dict:
         p["author_name"] = (prof or {}).get("name") or usr.get("name") or "Member"
         p["author_market"] = (prof or {}).get("market") or ""
 
-    # 4. Mail every approved member
-    recipients = await db.users.find({"status": "approved"}, {"_id": 0}).to_list(2000)
+    # 4. Mail every approved member who opted into this window
+    recipients = await db.users.find(
+        {"status": "approved", "suspended": {"$ne": True}},
+        {"_id": 0},
+    ).to_list(2000)
     sent = 0
+    skipped = 0
     for r in recipients:
+        prefs = r.get("digest_prefs") or {"am": True, "pm": True}
+        if not prefs.get(kind, True):
+            skipped += 1
+            continue
         send_digest_email(r["email"], r.get("name") or "", label, kind, due_posts)
         sent += 1
 
-    logger.info("Digest sent for window %s to %s recipients", label, sent)
+    logger.info("Digest sent for window %s to %s recipients (%s skipped by prefs)", label, sent, skipped)
     return {
         "window": label,
         "kind": kind,
         "posts_released": len(due_posts),
         "replies_released": len(due_reply_ids),
         "emails_sent": sent,
+        "emails_skipped": skipped,
     }
 
 

@@ -68,6 +68,8 @@ db.profiles.deleteMany({{user_id: '{user_id}'}});
 db.posts.deleteMany({{user_id: '{user_id}'}});
 db.replies.deleteMany({{user_id: '{user_id}'}});
 db.objective_history.deleteMany({{user_id: '{user_id}'}});
+db.follows.deleteMany({{$or: [{{follower_id: '{user_id}'}}, {{followed_id: '{user_id}'}}]}});
+db.flags.deleteMany({{$or: [{{flagger_id: '{user_id}'}}, {{target_owner_id: '{user_id}'}}]}});
 """
     try:
         _mongo_eval(script)

@@ -13,6 +13,8 @@ import Onboarding from "@/pages/Onboarding";
 import Feed from "@/pages/Feed";
 import PublicFeed from "@/pages/PublicFeed";
 import Profile from "@/pages/Profile";
+import Members from "@/pages/Members";
+import Settings from "@/pages/Settings";
 import Admin from "@/pages/Admin";
 
 function Router() {
@@ -34,6 +36,8 @@ function Router() {
         <Route path="/public" element={<PublicFeed />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/profile/:id" element={<Profile />} />
+        <Route path="/members" element={<Members />} />
+        <Route path="/settings" element={<Settings />} />
         <Route path="/admin" element={<Admin />} />
       </Routes>
     </Layout>

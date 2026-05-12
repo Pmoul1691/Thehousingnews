@@ -1,0 +1,39 @@
+{
+  "summary": "Phase 3 backend testing complete. 52/52 pytest cases pass (100%). New Phase 3 suite (23 tests) covers: GET/PUT /api/me/digest-prefs (defaults am/pm true, persistence, bool validation against non-coercible types); /api/members directory (403 for unapproved viewers, returns approved+non-suspended w/ profile, supports ?q substring on name + market case-insensitive, suspended users excluded); follows endpoints (idempotent POST, GET relationship is_following + is_self with internal follower/following counts only on self vs nulls on others, DELETE unfollows, cannot self-follow 400, missing target 404, /api/me/following hydrates with name/market/avatar and excludes suspended); /api/posts/feed?scope=following (everyone vs following, includes self always, only adds followed authors after follow); flagging (POST /api/posts/{id}/flag and /api/replies/{id}/flag - idempotent per user+target, 404 on missing, no _id leak); admin moderation queue (/api/admin/flags admin-only with hydrated target + owner snippet, hide post/reply auto-resolves open flags, hidden posts/replies excluded from /public, /feed, /by-user, /mine, /posts/{id}/replies for everyone including author viewer, unhide flips back to approved and re-appears, /admin/flags/{id}/dismiss resolves without hiding); admin suspend/unsuspend (suspend hides target's posts from feeds + blocks new POST /api/posts and replies with 403, unsuspend reverses, cannot suspend admin email -> 400, non-admin -> 403). Phase 1 + Phase 2 regression suites (29 tests) still pass.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "PUT /api/me/digest-prefs", "issue": "Pydantic v2 default mode coerces strings ('yes','no','on','off','1','0') and ints 0/1 to bool. Strict bool validation would require Field(strict=True) on the model. Coerced values still persist correctly so functional behavior is fine; flagging for awareness."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_phase3_moderation_follows.py",
+    "/app/backend/tests/test_phase2_batched_release.py",
+    "/app/backend/tests/test_ultradian_backend.py",
+    "/app/backend/tests/conftest.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "routes/posts.py:home_feed - when scope='following' the query['user_id'] is overwritten with {'$in': followed_ids, '$nin': list(suspended)}; this works but reads as two filters in one key. MongoDB tolerates it. For clarity consider building filters incrementally.",
+    "routes/moderation.py:_create_flag - idempotency check is keyed on resolved:False only. After dismiss/hide, the same user can flag the same target again (a new row) which is intentional but worth a code comment.",
+    "routes/users.py:suspend - uses is_admin_email allowlist to forbid suspending an admin (good). Other admin checks across the codebase mix is_admin_email vs user['is_admin'] — inconsistency persists from Phase 2.",
+    "scheduler.release_batch returns emails_sent + emails_skipped now (good). digest_prefs default {am:true, pm:true} is applied if key missing — covered.",
+    "routes/users.py:list_members - O(N) read of all approved users then filter Python-side by q. Fine at small scale; consider Mongo $regex with collation for large directories.",
+    "routes/users.py:my_following intersects suspended filter via users.find({suspended:{$ne:true}}); correct, but the resulting items list is built from `users` not from `rows`, so the order depends on Mongo not on follow order — fine since it then sorts by name.",
+    "Brand rule respected: public profile relationship endpoint returns null counts for non-self viewers (no public follower counts).",
+    "All new endpoints exclude _id in projections; verified across responses via _no_underscore_id walker."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_phase3_moderation_follows.py (new, 23 tests)",
+    "/app/backend/tests/conftest.py (added follows + flags cleanup)"
+  ],
+  "success_rate": {"backend": "100% (52/52)", "frontend": "not tested (per request)"},
+  "test_credentials": "Seeded directly via mongosh into test_database (collections: users, user_sessions). Admin email peter@1691inc.com matches ADMIN_EMAILS allowlist. Bearer tokens supplied via Authorization header.",
+  "seed_data_creation": "Fixtures seed approved_user / needs_app_user / admin_user / second_approved_user (inline) and tear them down + their follows/flags after each test. Force release uses release_at<=now() via mongosh + POST /api/admin/release-now to bypass cron.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Phase 3 suite is in /app/backend/tests/test_phase3_moderation_follows.py and runs alongside Phase 1+2 in ~2 minutes. Run: cd /app/backend && pytest tests/ -v. To test digest_prefs skipping without Brevo, just assert the admin/release-now response includes emails_sent + emails_skipped — verified that opted-out approved users go to skipped count. follows collection key: {follower_id, followed_id}. flags collection key: flag_id; idempotency: (target_kind, target_id, flagger_id, resolved=false). Suspended user check uses {suspended: {$ne: true}} so default-undefined treats users as not suspended.",
+  "rca of the issue": "n/a - no issues found"
+}

@@ -2,6 +2,8 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { API } from "@/lib/api";
 import Replies from "@/components/Replies";
+import FlagButton from "@/components/FlagButton";
+import { useAuth } from "@/context/AuthContext";
 
 function formatWhen(iso) {
   if (!iso) return "";
@@ -13,10 +15,12 @@ function formatWhen(iso) {
 }
 
 export default function PostItem({ post, showReplies = true }) {
+  const { user } = useAuth();
   const author = post.author || {};
   const avatarUrl = author.avatar_path ? `${API}/uploads/file/${author.avatar_path}` : null;
   const imageUrl = post.image_path ? `${API}/uploads/file/${post.image_path}` : null;
   const isQueued = post.is_released === false;
+  const isOwner = user && user.user_id === author.user_id;
 
   return (
     <article data-testid={`post-${post.post_id}`} className="border-b hairline py-10 first:pt-0">
@@ -49,6 +53,18 @@ export default function PostItem({ post, showReplies = true }) {
           <img src={imageUrl} alt="" className="w-full max-h-[520px] object-cover" />
         </div>
       )}
+
+      {!isQueued && user && (
+        <div className="mt-3 flex justify-end">
+          <FlagButton
+            targetKind="post"
+            targetId={post.post_id}
+            viewerFlagged={post.viewer_flagged}
+            isOwner={isOwner}
+          />
+        </div>
+      )}
+
       {showReplies && !isQueued && (
         <Replies postId={post.post_id} replyCount={post.reply_count || 0} />
       )}

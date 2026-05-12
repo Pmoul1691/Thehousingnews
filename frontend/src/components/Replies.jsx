@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import api, { API } from "@/lib/api";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
+import FlagButton from "@/components/FlagButton";
 
 function formatWhen(iso) {
   if (!iso) return "";
@@ -53,7 +54,6 @@ export default function Replies({ postId, replyCount = 0 }) {
   };
 
   const canReply = user && user.status === "approved";
-  const visibleCount = replyCount + (open ? items.filter((r) => !r.is_released && r.user_id === user?.user_id).length : 0);
 
   return (
     <div className="mt-4 pt-4 border-t hairline">
@@ -74,6 +74,7 @@ export default function Replies({ postId, replyCount = 0 }) {
           ) : (
             items.map((r) => {
               const avatarUrl = r.author?.avatar_path ? `${API}/uploads/file/${r.author.avatar_path}` : null;
+              const isOwner = user && user.user_id === r.user_id;
               return (
                 <div key={r.reply_id} data-testid={`reply-${r.reply_id}`} className="flex gap-3 items-start">
                   <div className="w-8 h-8 rounded-full bg-[#F5EDD6] border hairline overflow-hidden flex items-center justify-center shrink-0">
@@ -87,6 +88,16 @@ export default function Replies({ postId, replyCount = 0 }) {
                       <span className="font-sans text-xs text-muted-ink">{formatWhen(r.created_at)}</span>
                       {!r.is_released && (
                         <span className="font-sans text-[10px] uppercase tracking-wide text-gold border border-gold-mid px-1.5 py-0.5 rounded-sm">queued</span>
+                      )}
+                      {r.is_released && user && (
+                        <div className="ml-auto">
+                          <FlagButton
+                            targetKind="reply"
+                            targetId={r.reply_id}
+                            viewerFlagged={r.viewer_flagged}
+                            isOwner={isOwner}
+                          />
+                        </div>
                       )}
                     </div>
                     <div className="prose-serif text-[15px] leading-relaxed ink whitespace-pre-wrap mt-1">{r.text}</div>

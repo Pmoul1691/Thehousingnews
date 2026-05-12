@@ -3,15 +3,20 @@ import { Link, useParams } from "react-router-dom";
 import api, { API } from "@/lib/api";
 import PostItem from "@/components/PostItem";
 import { useAuth } from "@/context/AuthContext";
+import { toast } from "sonner";
 
 export default function Profile() {
   const { id } = useParams();
   const { user } = useAuth();
   const [profile, setProfile] = useState(null);
   const [posts, setPosts] = useState([]);
+  const [rel, setRel] = useState(null);
   const [notFound, setNotFound] = useState(false);
+  const [following, setFollowing] = useState([]);
+  const [busy, setBusy] = useState(false);
 
   const isSelf = !id || (user && id === user.user_id);
+  const targetId = isSelf ? user?.user_id : id;
 
   useEffect(() => {
     let cancelled = false;
@@ -24,6 +29,14 @@ export default function Profile() {
           setProfile(r.data);
           const pr = await api.get(`/posts/by-user/${r.data.user_id}`);
           if (!cancelled) setPosts(pr.data.items || []);
+          if (user) {
+            const relRes = await api.get(`/users/${r.data.user_id}/relationship`);
+            if (!cancelled) setRel(relRes.data);
+            if (isSelf) {
+              const fr = await api.get("/me/following");
+              if (!cancelled) setFollowing(fr.data.items || []);
+            }
+          }
         } else {
           setNotFound(true);
         }
@@ -32,7 +45,27 @@ export default function Profile() {
       }
     })();
     return () => { cancelled = true; };
-  }, [id, isSelf]);
+  }, [id, isSelf, user]);
+
+  const toggleFollow = async () => {
+    if (!rel || isSelf) return;
+    setBusy(true);
+    try {
+      if (rel.is_following) {
+        await api.delete(`/users/${targetId}/follow`);
+        setRel({ ...rel, is_following: false });
+        toast.success("Unfollowed");
+      } else {
+        await api.post(`/users/${targetId}/follow`);
+        setRel({ ...rel, is_following: true });
+        toast.success("Following");
+      }
+    } catch (e) {
+      toast.error("Could not update follow");
+    } finally {
+      setBusy(false);
+    }
+  };
 
   if (notFound) {
     return (
@@ -60,11 +93,30 @@ export default function Profile() {
           <p className="uppercase-label mb-2">{profile.market}</p>
           <h1 className="font-display font-semibold text-3xl ink mb-2">{profile.name}</h1>
           {profile.bio && <p className="prose-serif text-base ink/80 leading-relaxed mb-4 max-w-prose">{profile.bio}</p>}
-          {isSelf && (
-            <Link to="/onboarding" data-testid="profile-edit-link" className="font-sans text-sm font-medium ink hover:text-gold transition-colors underline underline-offset-4 decoration-gold-mid">
-              Edit profile
-            </Link>
-          )}
+
+          <div className="flex items-center gap-4 mt-3">
+            {isSelf ? (
+              <>
+                <Link to="/onboarding" data-testid="profile-edit-link" className="font-sans text-sm font-medium ink hover:text-gold transition-colors underline underline-offset-4 decoration-gold-mid">
+                  Edit profile
+                </Link>
+                <Link to="/settings" data-testid="profile-settings-link" className="font-sans text-sm font-medium ink hover:text-gold transition-colors underline underline-offset-4 decoration-gold-mid">
+                  Inbox preferences
+                </Link>
+              </>
+            ) : (
+              rel && (
+                <button
+                  data-testid="profile-follow-btn"
+                  onClick={toggleFollow}
+                  disabled={busy}
+                  className={`font-sans font-semibold text-sm px-5 py-2 rounded-sm transition-opacity disabled:opacity-50 ${rel.is_following ? "border border-gold text-gold hover:bg-gold-mid" : "bg-gold text-cream hover:opacity-90"}`}
+                >
+                  {rel.is_following ? "Following" : "Follow"}
+                </button>
+              )
+            )}
+          </div>
         </div>
       </section>
 
@@ -79,6 +131,21 @@ export default function Profile() {
           ))}
         </ol>
       </section>
+
+      {isSelf && following.length > 0 && (
+        <section className="border-t hairline pt-10 mb-12" data-testid="profile-following">
+          <p className="uppercase-label mb-4">You follow</p>
+          <ul className="grid sm:grid-cols-2 gap-x-6">
+            {following.map((m) => (
+              <li key={m.user_id} className="py-2">
+                <Link to={`/profile/${m.user_id}`} className="font-sans text-sm font-medium ink hover:text-gold transition-colors">
+                  {m.name} <span className="text-muted-ink">{m.market ? `· ${m.market}` : ""}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section className="border-t hairline pt-10">
         <p className="uppercase-label mb-6">Recent posts</p>

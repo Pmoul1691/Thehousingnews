@@ -20,6 +20,8 @@ from routes.profiles import setup as setup_profiles
 from routes.posts import setup as setup_posts
 from routes.replies import setup as setup_replies
 from routes.uploads import setup as setup_uploads
+from routes.users import setup as setup_users
+from routes.moderation import setup as setup_moderation
 from services.object_storage import init_storage
 from services.release_window import next_window, now_chicago
 from services.scheduler import start_scheduler, release_batch
@@ -130,3 +132,5 @@ app.include_router(setup_profiles(db))
 app.include_router(setup_posts(db))
 app.include_router(setup_replies(db))
 app.include_router(setup_uploads(db))
+app.include_router(setup_users(db))
+app.include_router(setup_moderation(db))

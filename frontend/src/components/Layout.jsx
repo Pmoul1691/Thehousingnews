@@ -23,6 +23,7 @@ export default function Layout({ children }) {
             {user && user.status === "approved" && (
               <>
                 <Link to="/feed" data-testid="nav-feed" className="font-sans text-sm font-medium hover:text-gold transition-colors">Feed</Link>
+                <Link to="/members" data-testid="nav-members" className="font-sans text-sm font-medium hover:text-gold transition-colors">Members</Link>
                 <Link to="/public" data-testid="nav-public" className="font-sans text-sm font-medium hover:text-gold transition-colors">Public</Link>
                 <Link to="/profile" data-testid="nav-profile" className="font-sans text-sm font-medium hover:text-gold transition-colors">Profile</Link>
                 {user.is_admin && (

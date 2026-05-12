@@ -29,10 +29,16 @@ def setup(db):
     ):
         return await get_current_user(db, session_token, authorization)
 
+    async def _suspended_user_ids() -> set:
+        rows = await db.users.find({"suspended": True}, {"_id": 0, "user_id": 1}).to_list(2000)
+        return {r["user_id"] for r in rows}
+
     @router.post("/{post_id}/replies")
     async def create_reply(post_id: str, payload: ReplyCreate, user=Depends(_user)):
         if user.get("status") != "approved":
             raise HTTPException(status_code=403, detail="Membership not approved")
+        if user.get("suspended"):
+            raise HTTPException(status_code=403, detail="Account suspended")
         post = await db.posts.find_one({"post_id": post_id}, {"_id": 0})
         if not post:
             raise HTTPException(status_code=404, detail="Post not found")
@@ -57,35 +63,53 @@ def setup(db):
         session_token: Optional[str] = Cookie(default=None),
         authorization: Optional[str] = Header(default=None),
     ):
-        # Optional auth. If signed-in approved member, also return their own pending replies.
         viewer = None
         try:
             viewer = await get_current_user(db, session_token, authorization)
         except Exception:
             viewer = None
 
+        suspended = await _suspended_user_ids()
         now_iso = _now_iso()
-        # Released replies (status=approved OR release_at<=now)
+
         released = await db.replies.find(
-            {"post_id": post_id, "release_at": {"$lte": now_iso}},
+            {
+                "post_id": post_id,
+                "release_at": {"$lte": now_iso},
+                "status": {"$nin": ["hidden"]},
+                "user_id": {"$nin": list(suspended)},
+            },
             {"_id": 0},
         ).sort("created_at", 1).to_list(200)
 
         items = released
         if viewer and viewer.get("status") == "approved":
             own_pending = await db.replies.find(
-                {"post_id": post_id, "user_id": viewer["user_id"], "release_at": {"$gt": now_iso}},
+                {
+                    "post_id": post_id,
+                    "user_id": viewer["user_id"],
+                    "release_at": {"$gt": now_iso},
+                    "status": {"$nin": ["hidden"]},
+                },
                 {"_id": 0},
             ).sort("created_at", 1).to_list(50)
             items = items + own_pending
 
-        # Attach authors
         if items:
             user_ids = list({r["user_id"] for r in items})
             profiles = await db.profiles.find({"user_id": {"$in": user_ids}}, {"_id": 0}).to_list(500)
             users = await db.users.find({"user_id": {"$in": user_ids}}, {"_id": 0}).to_list(500)
             pmap = {p["user_id"]: p for p in profiles}
             umap = {u["user_id"]: u for u in users}
+
+            flagged_ids = set()
+            if viewer:
+                f = await db.flags.find(
+                    {"flagger_id": viewer["user_id"], "target_kind": "reply", "target_id": {"$in": [r["reply_id"] for r in items]}, "resolved": False},
+                    {"_id": 0, "target_id": 1},
+                ).to_list(500)
+                flagged_ids = {x["target_id"] for x in f}
+
             for r in items:
                 prof = pmap.get(r["user_id"])
                 usr = umap.get(r["user_id"], {})
@@ -96,6 +120,7 @@ def setup(db):
                     "market": (prof or {}).get("market"),
                 }
                 r["is_released"] = r.get("release_at", "") <= now_iso
+                r["viewer_flagged"] = r["reply_id"] in flagged_ids
         return {"items": items}
 
     return router
