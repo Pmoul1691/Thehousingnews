@@ -1,0 +1,86 @@
+{
+  "theme": "LIGHT",
+  "archetype": "Organic & Earthy / Custom Luxury",
+  "design_philosophy": {
+    "core_principles": [
+      "Calm by design: Wide open spaces, slow-paced interaction, distraction-free reading.",
+      "Editorial format: Text is paramount. Focus on long-form reading, similar to a high-end magazine.",
+      "No engagement traps: Strictly NO follower counts, trending tags, chat widgets, or exit-intent popups."
+    ],
+    "voice_and_tone": [
+      "First-person singular from Pete ('I built this'). Direct second-person ('you' not 'the member').",
+      "Short sentences. Plain words. NO motivational hype.",
+      "Strictly NO em dashes or en dashes anywhere.",
+      "Specific numbers stay specific."
+    ]
+  },
+  "colors": {
+    "primary_gold": "#AD893E",
+    "background_pale_gold": "#F5EDD6",
+    "accent_mid_gold": "#E8D4A0",
+    "text_dark": "#2C2410",
+    "background_cream": "#FDFAF4",
+    "accent_deep_red": "#A4161A"
+  },
+  "typography": {
+    "fonts": {
+      "headings": "Plus Jakarta Sans",
+      "body_long_form": "Georgia",
+      "ui_labels": "Plus Jakarta Sans"
+    },
+    "styling": {
+      "h1": "text-4xl sm:text-5xl lg:text-6xl font-semibold tracking-tight text-[#2C2410]",
+      "h2": "text-2xl sm:text-3xl lg:text-4xl font-semibold tracking-tight text-[#2C2410]",
+      "body": "font-serif text-base sm:text-lg leading-relaxed text-[#2C2410] max-w-prose",
+      "ui": "font-sans text-sm tracking-wide font-medium text-[#2C2410]"
+    }
+  },
+  "layout_and_spacing": {
+    "philosophy": "Generous Spacing Philosophy. High white space. Content is centered and structured linearly.",
+    "container": "max-w-3xl mx-auto px-6 sm:px-12",
+    "padding_scale": "p-8 to p-24 for vertical rhythm",
+    "borders": "1px solid #E8D4A0 (Mid Gold) to separate feed items, NO heavy drop shadows. Flat surfaces only."
+  },
+  "components": {
+    "buttons": "Flat, background #AD893E, text #FDFAF4, rounded-md, no shadow. Hover: slight opacity shift to 90%. Use data-testid.",
+    "inputs": "Shadcn-based but customized. 1px solid #E8D4A0 border, #FDFAF4 background. Focus: ring-1 ring-[#AD893E].",
+    "feed_posts": "Cardless layout. Posts separated by thin gold borders (border-b border-[#E8D4A0]) with ample vertical padding (py-12).",
+    "navigation": "Minimalist header. Sticky top. Contains next release window timestamp in a subtle UI label. Background #FDFAF4/90 with backdrop-blur-md."
+  },
+  "media_and_images": {
+    "rules": "No stock photography of teams. Only calm architecture, textures, and the Bloom mark.",
+    "brand_assets": {
+      "logo_bloom_svg": "https://customer-assets.emergentagent.com/job_0876d56f-54de-4e6e-9735-44bafdfed776/artifacts/21f0cb41_Gold.svg",
+      "logo_usage": "80-90px in hero, 28-36px in footer, 24-32px in top-left nav as home button."
+    },
+    "hero_and_marketing": [
+      {
+        "url": "https://static.prod-images.emergentagent.com/jobs/b3080531-d70d-48f6-a811-76bd01c38f94/images/9e63de29d3cb5585d4ded4ac424d710877c1341c355fb87f194f91b875a45a55.png",
+        "description": "Minimalist interior architectural detail with golden hour light",
+        "category": "hero_background"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1773680176530-876ee4dd1dba?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NDh8MHwxfHNlYXJjaHwxfHxtaW5pbWFsaXN0JTIwbW9kZXJuJTIwYXJjaGl0ZWN0dXJlJTIwd2FybSUyMGxpZ2h0fGVufDB8fHx8MTc3ODYwNzEzOXww&ixlib=rb-4.1.0&q=85",
+        "description": "Modern architecture detail, orange light",
+        "category": "marketing_accent"
+      },
+      {
+        "url": "https://static.prod-images.emergentagent.com/jobs/b3080531-d70d-48f6-a811-76bd01c38f94/images/0f9f8f97b92d505d8c1823e667f4be391378578f0d307f79e6f39a084eb9e3b4.png",
+        "description": "Abstract serene background texture in cream and pale gold",
+        "category": "surface_texture"
+      }
+    ]
+  },
+  "testing_and_qa": {
+    "data_testid_rules": "All interactive elements, buttons, nav links, and form inputs MUST include a data-testid attribute formatted in kebab-case and role-based."
+  },
+  "instructions_to_main_agent": [
+    "Import Plus Jakarta Sans and Georgia fonts into the application properly.",
+    "Follow the specific color palette exactly as specified in the colors section. Map them in tailwind.config.js.",
+    "Do NOT use standard shadow cards for the feed; use flat, spacious layouts with thin #E8D4A0 borders.",
+    "Ensure 'Next release window' logic displays exactly 8:30am or 5:30pm America/Chicago time in the UI.",
+    "Do not include any chat widgets, popups, or follower counts anywhere in the UI.",
+    "Strictly avoid em dashes and en dashes in all platform copy. Check hardcoded marketing copy.",
+    "Ensure the Bloom Mark SVG uses exactly the sizes defined (Hero: 80-90px, Nav: 24-32px, Footer: 28-36px)."
+  ]
+}
