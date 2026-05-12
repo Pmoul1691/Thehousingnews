@@ -48,6 +48,15 @@ of teams.
 - Object storage upload endpoint with size/MIME validation and serving via `/api/uploads/file/{path}`.
 - Next release window header indicator (`/api/release-window`).
 
+## Phase 2 — Implemented (2026-05-12)
+- **Batched release**: `POST /api/posts` now stores `status=pending_release` with `release_at = next 8:30am or 5:30pm America/Chicago`. Feeds filter `release_at <= now`.
+- **APScheduler async cron** at 8:30 and 17:30 America/Chicago flips due `pending_release` posts and replies to `approved` and sends AM/PM digest emails.
+- **`/api/posts/mine`** returns the user's own queued + released posts with `is_released` boolean for the "Your queue" panel.
+- **Reply threads**: new `replies` collection, `POST /api/posts/{post_id}/replies` (300-char, pending_release, releases at the next window), `GET /api/posts/{post_id}/replies` returns released + the viewer's own pending. `reply_count` is included on each post.
+- **Admin trigger** `POST /api/admin/release-now` (admin-only) fires the release job immediately and returns `{window, kind, posts_released, replies_released, emails_sent}`. Useful for testing or recovery.
+- **Brevo digest email** with author name, market, and snippet for each post in the batch, tagged `digest_am` or `digest_pm`.
+- **Frontend**: Composer shows "Releases at X CT" preview; `Your queue` panel on the feed for own pending posts; PostItem shows a Queued badge + reply count + expandable Replies thread with inline composer.
+
 ## Phases 2-4 (not built yet, listed in architecture)
 - **Phase 2**: Batched 8:30am/5:30pm release scheduler. AM/PM digest emails via Brevo.
   Reply threads. Posts move from `pending_release` to `approved` at scheduled times.

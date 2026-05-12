@@ -1,6 +1,6 @@
 """APScheduler jobs: flip pending_release posts/replies to approved, send AM/PM digests."""
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from services.release_window import CHICAGO, previous_window, window_kind, window_label
@@ -16,70 +16,76 @@ def _to_iso(dt: datetime) -> str:
 async def release_batch(db) -> dict:
     """Flip all pending_release posts and replies whose release_at <= now to approved.
 
-    Then build the AM/PM digest and email approved members.
-    Returns a summary dict (used in tests).
+    Build the digest from exactly the posts flipped in this batch, then email
+    approved members.
     """
     now = datetime.now(CHICAGO)
     cutoff_iso = _to_iso(now)
 
-    # Find the window we just crossed. previous_window returns the most recent < now.
     win = previous_window(now)
     kind = window_kind(win)
     label = window_label(win)
 
-    # Flip posts
-    posts_res = await db.posts.update_many(
+    # 1. Snapshot the rows to flip BEFORE updating (so the digest covers only this batch)
+    due_posts = await db.posts.find(
         {"status": "pending_release", "release_at": {"$lte": cutoff_iso}},
-        {"$set": {"status": "approved"}},
-    )
-    # Flip replies
-    replies_res = await db.replies.update_many(
+        {"_id": 0},
+    ).sort("release_at", -1).to_list(500)
+    due_post_ids = [p["post_id"] for p in due_posts]
+
+    due_replies = await db.replies.find(
         {"status": "pending_release", "release_at": {"$lte": cutoff_iso}},
-        {"$set": {"status": "approved"}},
-    )
+        {"_id": 0, "reply_id": 1},
+    ).to_list(1000)
+    due_reply_ids = [r["reply_id"] for r in due_replies]
+
+    # 2. Flip statuses
+    if due_post_ids:
+        await db.posts.update_many(
+            {"post_id": {"$in": due_post_ids}},
+            {"$set": {"status": "approved"}},
+        )
+    if due_reply_ids:
+        await db.replies.update_many(
+            {"reply_id": {"$in": due_reply_ids}},
+            {"$set": {"status": "approved"}},
+        )
 
     logger.info(
-        "Release batch ran for window %s: %s posts, %s replies flipped",
-        label, posts_res.modified_count, replies_res.modified_count,
+        "Release batch for window %s: %s posts, %s replies released",
+        label, len(due_post_ids), len(due_reply_ids),
     )
 
-    # Build digest of posts released *for this window*. Use a tight ISO range:
-    # posts whose release_at is between previous_window-12h and now.
-    twelve_hours_ago = win - timedelta(hours=12)
-    posts = await db.posts.find(
-        {
-            "status": "approved",
-            "release_at": {"$gte": _to_iso(twelve_hours_ago), "$lte": cutoff_iso},
-        },
-        {"_id": 0},
-    ).sort("release_at", -1).to_list(200)
+    if not due_posts:
+        return {"window": label, "kind": kind, "posts_released": 0, "replies_released": len(due_reply_ids), "emails_sent": 0}
 
-    if not posts:
-        logger.info("No posts to digest for window %s", label)
-        return {"window": label, "kind": kind, "posts_released": 0, "emails_sent": 0}
-
-    # Attach author info
-    user_ids = list({p["user_id"] for p in posts})
+    # 3. Attach author info on the snapshot
+    user_ids = list({p["user_id"] for p in due_posts})
     profiles = await db.profiles.find({"user_id": {"$in": user_ids}}, {"_id": 0}).to_list(500)
     users = await db.users.find({"user_id": {"$in": user_ids}}, {"_id": 0}).to_list(500)
     pmap = {p["user_id"]: p for p in profiles}
     umap = {u["user_id"]: u for u in users}
-    for p in posts:
+    for p in due_posts:
         prof = pmap.get(p["user_id"])
         usr = umap.get(p["user_id"], {})
         p["author_name"] = (prof or {}).get("name") or usr.get("name") or "Member"
         p["author_market"] = (prof or {}).get("market") or ""
 
-    # Recipients: all approved members
+    # 4. Mail every approved member
     recipients = await db.users.find({"status": "approved"}, {"_id": 0}).to_list(2000)
-
     sent = 0
     for r in recipients:
-        send_digest_email(r["email"], r.get("name") or "", label, kind, posts)
+        send_digest_email(r["email"], r.get("name") or "", label, kind, due_posts)
         sent += 1
 
     logger.info("Digest sent for window %s to %s recipients", label, sent)
-    return {"window": label, "kind": kind, "posts_released": len(posts), "emails_sent": sent}
+    return {
+        "window": label,
+        "kind": kind,
+        "posts_released": len(due_posts),
+        "replies_released": len(due_reply_ids),
+        "emails_sent": sent,
+    }
 
 
 def start_scheduler(db) -> AsyncIOScheduler:
