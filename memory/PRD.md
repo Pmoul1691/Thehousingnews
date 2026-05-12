@@ -57,6 +57,16 @@ of teams.
 - **Brevo digest email** with author name, market, and snippet for each post in the batch, tagged `digest_am` or `digest_pm`.
 - **Frontend**: Composer shows "Releases at X CT" preview; `Your queue` panel on the feed for own pending posts; PostItem shows a Queued badge + reply count + expandable Replies thread with inline composer.
 
+## Phase 3 + Moderation + Digest prefs — Implemented (2026-05-12)
+- **Follows**: `POST/DELETE /api/users/{id}/follow`, `GET /api/users/{id}/relationship`, `GET /api/me/following`. New `follows` collection with unique compound index. No public follower counts (brand rule); counts only returned when viewing your own profile.
+- **Member directory**: `GET /api/members?q=` returns approved + non-suspended members with profile snippet, searchable on name or market substring (case-insensitive). 403 to unapproved viewers. Frontend page `/members`.
+- **Feed scope toggle**: `GET /api/posts/feed?scope=following|everyone` returns either everyone-in-the-room or only authors you follow (always includes self in following view). Frontend persists choice in localStorage.
+- **Digest preferences**: new `digest_prefs={am, pm}` on user. `GET/PUT /api/me/digest-prefs`. Scheduler reads prefs and returns `emails_sent`/`emails_skipped` counts. Frontend `/settings` page.
+- **Moderation - members can flag**: `POST /api/posts/{id}/flag` and `POST /api/replies/{id}/flag` (300-char optional reason, idempotent per user+target). Frontend `FlagButton` on each post/reply (not shown for own content). Reported responses persist `viewer_flagged` flag.
+- **Moderation - admin queue**: `GET /api/admin/flags?status=open|resolved` returns hydrated target + owner snippets. Actions: `POST /api/admin/posts/{id}/hide|unhide`, `POST /api/admin/replies/{id}/hide`, `POST /api/admin/flags/{id}/dismiss`. Hiding auto-resolves all open flags on that target.
+- **Moderation - suspend members**: `POST /api/admin/users/{id}/suspend|unsuspend`. Suspended users cannot create posts or replies (403), and their existing content is hidden from public/feed/by-user/replies endpoints (admins can still see). Admin emails cannot be suspended.
+- **Frontend**: Admin page now has Applications and Moderation tabs. Profile page shows Follow / Following button for others and inbox preferences link for self. Layout adds Members nav link.
+
 ## Phases 2-4 (not built yet, listed in architecture)
 - **Phase 2**: Batched 8:30am/5:30pm release scheduler. AM/PM digest emails via Brevo.
   Reply threads. Posts move from `pending_release` to `approved` at scheduled times.
