@@ -68,10 +68,12 @@ def setup(db):
                 "name": (prof or {}).get("name") or usr.get("name") or "Member",
                 "market": (prof or {}).get("market"),
                 "avatar_path": (prof or {}).get("avatar_path"),
+                "is_supporter": (usr.get("supporter_until") or "") > now_iso,
             }
             p["reply_count"] = reply_map.get(p["post_id"], 0)
             p["is_released"] = p.get("release_at", "") <= now_iso
             p["viewer_flagged"] = p["post_id"] in flagged_ids
+            p["is_pete_pick"] = bool(p.get("is_pete_pick"))
         return items
 
     @router.post("")

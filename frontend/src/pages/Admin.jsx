@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import api from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
+import AdminAnalyticsPanel from "@/components/AdminAnalyticsPanel";
 
 export default function Admin() {
   const { user, loading } = useAuth();
@@ -36,7 +37,8 @@ export default function Admin() {
     if (!user) { navigate("/", { replace: true }); return; }
     if (!user.is_admin) { navigate("/feed", { replace: true }); return; }
     if (section === "apps") loadApps(appsTab);
-    else loadFlags(flagsTab);
+    else if (section === "mod") loadFlags(flagsTab);
+    // 'stats' loads inside AdminAnalyticsPanel
   }, [user, loading, navigate, section, appsTab, flagsTab, loadApps, loadFlags]);
 
   const actApp = async (app_id, kind) => {
@@ -96,6 +98,7 @@ export default function Admin() {
         {[
           { k: "apps", l: "Applications" },
           { k: "mod", l: "Moderation" },
+          { k: "stats", l: "Analytics" },
         ].map((t) => (
           <button
             key={t.k}
@@ -108,7 +111,9 @@ export default function Admin() {
         ))}
       </div>
 
-      {section === "apps" ? (
+      {section === "stats" ? (
+        <AdminAnalyticsPanel />
+      ) : section === "apps" ? (
         <>
           <div className="flex items-center gap-4 mb-10 border-b hairline">
             {["pending", "approved", "declined"].map((t) => (

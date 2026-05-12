@@ -182,7 +182,7 @@ def _digest_item_html(post: dict) -> str:
     """
 
 
-def send_digest_email(email: str, name: str, window_label: str, kind: str, posts: list[dict]) -> dict:
+def send_digest_email(email: str, name: str, window_label: str, kind: str, posts: list[dict], picks: list[dict] | None = None) -> dict:
     """Send the AM or PM digest of the just-released batch."""
     count = len(posts)
     if count == 0:
@@ -192,11 +192,23 @@ def send_digest_email(email: str, name: str, window_label: str, kind: str, posts
     more_note = ""
     if count > 20:
         more_note = f'<p style="font-family:Georgia, serif; color:#2C2410; font-size:13px; margin-top:16px;">Plus {count - 20} more in the feed.</p>'
+
+    picks_html = ""
+    if picks:
+        picks_items = "".join(_digest_item_html(p) for p in picks[:3])
+        picks_html = f"""
+        <div style="margin-top:36px; padding-top:20px; border-top:1px solid #E8D4A0;">
+          <div style="font-family:'Plus Jakarta Sans', Arial, sans-serif; font-weight:600; font-size:11px; letter-spacing:0.18em; text-transform:uppercase; color:#AD893E; margin-bottom:8px;">Pete recommends</div>
+          {picks_items}
+        </div>
+        """
+
     html = _wrap(f"""
       <p>Hi {name},</p>
       <p>The {intro_word} release just dropped. {count} {'post' if count == 1 else 'posts'} from the room.</p>
       {items_html}
       {more_note}
+      {picks_html}
       <p style="margin-top:24px;">
         <a href="{os.environ.get('APP_PUBLIC_URL', '')}/feed" style="display:inline-block; background:#AD893E; color:#FDFAF4; padding:10px 20px; text-decoration:none; font-family:'Plus Jakarta Sans', Arial, sans-serif; font-weight:600; font-size:13px;">Open the feed</a>
       </p>

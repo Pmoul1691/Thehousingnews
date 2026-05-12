@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import api from "@/lib/api";
 import PostItem from "@/components/PostItem";
+import PetePicksSection from "@/components/PetePicksSection";
 
 export default function PublicFeed() {
   const [items, setItems] = useState([]);
@@ -17,6 +18,11 @@ export default function PublicFeed() {
       <p className="font-serif text-base ink/80 leading-relaxed max-w-prose mb-12">
         A read-only window into the Network. The full feed is for members.
       </p>
+
+      <div className="mb-12">
+        <PetePicksSection max={3} />
+      </div>
+
       {loading ? (
         <div className="font-serif text-base text-muted-ink py-12 text-center">Loading.</div>
       ) : items.length === 0 ? (
@@ -27,7 +33,7 @@ export default function PublicFeed() {
           </p>
         </div>
       ) : (
-        <div>{items.map((p) => <PostItem key={p.post_id} post={p} />)}</div>
+        <div>{items.map((p) => <PostItem key={p.post_id} post={p} showReplies={false} />)}</div>
       )}
     </div>
   );

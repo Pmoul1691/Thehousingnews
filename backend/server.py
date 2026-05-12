@@ -22,6 +22,9 @@ from routes.replies import setup as setup_replies
 from routes.uploads import setup as setup_uploads
 from routes.users import setup as setup_users
 from routes.moderation import setup as setup_moderation
+from routes.picks import setup as setup_picks
+from routes.analytics import setup as setup_analytics
+from routes.payments import setup as setup_payments
 from services.object_storage import init_storage
 from services.release_window import next_window, now_chicago
 from services.scheduler import start_scheduler, release_batch
@@ -72,6 +75,14 @@ async def on_startup():
     await db.replies.create_index([("post_id", 1), ("created_at", 1)])
     await db.replies.create_index("status")
     await db.files.create_index("storage_path")
+    await db.follows.create_index([("follower_id", 1), ("followed_id", 1)], unique=True)
+    await db.follows.create_index("followed_id")
+    await db.flags.create_index("flag_id", unique=True)
+    await db.flags.create_index([("target_kind", 1), ("target_id", 1)])
+    await db.flags.create_index("resolved")
+    await db.payment_transactions.create_index("session_id", unique=True)
+    await db.payment_transactions.create_index("user_id")
+    await db.payment_transactions.create_index("payment_status")
     # Start scheduler
     try:
         app.state.scheduler = start_scheduler(db)
@@ -134,3 +145,6 @@ app.include_router(setup_replies(db))
 app.include_router(setup_uploads(db))
 app.include_router(setup_users(db))
 app.include_router(setup_moderation(db))
+app.include_router(setup_picks(db))
+app.include_router(setup_analytics(db))
+app.include_router(setup_payments(db))

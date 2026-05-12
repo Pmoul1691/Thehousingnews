@@ -15,6 +15,8 @@ import PublicFeed from "@/pages/PublicFeed";
 import Profile from "@/pages/Profile";
 import Members from "@/pages/Members";
 import Settings from "@/pages/Settings";
+import Upgrade from "@/pages/Upgrade";
+import UpgradeSuccess from "@/pages/UpgradeSuccess";
 import Admin from "@/pages/Admin";
 
 function Router() {
@@ -38,6 +40,8 @@ function Router() {
         <Route path="/profile/:id" element={<Profile />} />
         <Route path="/members" element={<Members />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/upgrade" element={<Upgrade />} />
+        <Route path="/upgrade/success" element={<UpgradeSuccess />} />
         <Route path="/admin" element={<Admin />} />
       </Routes>
     </Layout>

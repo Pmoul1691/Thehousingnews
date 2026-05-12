@@ -1,9 +1,10 @@
-import React from "react";
+import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { API } from "@/lib/api";
+import api, { API } from "@/lib/api";
 import Replies from "@/components/Replies";
 import FlagButton from "@/components/FlagButton";
 import { useAuth } from "@/context/AuthContext";
+import { toast } from "sonner";
 
 function formatWhen(iso) {
   if (!iso) return "";
@@ -14,16 +15,37 @@ function formatWhen(iso) {
   } catch { return ""; }
 }
 
-export default function PostItem({ post, showReplies = true }) {
+export default function PostItem({ post, showReplies = true, compact = false, onChange }) {
   const { user } = useAuth();
   const author = post.author || {};
   const avatarUrl = author.avatar_path ? `${API}/uploads/file/${author.avatar_path}` : null;
   const imageUrl = post.image_path ? `${API}/uploads/file/${post.image_path}` : null;
   const isQueued = post.is_released === false;
   const isOwner = user && user.user_id === author.user_id;
+  const [busy, setBusy] = useState(false);
+
+  const togglePick = async () => {
+    setBusy(true);
+    try {
+      const url = post.is_pete_pick ? `/admin/posts/${post.post_id}/unpick` : `/admin/posts/${post.post_id}/pick`;
+      await api.post(url);
+      toast.success(post.is_pete_pick ? "Removed from Pete picks" : "Added to Pete picks");
+      onChange && onChange();
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || "Could not update");
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <article data-testid={`post-${post.post_id}`} className="border-b hairline py-10 first:pt-0">
+      {post.is_pete_pick && !compact && (
+        <div className="mb-4 flex items-center gap-2" data-testid={`pete-pick-${post.post_id}`}>
+          <span className="font-sans text-[10px] uppercase tracking-[0.18em] font-semibold text-gold">Pete pick</span>
+          <span className="h-px flex-1 bg-gold-mid" />
+        </div>
+      )}
       <header className="flex items-start gap-4 mb-5">
         <div className="w-10 h-10 rounded-full bg-[#F5EDD6] border hairline overflow-hidden flex items-center justify-center shrink-0">
           {avatarUrl ? <img src={avatarUrl} alt="" className="w-full h-full object-cover" /> : (
@@ -31,9 +53,14 @@ export default function PostItem({ post, showReplies = true }) {
           )}
         </div>
         <div className="flex-1 min-w-0">
-          <Link to={`/profile/${author.user_id}`} data-testid={`post-author-${post.post_id}`} className="font-sans text-sm font-semibold ink hover:text-gold transition-colors">
-            {author.name || "Member"}
-          </Link>
+          <div className="flex items-center gap-1.5">
+            <Link to={`/profile/${author.user_id}`} data-testid={`post-author-${post.post_id}`} className="font-sans text-sm font-semibold ink hover:text-gold transition-colors">
+              {author.name || "Member"}
+            </Link>
+            {author.is_supporter && (
+              <span data-testid={`supporter-badge-${post.post_id}`} title="Network supporter" className="text-gold text-sm leading-none">✦</span>
+            )}
+          </div>
           {author.market && <div className="font-sans text-xs text-muted-ink mt-0.5">{author.market}</div>}
         </div>
         <div className="text-right whitespace-nowrap pt-1">
@@ -54,18 +81,30 @@ export default function PostItem({ post, showReplies = true }) {
         </div>
       )}
 
-      {!isQueued && user && (
-        <div className="mt-3 flex justify-end">
-          <FlagButton
-            targetKind="post"
-            targetId={post.post_id}
-            viewerFlagged={post.viewer_flagged}
-            isOwner={isOwner}
-          />
+      {!isQueued && !compact && (
+        <div className="mt-3 flex items-center justify-end gap-3">
+          {user && user.is_admin && (
+            <button
+              data-testid={`admin-pick-${post.post_id}`}
+              onClick={togglePick}
+              disabled={busy}
+              className="font-sans text-xs text-gold hover:opacity-80 transition-opacity disabled:opacity-50 uppercase tracking-wide"
+            >
+              {post.is_pete_pick ? "Unpick" : "Pete pick"}
+            </button>
+          )}
+          {user && (
+            <FlagButton
+              targetKind="post"
+              targetId={post.post_id}
+              viewerFlagged={post.viewer_flagged}
+              isOwner={isOwner}
+            />
+          )}
         </div>
       )}
 
-      {showReplies && !isQueued && (
+      {showReplies && !isQueued && !compact && (
         <Replies postId={post.post_id} replyCount={post.reply_count || 0} />
       )}
     </article>

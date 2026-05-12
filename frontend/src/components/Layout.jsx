@@ -26,6 +26,7 @@ export default function Layout({ children }) {
                 <Link to="/members" data-testid="nav-members" className="font-sans text-sm font-medium hover:text-gold transition-colors">Members</Link>
                 <Link to="/public" data-testid="nav-public" className="font-sans text-sm font-medium hover:text-gold transition-colors">Public</Link>
                 <Link to="/profile" data-testid="nav-profile" className="font-sans text-sm font-medium hover:text-gold transition-colors">Profile</Link>
+                <Link to="/upgrade" data-testid="nav-upgrade" className="font-sans text-sm font-medium text-gold hover:opacity-80 transition-opacity">Support</Link>
                 {user.is_admin && (
                   <Link to="/admin" data-testid="nav-admin" className="font-sans text-sm font-medium hover:text-gold transition-colors">Admin</Link>
                 )}

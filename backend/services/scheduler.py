@@ -72,6 +72,27 @@ async def release_batch(db) -> dict:
         p["author_market"] = (prof or {}).get("market") or ""
 
     # 4. Mail every approved member who opted into this window
+    # Also load the most recent Pete picks (last 30 days) for the digest sidebar
+    from datetime import timedelta as _td
+    picks_cutoff = (datetime.now(timezone.utc) - _td(days=30)).astimezone(timezone.utc).isoformat()
+    picks = await db.posts.find(
+        {
+            "is_pete_pick": True,
+            "release_at": {"$lte": cutoff_iso, "$gte": picks_cutoff},
+            "status": {"$nin": ["declined", "hidden"]},
+        },
+        {"_id": 0},
+    ).sort("pete_picked_at", -1).to_list(3)
+    if picks:
+        pick_uids = list({p["user_id"] for p in picks})
+        ppmap = {p["user_id"]: p for p in await db.profiles.find({"user_id": {"$in": pick_uids}}, {"_id": 0}).to_list(20)}
+        pumap = {u["user_id"]: u for u in await db.users.find({"user_id": {"$in": pick_uids}}, {"_id": 0}).to_list(20)}
+        for p in picks:
+            prf = ppmap.get(p["user_id"]) or {}
+            usr = pumap.get(p["user_id"]) or {}
+            p["author_name"] = prf.get("name") or usr.get("name") or "Member"
+            p["author_market"] = prf.get("market") or ""
+
     recipients = await db.users.find(
         {"status": "approved", "suspended": {"$ne": True}},
         {"_id": 0},
@@ -83,7 +104,7 @@ async def release_batch(db) -> dict:
         if not prefs.get(kind, True):
             skipped += 1
             continue
-        send_digest_email(r["email"], r.get("name") or "", label, kind, due_posts)
+        send_digest_email(r["email"], r.get("name") or "", label, kind, due_posts, picks=picks)
         sent += 1
 
     logger.info("Digest sent for window %s to %s recipients (%s skipped by prefs)", label, sent, skipped)
