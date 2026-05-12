@@ -67,6 +67,14 @@ of teams.
 - **Moderation - suspend members**: `POST /api/admin/users/{id}/suspend|unsuspend`. Suspended users cannot create posts or replies (403), and their existing content is hidden from public/feed/by-user/replies endpoints (admins can still see). Admin emails cannot be suspended.
 - **Frontend**: Admin page now has Applications and Moderation tabs. Profile page shows Follow / Following button for others and inbox preferences link for self. Layout adds Members nav link.
 
+## Phase 4a — Pete picks, Stripe supporter tier, Analytics — Implemented (2026-05-12)
+- **Pete's pick of the week**: `POST /api/admin/posts/{id}/pick|unpick` (admin only), public `GET /api/posts/picks` (last 30 days, released, not hidden/suspended). PostItem shows a "Pete pick" hairline header. PublicFeed has a "Pete recommends" section at top. Digest emails include the same Pete recommends sidebar.
+- **Network Supporter tier (Stripe Checkout)**: `$19` one-time, grants 30 days of supporter status (`supporter_until` on user). Backend price is server-defined (`SUPPORTER_PRICE_USD` env). Endpoints: `POST /api/payments/checkout` (creates checkout session + `payment_transactions` row), `GET /api/payments/status/{session_id}` (polled, idempotent grant), `POST /api/webhook/stripe` (also idempotent), `GET /api/me/subscription`. Supporter shows a small ✦ next to their name on the feed. Frontend pages `/upgrade` and `/upgrade/success` (polling).
+- **Admin analytics**: `GET /api/admin/analytics` returns `{members:{total_approved,suspended,with_profile,supporters,active_14d}, application_funnel, posts_per_week (8 weeks), top_markets, open_flags, pete_picks_30d}`. Frontend renders in the Admin > Analytics tab with a small bar chart and stat cards.
+
+## Phases 4b-5 (not built yet)
+- **Phase 4b**: SPF/DKIM email auth checklist, real public-domain launch on ultradiannetwork.com, member-invite codes (2 per quarter to existing members), digest open-rate tracking.
+
 ## Phases 2-4 (not built yet, listed in architecture)
 - **Phase 2**: Batched 8:30am/5:30pm release scheduler. AM/PM digest emails via Brevo.
   Reply threads. Posts move from `pending_release` to `approved` at scheduled times.
