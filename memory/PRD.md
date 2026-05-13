@@ -124,6 +124,14 @@ of teams.
 
 **Stats**: 166/166 backend tests passing (18 new in `tests/test_phase4b_email_invites_tracking.py`).
 
+## Phase 5e - WYSIWYG essay editor + inline media — Implemented (2026-05-13)
+- **Rich-text editor** (`components/RichTextEditor.jsx`): Tiptap + StarterKit + Link + Image + Youtube + tiptap-markdown. Wire format stays markdown end-to-end (`editor.storage.markdown.getMarkdown()` on every change), so the backend and existing essays are unchanged. Toolbar exposes bold, italic, H1, H2, quote, bullet/ordered list, link, image, video, audio, YouTube/Vimeo. A slash-command menu opens when `/` is typed at the start of an empty paragraph and offers headings, lists, divider, and inline image/video/audio/embed insertion.
+- **Visual / Markdown toggle** in Composer essay mode (`essay-editor-toggle`). Choice persists in localStorage. Switching is content-preserving in both directions; an existing markdown essay loads losslessly into the visual editor.
+- **Inline media** is uploaded via the existing `POST /api/uploads` pipeline and inserted at the cursor — images via the Tiptap `Image` extension, video/audio/iframe as raw HTML inside the markdown body.
+- **Sanitizer updates**: `services/markdown_render.py` allowlist now permits `video / audio / source / iframe` (with `src` restricted to http/https via bleach protocols). EssayDetail renders raw HTML through `rehype-raw` + a custom `rehype-sanitize` schema with the same allowlist.
+
+**Stats**: 172/172 backend tests passing (6 new in `tests/test_phase5e_richtext_media.py`).
+
 ## Phases 2-4 (not built yet, listed in architecture)
 - **Phase 2**: Batched 8:30am/5:30pm release scheduler. AM/PM digest emails via Brevo.
   Reply threads. Posts move from `pending_release` to `approved` at scheduled times.
