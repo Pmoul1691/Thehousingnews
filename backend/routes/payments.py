@@ -18,14 +18,25 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["payments"])
 
-# Server-defined supporter package (NEVER take amount from frontend)
-SUPPORTER_AMOUNT = float(os.environ.get("SUPPORTER_PRICE_USD", "19.00"))
-SUPPORTER_DAYS = int(os.environ.get("SUPPORTER_PERIOD_DAYS", "30"))
+# Server-defined supporter packages (NEVER take amount from frontend)
+PACKAGES = {
+    "monthly": {
+        "amount": float(os.environ.get("SUPPORTER_MONTHLY_USD", "10.00")),
+        "period_days": 30,
+        "label": "Monthly",
+    },
+    "yearly": {
+        "amount": float(os.environ.get("SUPPORTER_YEARLY_USD", "100.00")),
+        "period_days": 365,
+        "label": "Yearly",
+    },
+}
 STRIPE_API_KEY = os.environ.get("STRIPE_API_KEY")
 
 
 class CheckoutRequest(BaseModel):
     origin_url: str = Field(min_length=1, max_length=400)
+    tier: str = Field(default="monthly")
 
 
 def _now_iso() -> str:
@@ -48,6 +59,9 @@ def setup(db):
     async def create_checkout(payload: CheckoutRequest, request: Request, user=Depends(_user)):
         if user.get("status") != "approved":
             raise HTTPException(status_code=403, detail="Membership not approved")
+        pkg = PACKAGES.get(payload.tier)
+        if not pkg:
+            raise HTTPException(status_code=400, detail="Unknown tier")
         origin = payload.origin_url.rstrip("/")
         success_url = f"{origin}/upgrade/success?session_id={{CHECKOUT_SESSION_ID}}"
         cancel_url = f"{origin}/upgrade"
@@ -55,15 +69,15 @@ def setup(db):
         try:
             sc = _checkout(request)
             req = CheckoutSessionRequest(
-                amount=SUPPORTER_AMOUNT,
+                amount=pkg["amount"],
                 currency="usd",
                 success_url=success_url,
                 cancel_url=cancel_url,
                 metadata={
                     "user_id": user["user_id"],
                     "email": user["email"],
-                    "tier": "supporter",
-                    "period_days": str(SUPPORTER_DAYS),
+                    "tier": payload.tier,
+                    "period_days": str(pkg["period_days"]),
                 },
             )
             session = await sc.create_checkout_session(req)
@@ -77,17 +91,17 @@ def setup(db):
             "session_id": session.session_id,
             "user_id": user["user_id"],
             "email": user["email"],
-            "amount": SUPPORTER_AMOUNT,
+            "amount": pkg["amount"],
             "currency": "usd",
-            "tier": "supporter",
-            "period_days": SUPPORTER_DAYS,
+            "tier": payload.tier,
+            "period_days": pkg["period_days"],
             "payment_status": "initiated",
             "status": "open",
             "metadata": {"source": "web_checkout"},
             "created_at": _now_iso(),
             "updated_at": _now_iso(),
         })
-        return {"url": session.url, "session_id": session.session_id}
+        return {"url": session.url, "session_id": session.session_id, "tier": payload.tier, "amount": pkg["amount"]}
 
     @router.get("/payments/status/{session_id}")
     async def status(session_id: str, request: Request, user=Depends(_user)):
@@ -101,7 +115,7 @@ def setup(db):
         try:
             sc = _checkout(request)
             cs = await sc.get_checkout_status(session_id)
-        except Exception as e:
+        except Exception:
             logger.exception("Stripe status fetch failed")
             raise HTTPException(status_code=502, detail="Could not check status")
 
@@ -129,7 +143,7 @@ def setup(db):
                 except Exception:
                     existing_until = None
             base = max(now, existing_until) if existing_until else now
-            new_until = base + timedelta(days=record.get("period_days") or SUPPORTER_DAYS)
+            new_until = base + timedelta(days=record.get("period_days") or PACKAGES["monthly"]["period_days"])
             await db.users.update_one(
                 {"user_id": record["user_id"]},
                 {"$set": {
@@ -192,7 +206,7 @@ def setup(db):
                 except Exception:
                     existing_until = None
             base = max(now, existing_until) if existing_until else now
-            new_until = base + timedelta(days=record.get("period_days") or SUPPORTER_DAYS)
+            new_until = base + timedelta(days=record.get("period_days") or PACKAGES["monthly"]["period_days"])
             await db.users.update_one(
                 {"user_id": record["user_id"]},
                 {"$set": {
@@ -217,8 +231,10 @@ def setup(db):
             "is_supporter": is_active,
             "supporter_until": until,
             "supporter_since": (udoc or {}).get("supporter_since"),
-            "price_usd": SUPPORTER_AMOUNT,
-            "period_days": SUPPORTER_DAYS,
+            "tiers": [
+                {"id": "monthly", "amount": PACKAGES["monthly"]["amount"], "period_days": 30, "label": "Monthly"},
+                {"id": "yearly", "amount": PACKAGES["yearly"]["amount"], "period_days": 365, "label": "Yearly"},
+            ],
         }
 
     return router
