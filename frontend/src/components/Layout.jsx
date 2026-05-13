@@ -9,6 +9,8 @@ export default function Layout({ children }) {
   const loc = useLocation();
   const navigate = useNavigate();
   const isLanding = loc.pathname === "/";
+  const isFeed = loc.pathname === "/feed";
+  const hideHeaderTimer = isLanding || isFeed;
 
   return (
     <div className="min-h-screen flex flex-col bg-cream ink">
@@ -19,7 +21,7 @@ export default function Layout({ children }) {
             <span className="font-display font-semibold tracking-tight text-[15px] ink">The Ultradian Network</span>
           </Link>
           <div className="flex items-center gap-5">
-            {!isLanding && <div className="hidden sm:block"><NextReleaseTimer /></div>}
+            {!hideHeaderTimer && <div className="hidden sm:block"><NextReleaseTimer /></div>}
             {user && user.status === "approved" && (
               <>
                 <Link to="/feed" data-testid="nav-feed" className="font-sans text-sm font-medium hover:text-gold transition-colors">Feed</Link>

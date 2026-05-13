@@ -1,0 +1,55 @@
+{
+  "summary": "Iter-17 frontend-only test of the FB-style + Substack-style /feed redesign on https://essay-collective.preview.emergentagent.com . Authenticated as seed admin `user_pete_demo` (token `tok_pete_demo_1778700971645`) via localStorage init script and as a freshly-seeded non-admin approved member `user_test_follow_1778702037497` for the 'following' empty-state probe. Verified: data-testid `magazine-feed` wrapper, `feed-greeting` reads 'Good day, Peter.' (first name only), `feed-compose-collapsed` is the default state with `feed-compose-trigger` plus three quick-action chips (`feed-compose-quick-photo`, `-video`, `-essay`), clicking the trigger swaps to `feed-compose-expanded` containing the existing `composer` testid + a `feed-compose-collapse` button, and the original collapsed section is unmounted. Round-trip (expanded -> collapse -> collapsed) works (confirmed via direct DOM .click() - see flake note below). Scope tabs `scope-everyone` / `scope-following` toggle and persist to localStorage key `feed_scope` (read back 'following' then 'everyone' after clicks). Right rail renders `rail-shortcuts` always, with all four required links `rail-link-essays|members|library|prompts` present. `feed-stream` rendered 10 mixed items (8 essays + short posts) for Pete in 'everyone' scope, sorted desc by release_at. Header on /feed no longer renders NextReleaseTimer (confirmed by scanning header.innerText - the only NextReleaseTimer instance is inside the desktop right rail per Feed.jsx). Regression: Landing `/` renders `landing-signin-btn` + `landing-headline`; anonymous viewer of /essays/{id} sees 'MEMBERS ONLY' paywall + 'Apply for membership' CTA, NO `share-buttons` exposed, header shows 'Sign in' (iter-15 contract intact). Screenshot captured at 1920x1080 showing collapsed compose + Everyone tab + first stream item (Media Test Member video Pete pick) + right rail with NEXT RELEASE 5:30pm CT, Shortcuts column.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "/feed 'following' scope empty state",
+        "issue": "feed-empty never appears for a fresh approved member because Feed.jsx fetches `/api/essays?limit=8` UNCONDITIONALLY in parallel with `/api/posts/feed?scope=following`. The essays response is then merged into `stream` regardless of scope, so a user with 0 follows still sees all 8 global essays under the 'Following' tab. Verified: GET /api/posts/feed?scope=following for user_test_follow_* returned 0 items but GET /api/essays?limit=8 returned 8 items, so stream.length is always >= 8 as long as any essay exists. The spec explicitly says: 'Empty state: feed-empty shows when stream length is 0 (switch to following scope on a fresh account to test)' - this currently cannot trigger.",
+        "affected_selectors": ["[data-testid=feed-empty]", "[data-testid=scope-following]"]
+      }
+    ],
+    "design_issues": [
+      {
+        "screen": "/feed expanded compose",
+        "issues": [
+          "feed-compose-collapse button is only ~27x16px ('Hide' text-only at top-right of expanded section) and overlaps with the smooth-scrollIntoView animation in FeedCompose.useEffect - automated Playwright .click(force=True) is unreliable while the scroll is in flight (we had to fall back to btn.click() via page.evaluate). Real users likely won't notice, but the small hit target + active scroll animation makes the close affordance feel fragile. Consider increasing padding (e.g. px-2 py-1) and/or running scrollIntoView only on first expand, not on every re-render."
+        ]
+      },
+      {
+        "screen": "/feed right rail",
+        "issues": [
+          "rail-picks was not rendered for Pete because Feed.jsx filters picks to `kind === 'essay'` (Feed.jsx:61) while the seed Pete-pick is a short video post. Either the filter is too strict or the spec wording 'when Pete picks exist' should be clarified - currently the right rail shows only Shortcuts for the demo data set. If Pete picks are intentionally essay-only, the rail looks correct; flagging for confirmation."
+        ]
+      }
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Fix the `following` scope empty state in /app/frontend/src/pages/Feed.jsx: gate the `/api/essays?limit=8` call (or filter the returned essays by following) when scope === 'following', or merge essays into stream only when scope === 'everyone'. Without this, feed-empty is unreachable in production for any account on the 'Following' tab.",
+    "Optional UX: widen the `feed-compose-collapse` hit target and consider replacing 'Hide' with a small X icon button (still text-accessible via aria-label) so users have a more obvious dismiss affordance.",
+    "Optional: confirm whether rail-picks is intentionally essays-only (Feed.jsx line 61: `picksRes.data.items.filter(p => p.kind === 'essay')`). If short-post Pete picks should also surface in the rail, drop the filter or render a separate 'short picks' row."
+  ],
+  "critical_code_review_comments": [
+    "/app/frontend/src/pages/Feed.jsx line 43-58: essays are fetched and merged into the stream independent of scope - this is the root cause of the 'following empty state never triggers' bug. Either fetch essays only when scope === 'everyone', or thread the scope into the /api/essays call (server-side filtering by following).",
+    "/app/frontend/src/components/FeedCompose.jsx useEffect at line 22-26 runs scrollIntoView on every transition to expanded - works fine, but if the parent re-renders (e.g. after onPosted -> load(scope)) while still expanded the smooth scroll won't fire (deps [expanded] only triggers on toggle, which is correct). However the smooth scroll briefly moves the small 'Hide' button mid-animation, creating a flaky click target for automation. Consider `block: 'nearest'` or a one-shot ref-flag.",
+    "/app/frontend/src/pages/Feed.jsx line 51: filter uses `(p.kind || 'post') !== 'essay'` - inconsistent default with other places in the codebase that default to 'essay'. Low risk because /api/posts/feed always sets kind, but worth normalizing for safety.",
+    "/app/frontend/src/components/FeedCompose.jsx avatar URL is built as `${API}/uploads/file/${profile.avatar_path}` - if `profile.avatar_path` is itself a full URL (e.g. Google profile picture) this would double-prefix it. Inspect the profile.avatar_path shape; otherwise add a guard.",
+    "/app/frontend/src/pages/Feed.jsx the parallel `/api/profile` call is awaited inside Promise.all without the auth guard - if the profile endpoint 401s on a logged-out user the whole stream silently fails. Profile is .catch'd but the others are not, so any one of feed/mine/essays/picks/prompts erroring takes down the entire screen with no error UI."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "not tested (frontend-only per main-agent instruction)",
+    "frontend": "95% - 11/11 required compose + greeting + rail testids resolve, expand/collapse + chips + scope toggles all functional, header dedup of NextReleaseTimer confirmed, Landing + EssayDetail paywall regressions clean. One real product bug: feed-empty unreachable on 'following' scope because essays are always merged into stream regardless of scope."
+  },
+  "test_credentials": "Used existing seed `tok_pete_demo_1778700971645` (admin) and created `tok_test_follow_1778702037497` for `user_test_follow_1778702037497` (non-admin, approved, has_profile=true) - safe to leave seeded; prefixed with `user_test_` for easy cleanup.",
+  "seed_data_creation": "Inserted one user + user_sessions row + profiles row for a non-admin approved member (user_test_follow_1778702037497) so the 'following' empty-state could be probed. No production data modified.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Layout in Layout.jsx now hides NextReleaseTimer on both `/` and `/feed` via `hideHeaderTimer = isLanding || isFeed` - confirmed working. FeedCompose collapse button is small and overlaps with a smooth-scroll animation; future Playwright tests should use `page.evaluate(() => document.querySelector('[data-testid=feed-compose-collapse]').click())` or wait ~600ms for the smooth-scroll to settle before .click() to avoid flake. The Feed essays-vs-scope bug is the only real product issue - once fixed, re-test by signing in as `tok_test_follow_*` (0 follows), clicking [data-testid=scope-following], and asserting [data-testid=feed-empty] is visible with the copy 'No released posts from people you follow yet.'",
+  "rca of the issue": "Feed.jsx kicks off six parallel fetches on every load: `/posts/feed?scope=${scope}`, `/posts/mine`, `/essays?limit=8`, `/posts/picks?limit=4`, `/prompts/current`, `/profile`. The scope query param is only threaded into the first call. The essays response is then unconditionally concatenated into `mixed = [...essays, ...shorts]` before being set as `stream`. As a result, `stream.length` for a fresh approved member on the 'Following' tab equals the number of globally-released essays (currently 8 in seed) - never 0 - so the `stream.length === 0` branch that renders `<div data-testid=feed-empty>` never executes. Fix: either skip the `/essays` call when `scope === 'following'`, or add a `scope` query param to `/api/essays` so the backend can filter to only essays authored by users the current viewer follows."
+}
