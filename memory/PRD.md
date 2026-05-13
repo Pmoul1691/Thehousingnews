@@ -167,6 +167,16 @@ of teams.
 
 **Stats**: 9 new pytest cases in `tests/test_iter14_auth_landing.py` (all pass); end-to-end Playwright verified Landing render + authenticated `/feed` via Bearer header.
 
+## Phase 10 - Substack import + Share buttons + Tech debt (2026-05-13)
+- **Daily Substack RSS import** (`services/substack_import.py`): pulls Pete's essays from `SUBSTACK_RSS_URL` (defaults to `https://peterrmoulton.substack.com/feed`), converts the HTML body to markdown via `markdownify`, strips trailing #Hashtag clusters Substack/LinkedIn syndication adds (de-branded), de-dupes by `source_guid` and `source_url`, and inserts each entry as `kind: "essay"`, `status: "approved"`, `source: "substack_import"`, attributed to the first matching admin (`peter@1691inc.com` or `peter@ultradianpartners.com`). Scheduler cron `substack_rss_import` fires daily at 7:00am Chicago. Manual admin trigger: `POST /api/admin/rss/import` + status at `GET /api/admin/rss/status`. Surfaced in the Admin header as an "Import essays now" button (`admin-rss-import-btn`). First import on Pete's feed pulled 20 essays; subsequent calls return `imported=0 skipped=20`.
+- **Share buttons** (`components/ShareButtons.jsx`): on every member-visible essay, a row of 8 share targets — LinkedIn, X, Facebook, Substack (Note quote), Instagram, TikTok, YouTube, Copy link. LinkedIn/X/Facebook/Substack open a tab to the platform's intent URL. Instagram/TikTok/YouTube + Copy link write the canonical essay URL to the clipboard with a contextual toast. Render only when the viewer is not paywalled, so anonymous visitors do not see them.
+- **Shared `EssayCards.jsx`**: `FeaturedEssay` + `EssayMini` extracted out of `Landing.jsx` and `Feed.jsx`. Both pages now use the shared components — the only divergence is the `linkTo` / `testIdPrefix` prop, removing the drift the iter-14 code review flagged.
+- **Auth round trip removed**: `POST /api/auth/session` now returns `has_profile`, so `AuthCallback.jsx` no longer calls `/auth/me` after exchange — shaves a ~300ms round trip off sign-in.
+- **`withCredentials: false`** on the axios instance — Bearer-in-localStorage is now the canonical auth, this removes a class of intermittent CORS preflight failures.
+
+**Stats**: 11 new pytest cases in `tests/test_iter15_substack_share.py` (all green); iter-14's 9/9 still green; Playwright verified Landing shared-grid render, anonymous paywall hides share-buttons, member share-buttons render with all 8 testids and correct intent URLs, admin RSS import button visible and wired.
+
+
 
 
 ## Phases 2-4 (not built yet, listed in architecture)
