@@ -1,0 +1,47 @@
+{
+  "summary": "Phase 7 batch (HLS hybrid pipeline + public-domain launch tooling) tested end-to-end. Created /app/backend/tests/test_phase7_hls_launch.py with 13 new tests covering: short video stays inline; 75s video queues an HLS transcode and reaches 'ready' with a valid master.m3u8 + .ts segments served from /api/uploads/file with correct mimetypes; transcode 404 on unknown id; 403 cross-user; 200s rejected with 400; 205MB rejected with 413; posts accept hls_path only (no path); video MediaItem with neither path nor hls_path rejected 422; admin-only auth on public-url GET/POST and readiness; set->get->readiness round-trip returns 5 checks (SPF, DKIM, DMARC, Public URL, Brevo). Updated /app/backend/tests/test_media_uploads.py - the old 'long_video_rejected' and '51MB rejected' assertions were stale; rewrote to expect HLS hand-off + 210MB->413. Full regression: 198/198 PASS in 498s. Frontend Playwright on /admin/email-health verified all new data-testids: email-health-public-url, public-url-input, public-url-save, email-health-readiness, readiness-run, email-health-test. OG meta tags (og:title/og:description/og:image/og:type/og:site_name/og:url, twitter:card/title/description/image, canonical) all present in index.html DOM at run-time. /robots.txt is served and contains both 'Disallow: /api/' and 'Sitemap:' lines (a Cloudflare content-signals preamble is prepended by the edge, our content remains). ffmpeg was missing in this container at start - installed via apt-get; required by both transcode_video_to_hls and test fixture generation.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Composer long-video processing placeholder + publish-disabled gating", "issue": "Could not exercise live in this run because the test admin/member cookie wasn't being attached to the API XHRs from inside the Playwright context (resulted in 401s when navigating to /write and /admin/email-health calls; the DOM testids did render). The backend-side proof of the polling contract is solid (test_long_video_queues_transcode), so the FE poll loop will function once a real session is present. Recommend a manual smoke: open /write, attach a 75s mp4 -> composer-media-list should show m.processing item with label 'transcoding...' and composer-publish disabled; after ~16-20s the entry flips to hls_path and publish re-enables.", "affected_selectors": ["[data-testid=\"composer-publish\"]", "[data-testid=\"composer-media-list\"]"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_phase7_hls_launch.py",
+    "/app/backend/tests/test_media_uploads.py",
+    "/app/test_reports/pytest/pytest_iter13_phase7.xml",
+    "/app/test_reports/pytest/pytest_iter13_full.xml"
+  ],
+  "action_items": [
+    "Manually verify (or add a Playwright run with a fully authenticated session) the Composer long-video flow end-to-end - placeholder + transcoding... + publish-disabled gating + replacement with hls_path entry. All testids are in place; the backend polling contract is green."
+  ],
+  "critical_code_review_comments": [
+    "routes/uploads.py: HLS hybrid branch reads the entire upload into memory before calling probe_video AND passes the same bytes to the BackgroundTask. For a 200MB video that means ~200MB held in RAM until the BG task finishes. Consider spilling to a tempfile and passing the file path into transcode_video_to_hls instead of bytes - this would also let the FastAPI request return faster and avoid carrying bytes through the BG queue.",
+    "services/hls_transcode.py: subprocess.run(timeout=600) is hard-coded inside the thread; if ffmpeg hangs, the thread leaks. Use a try/except around RuntimeError and ensure the job row gets flipped to 'failed' on TimeoutExpired (currently the except will catch it because subprocess.TimeoutExpired is raised).",
+    "services/hls_transcode.py inserts EACH .ts segment as its own row in db.files. For a 3-minute video at 4-second segments that's 45 inserts; consider insert_many for atomicity + performance.",
+    "routes/email_health.py set_public_url() writes os.environ + db, but the env mutation is in-process. The runbook should make explicit that any other backend workers/replicas need a restart (or a polling reload) to see the new APP_PUBLIC_URL. Single-pod deploys are fine.",
+    "routes/email_health.py readiness DNS lookups have lifetime=4s each but run via asyncio.gather sequentially-bound to_thread; can be slow if any TXT query stalls. Acceptable for a manual button click.",
+    "routes/posts.py MediaItem accepts path OR hls_path - good. But the API never validates that hls_path actually points to an existing file in db.files (no integrity check). A malicious approved member could craft an arbitrary hls_path string. Low risk but worth a follow-up tightening.",
+    "frontend/public/index.html has og:url and canonical hard-coded to https://ultradiannetwork.com - if Phase 7 also wants DB-driven public URL these tags should be hot-updated by SSR or a tiny meta-injection. For now this is fine for the launch domain."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_phase7_hls_launch.py",
+    "/app/backend/tests/test_media_uploads.py"
+  ],
+  "success_rate": {
+    "backend": "100% (198/198 full suite, Phase 7: 13/13)",
+    "frontend": "~90% (OG meta, robots.txt, all 6 EmailHealth testids verified; Composer long-video flow not exercised live due to session-cookie attachment in test env, but testids+API contract green)"
+  },
+  "test_credentials": "Ephemeral seeded via mongosh - admin email peter@1691inc.com, member via random p7.<ts>@example.com. Cleaned in test teardown + app_settings deleteMany on APP_PUBLIC_URL after readiness round-trip.",
+  "seed_data_creation": "test_phase7_hls_launch.py generates /tmp/phase7_5s.mp4, /tmp/phase7_75s.mp4, /tmp/phase7_200s.mp4 via ffmpeg testsrc2+sine. Reused across the module via session fixtures.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Phase 7 is solid - HLS pipeline ready in ~16-20s for a 75s clip, posts accept hls_path media items, admin public-url DB setter works, readiness returns 5 checks. ffmpeg is REQUIRED on the container - install via 'apt-get install -y ffmpeg' if missing (it was missing at start of this run). After running readiness tests that POST APP_PUBLIC_URL, ALWAYS reset via 'mongosh ... db.app_settings.deleteMany({key:\"APP_PUBLIC_URL\"})' AND consider that os.environ['APP_PUBLIC_URL'] is still set in this Python process until backend restart. The existing test_media_uploads.py was updated for Phase 7 - the old expectations 'long_video_rejected' / '51MB->413' are gone.",
+  "rca of the issue": "N/A - no failures. The one stale-assertion case in test_media_uploads.py (60+ second video used to be rejected; now it queues HLS) was caught at the test-rewrite stage and corrected in this iteration."
+}

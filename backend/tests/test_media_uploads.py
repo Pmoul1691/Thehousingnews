@@ -128,17 +128,21 @@ class TestVideoUpload:
         # JPEG magic bytes
         assert tr.content[:3] == b"\xff\xd8\xff"
 
-    def test_upload_long_video_rejected(self, member_headers):
+    def test_upload_long_video_now_queues_hls(self, member_headers):
+        # Phase 7: 65s video is no longer rejected; it returns processing=True + transcode_job_id.
         with open(LONG_MP4, "rb") as f:
             data = f.read()
         files = {"file": ("long.mp4", data, "video/mp4")}
         r = requests.post(f"{BASE_URL}/api/uploads", headers=member_headers, files=files)
-        assert r.status_code == 400, r.text
-        assert "60" in r.text or "shorter" in r.text.lower()
+        assert r.status_code == 200, r.text
+        body = r.json()
+        assert body.get("processing") is True
+        assert body.get("transcode_job_id")
+        assert "path" not in body
 
     def test_upload_oversized_video(self, member_headers):
-        # 51MB of zeros with mp4 mime - should be rejected by size cap first
-        big = b"\x00" * (51 * 1024 * 1024)
+        # Phase 7: HLS cap is 200MB; 210MB should still 413
+        big = b"\x00" * (210 * 1024 * 1024)
         files = {"file": ("big.mp4", big, "video/mp4")}
         r = requests.post(f"{BASE_URL}/api/uploads", headers=member_headers, files=files)
         assert r.status_code == 413, r.text

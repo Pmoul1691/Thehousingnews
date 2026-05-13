@@ -1,15 +1,17 @@
 """File upload routes (images, video, audio). Auto-generates a thumbnail for video uploads."""
 import io
 import logging
+import uuid
 from datetime import datetime, timezone
 from typing import Optional
-from fastapi import APIRouter, HTTPException, Depends, Cookie, Header, UploadFile, File, Form, Response
+from fastapi import APIRouter, HTTPException, Depends, Cookie, Header, UploadFile, File, Form, Response, BackgroundTasks
 from PIL import Image, ImageOps
 
 from services.auth_helpers import get_current_user
 from services.object_storage import put_object, get_object, build_path
 from services.media import probe_video, extract_thumbnail
 from services.embed import parse_embed
+from services.hls_transcode import transcode_video_to_hls
 
 logger = logging.getLogger(__name__)
 
@@ -38,9 +40,11 @@ ALLOWED_AUDIO_TYPES = {
 }
 
 MAX_IMAGE_SIZE = 6 * 1024 * 1024     # 6 MB
-MAX_VIDEO_SIZE = 50 * 1024 * 1024    # 50 MB
+MAX_VIDEO_SIZE = 50 * 1024 * 1024    # 50 MB direct MP4
+MAX_VIDEO_HLS_SIZE = 200 * 1024 * 1024  # 200 MB longer videos that get HLS-transcoded
 MAX_AUDIO_SIZE = 20 * 1024 * 1024    # 20 MB
-MAX_VIDEO_SECONDS = 60
+INLINE_VIDEO_SECONDS = 60            # videos this short stay as direct MP4
+MAX_VIDEO_SECONDS = 180              # 3 minutes total cap
 MAX_AUDIO_SECONDS = 5 * 60
 
 # Resize images > this threshold to keep payloads reasonable
@@ -110,6 +114,7 @@ def setup(db):
 
     @router.post("")
     async def upload(
+        background: BackgroundTasks,
         file: UploadFile = File(...),
         kind: str = Form("posts"),
         user=Depends(_user),
@@ -137,8 +142,8 @@ def setup(db):
 
         # video
         if content_type in ALLOWED_VIDEO_TYPES:
-            if len(data) > MAX_VIDEO_SIZE:
-                raise HTTPException(status_code=413, detail="Video too large (max 50MB)")
+            if len(data) > MAX_VIDEO_HLS_SIZE:
+                raise HTTPException(status_code=413, detail=f"Video too large (max {MAX_VIDEO_HLS_SIZE // (1024*1024)}MB)")
             try:
                 meta = probe_video(data)
             except Exception as e:
@@ -148,13 +153,41 @@ def setup(db):
                 raise HTTPException(status_code=400, detail="Video has no readable duration")
             if duration > MAX_VIDEO_SECONDS + 0.5:
                 raise HTTPException(status_code=400, detail=f"Video must be {MAX_VIDEO_SECONDS} seconds or shorter")
+
+            # Long videos: queue an async HLS transcode and return immediately.
+            if duration > INLINE_VIDEO_SECONDS:
+                job_id = uuid.uuid4().hex
+                await db.transcode_jobs.insert_one({
+                    "job_id": job_id,
+                    "user_id": user["user_id"],
+                    "status": "queued",
+                    "duration_s": round(duration, 2),
+                    "width": meta.get("width") or 0,
+                    "height": meta.get("height") or 0,
+                    "created_at": datetime.now(timezone.utc).isoformat(),
+                    "hls_path": None,
+                    "thumbnail_path": None,
+                    "error": None,
+                })
+                background.add_task(transcode_video_to_hls, db, job_id, user["user_id"], data, content_type)
+                return {
+                    "media_kind": "video",
+                    "processing": True,
+                    "transcode_job_id": job_id,
+                    "duration_s": round(duration, 2),
+                    "width": meta.get("width") or 0,
+                    "height": meta.get("height") or 0,
+                }
+
+            # Short videos: inline MP4 path with poster thumbnail (existing behavior).
+            if len(data) > MAX_VIDEO_SIZE:
+                raise HTTPException(status_code=413, detail=f"Inline video too large (max {MAX_VIDEO_SIZE // (1024*1024)}MB; longer videos auto-transcode)")
             extra = {
                 "media_kind": "video",
                 "duration_s": round(duration, 2),
                 "width": meta.get("width") or 0,
                 "height": meta.get("height") or 0,
             }
-            # Try to extract a poster thumbnail
             thumb_bytes = extract_thumbnail(data, at_seconds=min(0.5, max(0.0, duration / 4)))
             if thumb_bytes:
                 thumb_record = await _persist(
@@ -187,6 +220,15 @@ def setup(db):
         if not result:
             raise HTTPException(status_code=400, detail="Only YouTube or Vimeo URLs are supported")
         return result
+
+    @router.get("/transcode/{job_id}")
+    async def transcode_status(job_id: str, user=Depends(_user)):
+        row = await db.transcode_jobs.find_one({"job_id": job_id}, {"_id": 0})
+        if not row:
+            raise HTTPException(status_code=404, detail="Job not found")
+        if row.get("user_id") != user["user_id"]:
+            raise HTTPException(status_code=403, detail="Not your job")
+        return row
 
     # Serve files. Public-ish: anyone can fetch by path (since profile photos are public).
     @router.get("/file/{path:path}")

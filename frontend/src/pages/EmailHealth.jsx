@@ -22,13 +22,45 @@ export default function EmailHealth() {
   const [fetching, setFetching] = useState(true);
   const [testEmail, setTestEmail] = useState("");
   const [sending, setSending] = useState(false);
+  const [readiness, setReadiness] = useState(null);
+  const [readyLoading, setReadyLoading] = useState(false);
+  const [publicUrl, setPublicUrl] = useState("");
+  const [publicUrlSource, setPublicUrlSource] = useState("");
+  const [savingUrl, setSavingUrl] = useState(false);
 
   useEffect(() => {
     if (loading) return;
     if (!user || !user.is_admin) { navigate("/feed", { replace: true }); return; }
     setTestEmail(user.email || "");
-    api.get("/admin/email/dns-records").then((r) => setData(r.data)).catch(() => {}).finally(() => setFetching(false));
+    Promise.all([
+      api.get("/admin/email/dns-records").then((r) => setData(r.data)).catch(() => {}),
+      api.get("/admin/email/public-url").then((r) => { setPublicUrl(r.data.value || ""); setPublicUrlSource(r.data.source); }).catch(() => {}),
+    ]).finally(() => setFetching(false));
   }, [user, loading, navigate]);
+
+  const runReadiness = async () => {
+    setReadyLoading(true);
+    try {
+      const r = await api.get("/admin/email/readiness");
+      setReadiness(r.data);
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || "Readiness check failed");
+    } finally { setReadyLoading(false); }
+  };
+
+  const savePublicUrl = async () => {
+    const v = publicUrl.trim();
+    if (!v) { toast.error("URL is required"); return; }
+    setSavingUrl(true);
+    try {
+      await api.post("/admin/email/public-url", { url: v });
+      setPublicUrlSource("db");
+      toast.success("Saved. Emails will use this URL.");
+    } catch (e) {
+      const d = e?.response?.data?.detail;
+      toast.error(Array.isArray(d) ? d.map((x) => x?.msg).join("; ") : (d || "Save failed"));
+    } finally { setSavingUrl(false); }
+  };
 
   const sendTest = async () => {
     if (!testEmail) return;
@@ -113,6 +145,66 @@ export default function EmailHealth() {
                 <li key={idx} className="prose-serif text-base ink/85 leading-relaxed">{c}</li>
               ))}
             </ol>
+          </section>
+
+          <section className="border hairline rounded-sm p-6 bg-cream mb-6" data-testid="email-health-public-url">
+            <h2 className="font-display font-semibold text-xl ink mb-2">Public URL</h2>
+            <p className="prose-serif text-sm ink/80 leading-relaxed max-w-prose mb-4">
+              Where the digest and tracking links point. Save it here to flip the domain without a redeploy. Current source: <span className="font-sans font-semibold uppercase tracking-wider text-[11px] text-gold">{publicUrlSource || "unset"}</span>.
+            </p>
+            <div className="flex items-center gap-3 flex-wrap">
+              <input
+                data-testid="public-url-input"
+                value={publicUrl}
+                onChange={(e) => setPublicUrl(e.target.value)}
+                placeholder="https://ultradiannetwork.com"
+                className="flex-1 min-w-[260px] bg-cream border hairline rounded-sm px-3 py-2 font-sans text-sm ink focus:outline-none focus:ring-1 focus:ring-gold"
+              />
+              <button
+                data-testid="public-url-save"
+                onClick={savePublicUrl}
+                disabled={savingUrl || !publicUrl.trim()}
+                className="bg-gold text-cream font-sans font-semibold text-sm px-5 py-2 rounded-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+              >
+                {savingUrl ? "Saving..." : "Save"}
+              </button>
+            </div>
+          </section>
+
+          <section className="border hairline rounded-sm p-6 bg-cream mb-6" data-testid="email-health-readiness">
+            <div className="flex items-end justify-between mb-3 flex-wrap gap-3">
+              <h2 className="font-display font-semibold text-xl ink">Launch readiness</h2>
+              <button
+                data-testid="readiness-run"
+                onClick={runReadiness}
+                disabled={readyLoading}
+                className="font-sans text-xs uppercase tracking-wider font-semibold text-gold hover:opacity-80 transition-opacity disabled:opacity-50"
+              >
+                {readyLoading ? "Checking..." : "Run readiness check"}
+              </button>
+            </div>
+            {readiness ? (
+              <>
+                <div className={`inline-flex items-center gap-2 font-sans text-[11px] uppercase tracking-wider font-semibold px-2 py-1 rounded-sm border mb-4 ${readiness.ready ? "text-gold border-gold" : "text-deepred border-deepred"}`} data-testid="readiness-status">
+                  {readiness.ready ? "Ready to launch" : "Not ready"}
+                </div>
+                <ul className="space-y-2">
+                  {readiness.checks.map((c, idx) => (
+                    <li key={idx} data-testid={`readiness-check-${idx}`} className="flex items-start gap-3">
+                      <span className={`mt-0.5 inline-flex items-center justify-center w-5 h-5 rounded-full text-cream text-[11px] font-semibold ${c.ok ? "bg-gold" : "bg-deepred"}`}>
+                        {c.ok ? "✓" : "✕"}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-display font-semibold text-sm ink">{c.name}</div>
+                        <div className="font-mono text-xs text-muted-ink break-all">{c.detail}</div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : (
+              <p className="font-serif text-sm text-muted-ink italic">Click run to verify SPF, DKIM, DMARC, public URL reachability, and the Brevo key.</p>
+            )}
           </section>
 
           <section className="border hairline rounded-sm p-6 bg-cream" data-testid="email-health-test">

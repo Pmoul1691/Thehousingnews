@@ -108,6 +108,19 @@ async def on_startup():
     await db.prompt_suggestions.create_index("suggestion_id", unique=True)
     await db.prompt_suggestions.create_index([("status", 1), ("created_at", -1)])
     await db.posts.create_index("prompt_id")
+    await db.transcode_jobs.create_index("job_id", unique=True)
+    await db.transcode_jobs.create_index([("user_id", 1), ("created_at", -1)])
+    await db.app_settings.create_index("key", unique=True)
+
+    # Load DB-stored APP_PUBLIC_URL override into the process env so tracking links use it
+    try:
+        row = await db.app_settings.find_one({"key": "APP_PUBLIC_URL"}, {"_id": 0})
+        if row and row.get("value"):
+            import os as _os
+            _os.environ["APP_PUBLIC_URL"] = row["value"]
+            logger.info("APP_PUBLIC_URL loaded from db: %s", row["value"])
+    except Exception:
+        logger.exception("loading APP_PUBLIC_URL from db failed")
     # Start scheduler
     try:
         app.state.scheduler = start_scheduler(db)

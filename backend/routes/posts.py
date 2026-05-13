@@ -28,6 +28,7 @@ class MediaItem(BaseModel):
     duration_s: Optional[float] = None
     width: Optional[int] = None
     height: Optional[int] = None
+    hls_path: Optional[str] = None  # HLS .m3u8 storage path for transcoded long videos
     # For embeds
     provider: Optional[Literal["youtube", "vimeo"]] = None
     video_id: Optional[str] = None
@@ -40,7 +41,7 @@ class MediaItem(BaseModel):
             if not self.embed_url or not self.provider:
                 raise ValueError("Embed media requires provider and embed_url")
         else:
-            if not self.path:
+            if not (self.path or self.hls_path):
                 raise ValueError(f"{self.kind} media requires a storage path")
         return self
 

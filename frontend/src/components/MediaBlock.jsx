@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import Hls from "hls.js";
 import { API } from "@/lib/api";
 
 /**
@@ -60,18 +61,40 @@ function Gallery({ images, compact }) {
 }
 
 function VideoPlayer({ video }) {
-  const src = `${API}/uploads/file/${video.path}`;
+  const src = video.path ? `${API}/uploads/file/${video.path}` : null;
+  const hlsSrc = video.hls_path ? `${API}/uploads/file/${video.hls_path}` : null;
   const poster = video.thumbnail_path ? `${API}/uploads/file/${video.thumbnail_path}` : undefined;
+  const videoRef = useRef(null);
+
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el || !hlsSrc) return;
+    // Safari can play HLS natively
+    if (el.canPlayType("application/vnd.apple.mpegurl")) {
+      el.src = hlsSrc;
+      return;
+    }
+    if (Hls.isSupported()) {
+      const hls = new Hls({ enableWorker: true });
+      hls.loadSource(hlsSrc);
+      hls.attachMedia(el);
+      return () => { try { hls.destroy(); } catch (e) { /* ignore */ } };
+    }
+    // Fallback: try setting src directly
+    el.src = hlsSrc;
+  }, [hlsSrc]);
+
   return (
     <div className="border hairline rounded-sm overflow-hidden bg-black" data-testid="media-video">
       <video
+        ref={videoRef}
         controls
         playsInline
         preload="metadata"
         poster={poster}
         className="w-full max-h-[520px]"
       >
-        <source src={src} type={video.mime || "video/mp4"} />
+        {!hlsSrc && src && <source src={src} type={video.mime || "video/mp4"} />}
       </video>
     </div>
   );

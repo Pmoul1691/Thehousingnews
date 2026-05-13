@@ -123,14 +123,60 @@ export default function Composer({ onPosted }) {
     if (video) { toast.error("Only one video per post"); return; }
     if (embed) { toast.error("Remove the video URL first"); return; }
     const r = await uploadFile(file, "video");
-    if (r) {
+    if (!r) return;
+    // Short videos: ready immediately
+    if (!r.processing) {
       setMedia((arr) => [...arr, {
         kind: "video", path: r.path, mime: r.content_type,
         thumbnail_path: r.thumbnail_path || null,
         duration_s: r.duration_s, width: r.width, height: r.height,
       }]);
       toast.success("Video attached");
+      return;
     }
+    // Long videos: queue a placeholder, poll the transcode job until ready
+    const jobId = r.transcode_job_id;
+    const placeholder = {
+      kind: "video",
+      processing: true,
+      transcode_job_id: jobId,
+      duration_s: r.duration_s,
+      width: r.width,
+      height: r.height,
+    };
+    setMedia((arr) => [...arr, placeholder]);
+    toast.success("Video uploaded. Transcoding for smooth playback.");
+
+    const pollMs = 4000;
+    const maxTries = 90; // ~6 minutes
+    let tries = 0;
+    const poll = async () => {
+      tries += 1;
+      try {
+        const s = await api.get(`/uploads/transcode/${jobId}`);
+        if (s.data.status === "ready") {
+          setMedia((arr) => arr.map((m) => m.transcode_job_id === jobId ? {
+            kind: "video",
+            hls_path: s.data.hls_path,
+            thumbnail_path: s.data.thumbnail_path || null,
+            duration_s: s.data.duration_s,
+            width: s.data.width,
+            height: s.data.height,
+          } : m));
+          toast.success("Video ready");
+          return;
+        }
+        if (s.data.status === "failed") {
+          setMedia((arr) => arr.filter((m) => m.transcode_job_id !== jobId));
+          toast.error(`Transcode failed: ${s.data.error || "unknown"}`);
+          return;
+        }
+        if (tries < maxTries) setTimeout(poll, pollMs);
+      } catch (e) {
+        if (tries < maxTries) setTimeout(poll, pollMs);
+      }
+    };
+    setTimeout(poll, pollMs);
   };
 
   const onAudioInput = async (file) => {
@@ -195,13 +241,19 @@ export default function Composer({ onPosted }) {
     }
     setPosting(true);
     try {
+      const cleanMedia = media.map((m) => {
+        const next = { ...m };
+        delete next.processing;
+        delete next.transcode_job_id;
+        return next;
+      });
       const r = await api.post("/posts", {
         kind: mode,
         text: text.trim() || ".",
         title: mode === "essay" ? title.trim() : null,
         subtitle: mode === "essay" ? (subtitle.trim() || null) : null,
         image_path: images[0]?.path || null,
-        media,
+        media: cleanMedia,
         scheduled_at: scheduledIso,
         prompt_id: linkPrompt && currentPrompt ? currentPrompt.prompt_id : null,
       });
@@ -300,7 +352,7 @@ export default function Composer({ onPosted }) {
           {media.map((m, idx) => {
             const label =
               m.kind === "image" ? `Image . ${(m.path || "").split("/").pop()}` :
-              m.kind === "video" ? `Video . ${m.duration_s ? `${Math.round(m.duration_s)}s` : "uploaded"}` :
+              m.kind === "video" ? (m.processing ? `Video . transcoding...` : `Video . ${m.duration_s ? `${Math.round(m.duration_s)}s` : "uploaded"}`) :
               m.kind === "audio" ? `Audio . ${m.duration_s ? `${Math.round(m.duration_s)}s` : "uploaded"}` :
               m.kind === "embed" ? `${m.provider} video . ${m.video_id}` : "Media";
             return (
@@ -434,17 +486,19 @@ export default function Composer({ onPosted }) {
           <button
             data-testid="composer-publish"
             onClick={submit}
-            disabled={posting || (!text.trim() && media.length === 0) || (isEssay && !title.trim())}
+            disabled={posting || (!text.trim() && media.length === 0) || (isEssay && !title.trim()) || media.some((m) => m.processing)}
             className="bg-gold text-cream font-sans font-semibold text-sm px-5 py-2 rounded-sm hover:opacity-90 transition-opacity disabled:opacity-50"
           >
-            {posting
+            {media.some((m) => m.processing)
+              ? "Transcoding video..."
+              : posting
               ? (isEssay ? (scheduledAt ? "Scheduling..." : "Publishing...") : "Queueing...")
               : (isEssay ? (scheduledAt ? "Schedule" : "Publish essay") : "Queue for release")}
           </button>
         </div>
       </div>
       <p className="mt-3 font-sans text-[11px] text-muted-ink">
-        Images up to 6MB each (max {MAX_IMAGES}). Video up to 50MB and 60 seconds. Audio up to 20MB and 5 minutes.
+        Images up to 6MB each (max {MAX_IMAGES}). Video up to 3 minutes (≤60s plays inline, longer videos auto-transcode). Audio up to 20MB and 5 minutes.
       </p>
     </section>
   );
