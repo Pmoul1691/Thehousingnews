@@ -75,6 +75,17 @@ of teams.
 ## Phases 4b-5 (not built yet)
 - **Phase 4b**: SPF/DKIM email auth checklist, real public-domain launch on ultradiannetwork.com, member-invite codes (2 per quarter to existing members), digest open-rate tracking.
 
+## Phase 5 - Substack-style essays — Implemented (2026-05-13)
+- **Two post kinds** on a single `posts` collection via discriminator: `kind="post"` (short, 500-char, batched 8:30am/5:30pm CT) and `kind="essay"` (long-form, requires title, body 100-50000 chars, publishes INSTANTLY with `release_at == created_at`, `status="approved"`).
+- **Composer toggle**: frontend has Short post / Essay segmented control. Essay mode reveals title + subtitle inputs and a much taller body textarea. Submits to the same `POST /api/posts` with `kind=essay`.
+- **Per-essay email** to the writer's followers via Brevo on publish. FastAPI `BackgroundTasks` runs `services.essay_dispatch.dispatch_essay_to_followers(db, post_id)` after the response is returned. Idempotency: unique compound index on `(post_id, recipient_user_id)` in new `essay_dispatches` collection; the row is inserted BEFORE the Brevo call so at-most-once-email holds even on transient failures.
+- **Paywall**: `GET /api/essays/{post_id}` returns full body (`text`) only for approved members. For everyone else (guests, applicants, declined, pending), returns title + subtitle + cover + ~320-char `preview` + `paywall=true` and a CTA to apply.
+- **Feed payload trim**: essay items in `/api/posts/feed`, `/public`, `/mine`, `/by-user` return `preview` instead of `text` to keep payload small; full body is only delivered via the single-essay endpoint.
+- **EssayDetail page** (`/essays/:id`): magazine-style typography, full reader for members, paywall card with Apply CTA for non-members, embedded Replies thread below.
+- **Existing systems still apply to essays**: Pete pick (admin can mark essays), Reply threads (replies on essays follow the same batched release), Suspended/Hidden filters, Pete recommends section.
+
+**Stats**: 94/94 backend tests passing (24 new in `test_phase5_essays.py`).
+
 ## Phases 2-4 (not built yet, listed in architecture)
 - **Phase 2**: Batched 8:30am/5:30pm release scheduler. AM/PM digest emails via Brevo.
   Reply threads. Posts move from `pending_release` to `approved` at scheduled times.

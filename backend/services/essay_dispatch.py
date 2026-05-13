@@ -46,14 +46,23 @@ async def dispatch_essay_to_followers(db, post_id: str) -> dict:
     sent = 0
     skipped = 0
     for f in followers:
-        # Idempotency check
-        existing = await db.essay_dispatches.find_one(
-            {"post_id": post_id, "recipient_user_id": f["user_id"]},
-            {"_id": 0},
-        )
-        if existing:
+        # Insert the dispatch row FIRST (idempotency guard). If a duplicate exists,
+        # the unique index throws and we skip the send entirely.
+        try:
+            await db.essay_dispatches.insert_one({
+                "post_id": post_id,
+                "writer_id": post["user_id"],
+                "recipient_user_id": f["user_id"],
+                "recipient_email": f["email"],
+                "result_status": None,
+                "skipped": False,
+                "created_at": _now_iso(),
+            })
+        except Exception:
+            # Duplicate key (already dispatched) or other write error
             skipped += 1
             continue
+
         result = send_essay_email(
             to_email=f["email"],
             to_name=f.get("name") or "",
@@ -63,15 +72,14 @@ async def dispatch_essay_to_followers(db, post_id: str) -> dict:
             essay_body=post.get("text") or "",
             essay_url=f"{app_url}/essays/{post_id}" if app_url else f"/essays/{post_id}",
         )
-        await db.essay_dispatches.insert_one({
-            "post_id": post_id,
-            "writer_id": post["user_id"],
-            "recipient_user_id": f["user_id"],
-            "recipient_email": f["email"],
-            "result_status": result.get("status") if isinstance(result, dict) else None,
-            "skipped": bool(result.get("skipped")) if isinstance(result, dict) else False,
-            "created_at": _now_iso(),
-        })
+        await db.essay_dispatches.update_one(
+            {"post_id": post_id, "recipient_user_id": f["user_id"]},
+            {"$set": {
+                "result_status": result.get("status") if isinstance(result, dict) else None,
+                "skipped": bool(result.get("skipped")) if isinstance(result, dict) else False,
+                "sent_at": _now_iso(),
+            }},
+        )
         sent += 1
 
     logger.info("Essay %s dispatched to %s followers (%s skipped via idempotency)", post_id, sent, skipped)
