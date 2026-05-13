@@ -142,6 +142,16 @@ of teams.
 
 **Stats**: 184/185 backend tests passing (13 new in `tests/test_phase6_prompts_p1.py`; 1 pre-existing flake in `test_decline_application` unrelated to this phase).
 
+## Phase 7 - HLS + public-domain launch tooling — Implemented (2026-05-13)
+- **HLS hybrid pipeline** (`services/hls_transcode.py`): videos ≤60s stay as direct MP4 (existing behavior); 60-180s videos are queued as a background ffmpeg HLS transcode at 720p H.264 main + AAC 128k with 4-second segments. The upload endpoint returns `{processing:true, transcode_job_id}` immediately; the frontend polls `GET /api/uploads/transcode/{id}` until `status:ready`. Total video cap raised to 3 minutes / 200MB.
+- **MediaItem.hls_path**: new optional field; `MediaBlock`'s VideoPlayer chooses Hls.js (with Safari native fallback) when `hls_path` is set, otherwise direct MP4 with poster.
+- **Composer flow**: long video shows a "transcoding..." placeholder in the media list, `composer-publish` is disabled while any media is `processing`, and the placeholder is replaced with an `hls_path` entry once the job is ready.
+- **APP_PUBLIC_URL admin setter** (`routes/email_health.py`): `GET / POST /api/admin/email/public-url` write to a new `app_settings` collection AND `os.environ`. Startup loads the DB value into the process so digest / tracking URLs hot-flip without a redeploy.
+- **Launch readiness check** (`GET /api/admin/email/readiness`): runs real DNS lookups (SPF, DKIM `mail._domainkey`, DMARC) via `dnspython`, HEADs the public URL, and verifies the Brevo key. Surfaced on `/admin/email-health` with a green/red row per check.
+- **Launch runbook** at `/app/docs/launch.md`. SEO basics: OG / Twitter / canonical meta in `index.html` and a `/robots.txt` that disallows `/api/` + advertises the sitemap.
+
+**Stats**: 198/198 backend tests passing (13 new in `tests/test_phase7_hls_launch.py`; `test_media_uploads.py` updated for the new HLS behavior).
+
 ## Phases 2-4 (not built yet, listed in architecture)
 - **Phase 2**: Batched 8:30am/5:30pm release scheduler. AM/PM digest emails via Brevo.
   Reply threads. Posts move from `pending_release` to `approved` at scheduled times.
