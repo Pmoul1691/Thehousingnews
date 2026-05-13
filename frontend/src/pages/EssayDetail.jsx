@@ -227,6 +227,15 @@ export default function EssayDetail() {
             >
               {essay.text || ""}
             </ReactMarkdown>
+            {essay.source === "substack_import" && (
+              <p
+                data-testid="essay-source-note"
+                className="not-prose mt-12 pt-6 border-t hairline font-serif italic text-sm text-muted-ink"
+              >
+                Originally published on Substack
+                {essay.source_published_at ? `, ${new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "America/Chicago" }).format(new Date(essay.source_published_at))}` : ""}.
+              </p>
+            )}
           </div>
         )}
 

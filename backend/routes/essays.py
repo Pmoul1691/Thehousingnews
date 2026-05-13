@@ -175,6 +175,10 @@ def setup(db):
             body["text"] = post.get("text") or ""
             body["html"] = md_render(post.get("text") or "")
             body["paywall"] = False
+            if post.get("source"):
+                body["source"] = post["source"]
+                if post.get("release_at"):
+                    body["source_published_at"] = post["release_at"]
         else:
             body["preview"] = _preview(post.get("text") or "")
             body["paywall"] = True

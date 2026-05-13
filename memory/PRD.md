@@ -190,6 +190,13 @@ of teams.
 - **Small copy nudges**: short-post placeholder is now "Plain words. What happened on a deal today?" - more inviting than the previous generic prompt.
 - **Removed**: the in-nav "Support" link (one less item competing with Write) and the second/inner composer that used to live inside the "Short notes" section (eliminated duplication).
 
+## Phase 13 - "Originally published on Substack" footnote (2026-05-13)
+- **Backend** (`routes/essays.py` GET `/api/essays/{id}`): for members only (post-paywall), the response now includes `source` and `source_published_at` when the essay was pulled from a Substack import. Anonymous viewers still see the preview + paywall and do not get these fields.
+- **Frontend** (`pages/EssayDetail.jsx`): when `essay.source === "substack_import"`, the reader page renders a quiet italic serif footnote at the bottom of the body: *"Originally published on Substack, {Month D, YYYY}."* with a hairline separator above. No logo, no link - text-only trust signal that does not break the de-brand rule.
+- New testid `essay-source-note` for testability.
+- **Data cleanup**: re-attributed the 20 orphaned Substack imports (from a mid-session admin user delete) back to Peter Moulton's user_id, and swept 122 pytest fixture posts that had been sorting above his real content on the public Landing.
+
+
 
 
 
