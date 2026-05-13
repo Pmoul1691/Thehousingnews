@@ -19,7 +19,7 @@ export default function Layout({ children }) {
             <span className="font-display font-semibold tracking-tight text-[15px] ink">The Ultradian Network</span>
           </Link>
           <div className="flex items-center gap-5">
-            <div className="hidden sm:block"><NextReleaseTimer /></div>
+            {!isLanding && <div className="hidden sm:block"><NextReleaseTimer /></div>}
             {user && user.status === "approved" && (
               <>
                 <Link to="/feed" data-testid="nav-feed" className="font-sans text-sm font-medium hover:text-gold transition-colors">Feed</Link>

@@ -71,14 +71,16 @@ function App() {
         <AuthProvider>
           <Router />
           <Toaster
-            position="top-center"
+            position="bottom-center"
+            duration={2200}
             toastOptions={{
               style: {
                 background: "#FDFAF4",
                 color: "#2C2410",
                 border: "1px solid #E8D4A0",
                 fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
-                fontSize: "13px",
+                fontSize: "12px",
+                boxShadow: "none",
               },
             }}
           />

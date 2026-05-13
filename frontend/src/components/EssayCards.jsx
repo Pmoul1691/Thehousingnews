@@ -10,15 +10,50 @@ function formatDate(iso) {
   } catch { return ""; }
 }
 
-// `FeaturedEssay`
-// - When `linkTo` is provided, the whole card links to that route.
-// - When `cta` is provided instead, a sign-in style CTA renders at the bottom.
-//   This lets the same component serve both the authenticated Feed (clickable
-//   card) and the public Landing (read-only with a sign-in nudge).
-export function FeaturedEssay({ essay, linkTo, cta, testIdPrefix = "featured-essay" }) {
+// FeaturedEssay
+// variants:
+//  - "card" (default): the classic bordered magazine card
+//  - "quiet": Substack-quiet stack - no border, type-led, hairline only
+export function FeaturedEssay({ essay, linkTo, cta, variant = "card", testIdPrefix = "featured-essay" }) {
   if (!essay) return null;
   const author = essay.author || {};
   const coverUrl = essay.image_path ? `${API}/uploads/file/${essay.image_path}` : null;
+
+  if (variant === "quiet") {
+    const inner = (
+      <>
+        <p className="font-sans text-[11px] uppercase tracking-[0.22em] font-semibold text-gold mb-5">
+          {essay.is_pete_pick ? "Pete pick" : "Latest essay"}
+        </p>
+        <h2 className="font-display font-semibold text-3xl sm:text-4xl lg:text-5xl ink leading-[1.05] tracking-tight mb-5 group-hover:text-gold transition-colors">
+          {essay.title}
+        </h2>
+        {essay.subtitle && (
+          <p className="font-serif italic text-lg sm:text-xl text-[#2C2410]/70 leading-relaxed mb-6 max-w-prose">
+            {essay.subtitle}
+          </p>
+        )}
+        {essay.preview && (
+          <p className="prose-serif text-base sm:text-lg leading-[1.7] text-[#2C2410]/85 mb-6 max-w-prose">
+            {essay.preview}
+          </p>
+        )}
+        <div className="font-sans text-xs text-muted-ink">
+          {author.name}{author.market ? ` . ${author.market}` : ""} . {formatDate(essay.release_at || essay.created_at)}
+        </div>
+        {cta}
+      </>
+    );
+    if (linkTo) {
+      return (
+        <Link to={linkTo} data-testid={`${testIdPrefix}-${essay.post_id}`} className="block group">
+          {inner}
+        </Link>
+      );
+    }
+    return <article data-testid={`${testIdPrefix}-${essay.post_id}`} className="block group">{inner}</article>;
+  }
+
   const inner = (
     <div className="grid sm:grid-cols-5 gap-0">
       {coverUrl && (
@@ -62,17 +97,53 @@ export function FeaturedEssay({ essay, linkTo, cta, testIdPrefix = "featured-ess
     );
   }
   return (
-    <article
-      data-testid={`${testIdPrefix}-${essay.post_id}`}
-      className="block group border hairline rounded-sm overflow-hidden bg-cream"
-    >
+    <article data-testid={`${testIdPrefix}-${essay.post_id}`} className="block group border hairline rounded-sm overflow-hidden bg-cream">
       {inner}
     </article>
   );
 }
 
-export function EssayMini({ essay, linkTo, testIdPrefix = "mini-essay" }) {
+// EssayMini
+// variants:
+//  - "card" (default): bordered card
+//  - "row": Substack-quiet stacked row - title + subtitle + meta, no border,
+//    intended to be paired with a hairline separator on the parent
+export function EssayMini({ essay, linkTo, variant = "card", testIdPrefix = "mini-essay" }) {
   const author = essay.author || {};
+
+  if (variant === "row") {
+    const body = (
+      <>
+        <h3 className="font-display font-semibold text-xl sm:text-2xl ink leading-[1.18] tracking-tight group-hover:text-gold transition-colors mb-2">
+          {essay.title}
+        </h3>
+        {essay.subtitle && (
+          <p className="font-serif italic text-base text-[#2C2410]/70 leading-relaxed mb-3 line-clamp-2 max-w-prose">
+            {essay.subtitle}
+          </p>
+        )}
+        {essay.preview && (
+          <p className="prose-serif text-[15px] leading-[1.65] text-[#2C2410]/80 line-clamp-2 mb-3 max-w-prose">
+            {essay.preview}
+          </p>
+        )}
+        <div className="font-sans text-xs text-muted-ink">
+          {author.name}{author.market ? ` . ${author.market}` : ""}
+          {(essay.release_at || essay.created_at) ? ` . ${formatDate(essay.release_at || essay.created_at)}` : ""}
+          {essay.is_pete_pick ? " . Pete pick" : ""}
+        </div>
+      </>
+    );
+    if (linkTo) {
+      return (
+        <Link to={linkTo} data-testid={`${testIdPrefix}-${essay.post_id}`} className="block group py-7">
+          {body}
+        </Link>
+      );
+    }
+    return <article data-testid={`${testIdPrefix}-${essay.post_id}`} className="block group py-7">{body}</article>;
+  }
+
   const body = (
     <>
       {essay.is_pete_pick && (
@@ -87,11 +158,7 @@ export function EssayMini({ essay, linkTo, testIdPrefix = "mini-essay" }) {
   );
   if (linkTo) {
     return (
-      <Link
-        to={linkTo}
-        data-testid={`${testIdPrefix}-${essay.post_id}`}
-        className="block group border hairline rounded-sm p-5 bg-cream hover:border-gold transition-colors"
-      >
+      <Link to={linkTo} data-testid={`${testIdPrefix}-${essay.post_id}`} className="block group border hairline rounded-sm p-5 bg-cream hover:border-gold transition-colors">
         {body}
       </Link>
     );

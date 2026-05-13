@@ -1,0 +1,35 @@
+{
+  "summary": "Iter-16 (Substack-quiet Landing redesign, frontend-only visual + light layout pass). Verified end-to-end on the public preview URL. Landing `/` renders the new editorial design exactly per spec: single masthead with gold-pill `landing-signin-btn` + text `landing-about-link`, large display headline (`landing-headline` 3 lines), italic serif tagline, gold uppercase `landing-eyebrow` ('THE ULTRADIAN NETWORK'). Below the masthead a hairline separates a 'LATEST ESSAY' gold eyebrow + bordered-less FeaturedEssay (`variant=quiet`), then a hairline-separated stack of `landing-mini-*` rows under a 'More essays' kicker, then a 'From the feed' stack of `landing-post-*` short rows. NO bordered cards anywhere on landing - confirmed by inspecting the featured anchor class ('block group' only, no `border hairline`). Found exactly: 1 landing-featured-*, 5 landing-mini-*, 5 landing-post-*. NextReleaseTimer is HIDDEN on `/` (header text reads only 'The Ultradian Network') and VISIBLE on `/about` (header text contains 'next release 5:30pm CT'). 'Reading without an account' box and 'Subject of the week' banner are GONE from landing. /about page untouched - `about-page` + `rule-card-1/2/3` all render. Featured essay anchor href correctly routes to /essays/post_9f4955f869db. Regression sanity check on EssayDetail: anonymous viewer on /essays/{id} does NOT expose `share-buttons` and the paywall/sign-in CTA is shown (consistent with iter-15 contract). Per main-agent instruction, did NOT re-run iter-14/iter-15 backend suites. One screenshot captured at 1920x1080 showing the calm, type-led, whitespace-heavy aesthetic.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "frontend/src/pages/Landing.jsx uses literal ` . ` (space-dot-space) as the meta-separator between author name, market and date. A typographic middle-dot `·` (U+00B7) or `•` would read more 'editorial' and matches the Substack-quiet target visually; the bare period is easy to misread as the end of a sentence.",
+    "frontend/src/components/EssayCards.jsx FeaturedEssay variant='quiet' ignores essay.image_path - any cover art Pete uploads for a featured essay will not render on landing. The classic 'card' variant DOES render coverUrl. If the editorial intent is type-only on landing this is correct; if covers should appear as a calm full-bleed image above the headline, the quiet variant needs an optional cover slot.",
+    "frontend/src/components/Layout.jsx hides NextReleaseTimer purely on `loc.pathname === '/'`. Any future variant of the landing (e.g. `/?ref=newsletter`) still matches because react-router pathname strips query, so this is fine - flagging only for awareness when localized routes get added.",
+    "frontend/src/pages/Landing.jsx the loading state shows 'Loading the magazine.' but on a slow connection there is no skeleton for shorts/essays - they pop in. For a 'calm, no distractions' aesthetic a brief subtle fade-in (animate-fade-up is already on the masthead) would feel less jumpy than a hard pop.",
+    "frontend/src/App.js Toaster `boxShadow: 'none'` is correct for the calm aesthetic but reduces affordance - a 1px hairline border is the only visual delimiter. On a busy page (cream-on-cream content) the toast can be hard to spot. Consider a 2-3px subtle gold-tinted shadow OR keep boxShadow:none but bump fontSize to 13px so the message reads at a glance.",
+    "frontend/src/pages/Landing.jsx the short-post rendering ignores `post.image_path`/media. The previous Landing surfaced image-bearing posts. For a strictly type-led page this is intentional; flagging in case Pete wants the occasional photo to break the type rhythm.",
+    "frontend/src/components/EssayCards.jsx the `quiet` variant subtitle clamps to `max-w-prose` but does not line-clamp, so a 4-line subtitle on the featured essay will dominate the masthead-to-essay rhythm. Consider line-clamp-3 for safety."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "not tested (frontend-only iter per main agent instruction)",
+    "frontend": "100% - all 6 required landing testids resolve, hairline-separated stacks render (1 featured, 5 minis, 5 short posts), NextReleaseTimer correctly hidden on `/` and visible on `/about`, no 'Reading without an account' / 'Subject of the week' noise on landing, featured-essay routes to /essays/{id}, /about untouched (rule-card-1/2/3), anonymous /essays/{id} hides share-buttons (iter-15 regression-clean)."
+  },
+  "test_credentials": "Not needed - all assertions in this iter are anonymous landing/about/essay-paywall checks. The toaster bottom-center placement was confirmed by inspecting App.js (position='bottom-center', duration=2200, boxShadow:'none'); a live admin RSS toast trigger was skipped because it requires re-seeding admin and would duplicate iter-15's already-green admin toast verification.",
+  "seed_data_creation": "None.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iter-16 is a pure visual + layout pass on Landing. All required testids resolve and the Substack-quiet aesthetic is correctly implemented: gold pill Sign in, text About link, italic serif tagline, large display headline, hairline-only separators between sections, no bordered cards on landing, FeaturedEssay variant=quiet with 'LATEST ESSAY' gold eyebrow. NextReleaseTimer hide-on-landing logic in Layout.jsx is working via `loc.pathname === '/'`. Anonymous /essays/{id} paywall continues to hide share-buttons (iter-15 contract intact). Iter-14 and iter-15 backend suites were NOT re-run per main agent instruction. Featured-essay covers and short-post media are intentionally omitted in the quiet design - flag this as a product decision if Pete asks why his cover art disappeared from landing.",
+  "rca of the issue": "n/a - no bugs found"
+}
