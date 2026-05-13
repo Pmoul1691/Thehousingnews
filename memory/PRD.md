@@ -105,6 +105,17 @@ of teams.
 
 **Stats**: 124/124 backend tests passing (11 new in `tests/test_substack_shell.py`).
 
+## Phase 5d - Rich media: gallery, video, audio, embeds — Implemented (2026-05-13)
+- **Both post types support media**: short posts and essays can attach up to 4 images (gallery), 1 video, 1 audio, and 1 URL embed (YouTube/Vimeo). Mutually exclusive: a single post cannot have both an uploaded video and a URL embed.
+- **Upload service** (`routes/uploads.py`): one endpoint, content-type aware. Images ≤6MB (jpg/png/webp/gif). Video ≤50MB and ≤60s (mp4, mov, webm) - rejected with 400/413 otherwise. Audio ≤20MB and ≤5min (mp3, m4a, wav, ogg, webm). ffprobe reads duration/dimensions; ffmpeg extracts a JPEG poster frame at t=0.5s for every uploaded video and uploads it as a sibling thumbnail file; the response carries `thumbnail_path`, `duration_s`, `width`, `height`.
+- **Embed parser** (`services/embed.py`): `POST /api/uploads/embed {url}` returns `{provider:youtube|vimeo, video_id, embed_url, thumbnail_url}`. Supports YouTube `watch?v=`, `youtu.be`, `/shorts/`, `/embed/`, and Vimeo `/{id}` paths. Anything else returns 400.
+- **Post model** (`routes/posts.py`): new `media: List[MediaItem]` array on every post. Pydantic validator enforces the per-kind caps (max 4 images, 1 each of video/audio/embed). Legacy `image_path` is still stored and is auto-synthesized into `media[0]` for old rows. Drafts persist `media` too.
+- **Frontend MediaBlock** (`components/MediaBlock.jsx`): gallery renderer (1/2/3+ image grids), `<video>` player with poster, `<iframe>` embed, `<audio>` player. Used by `PostItem` (short posts and essay extras) and `EssayDetail`.
+- **Composer** (`components/Composer.jsx`): media picker with multi-image input (cap 4), single-video, single-audio, and a YouTube/Vimeo URL field. Live attached-media list with per-item remove. Drafts auto-save media. Same media UX for both Short post and Essay modes.
+- **ffmpeg + ffprobe** installed in the container (Debian package `ffmpeg`).
+
+**Stats**: 148/148 backend tests passing (24 new in `tests/test_media_uploads.py`).
+
 ## Phases 2-4 (not built yet, listed in architecture)
 - **Phase 2**: Batched 8:30am/5:30pm release scheduler. AM/PM digest emails via Brevo.
   Reply threads. Posts move from `pending_release` to `approved` at scheduled times.
