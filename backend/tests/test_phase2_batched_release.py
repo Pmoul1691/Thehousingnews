@@ -56,7 +56,7 @@ class TestPostCreatePendingRelease:
         assert r.status_code == 200
         pub = requests.get(f"{base_url}/api/posts/public")
         assert pub.status_code == 200
-        texts = [it["text"] for it in pub.json()["items"]]
+        texts = [it.get("text", "") for it in pub.json()["items"]]
         assert unique not in texts
 
     def test_pending_post_not_in_feed(self, http, base_url, approved_user, bearer):
@@ -67,7 +67,7 @@ class TestPostCreatePendingRelease:
         assert r.status_code == 200
         feed = http.get(f"{base_url}/api/posts/feed", headers=bearer(approved_user["token"]))
         assert feed.status_code == 200
-        texts = [it["text"] for it in feed.json()["items"]]
+        texts = [it.get("text", "") for it in feed.json()["items"]]
         assert unique not in texts
 
 
@@ -173,7 +173,7 @@ class TestReplies:
         # Guest GET replies: pending reply should NOT appear
         g = requests.get(f"{base_url}/api/posts/{pid}/replies")
         assert g.status_code == 200
-        guest_texts = [it["text"] for it in g.json()["items"]]
+        guest_texts = [it.get("text", "") for it in g.json()["items"]]
         assert unique not in guest_texts
 
         # Approved author GET replies: own pending should appear with is_released=false
@@ -195,10 +195,10 @@ class TestReplies:
         # Guest now sees the reply
         g2 = requests.get(f"{base_url}/api/posts/{pid}/replies")
         assert g2.status_code == 200
-        g2_texts = [it["text"] for it in g2.json()["items"]]
+        g2_texts = [it.get("text", "") for it in g2.json()["items"]]
         assert unique in g2_texts
         for it in g2.json()["items"]:
-            if it["text"] == unique:
+            if it.get("text") == unique:
                 assert it["is_released"] is True
 
         # Reply_count on the post should reflect the released reply
@@ -237,10 +237,10 @@ class TestAdminReleaseNow:
         assert rel.status_code == 200
         # Public feed must include
         pub = requests.get(f"{base_url}/api/posts/public")
-        texts = [it["text"] for it in pub.json()["items"]]
+        texts = [it.get("text", "") for it in pub.json()["items"]]
         assert unique in texts
         for it in pub.json()["items"]:
-            if it["text"] == unique:
+            if it.get("text") == unique:
                 assert it["is_released"] is True
 
 

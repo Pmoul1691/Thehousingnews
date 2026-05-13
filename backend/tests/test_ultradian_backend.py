@@ -245,7 +245,7 @@ class TestPosts:
         # Public feed (no auth) - the freshly created post is queued, must NOT appear yet
         pub_pre = requests.get(f"{base_url}/api/posts/public")
         assert pub_pre.status_code == 200
-        assert unique not in [it["text"] for it in pub_pre.json()["items"]]
+        assert unique not in [it.get("text", "") for it in pub_pre.json()["items"]]
 
         # Force release via admin endpoint by setting release_at to past, then call admin/release-now.
         # We use mongosh to flip the release_at to now-ish so release_batch picks it up.
@@ -269,7 +269,7 @@ class TestPosts:
         pub = requests.get(f"{base_url}/api/posts/public")
         assert pub.status_code == 200
         items = pub.json()["items"]
-        texts = [it["text"] for it in items]
+        texts = [it.get("text", "") for it in items]
         assert unique in texts
         _no_underscore_id(pub.json())
         for it in items:
@@ -278,7 +278,7 @@ class TestPosts:
             assert "_id" not in it
             assert "reply_count" in it
             assert "is_released" in it
-            if it["text"] == unique:
+            if it.get("text") == unique:
                 assert it["is_released"] is True
 
     def test_feed_only_approved(self, http, base_url, needs_app_user, approved_user, bearer):

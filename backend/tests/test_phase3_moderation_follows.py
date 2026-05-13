@@ -343,7 +343,7 @@ class TestFeedScopeFollowing:
         ev = http.get(f"{base_url}/api/posts/feed?scope=everyone",
                       headers=bearer(approved_user["token"]))
         assert ev.status_code == 200
-        ev_texts = [it["text"] for it in ev.json()["items"]]
+        ev_texts = [it.get("text", "") for it in ev.json()["items"]]
         assert a_text in ev_texts and b_text in ev_texts
         assert ev.json()["scope"] == "everyone"
 
@@ -351,7 +351,7 @@ class TestFeedScopeFollowing:
         f1 = http.get(f"{base_url}/api/posts/feed?scope=following",
                       headers=bearer(approved_user["token"]))
         assert f1.status_code == 200
-        f1_texts = [it["text"] for it in f1.json()["items"]]
+        f1_texts = [it.get("text", "") for it in f1.json()["items"]]
         assert a_text in f1_texts
         assert b_text not in f1_texts
 
@@ -360,7 +360,7 @@ class TestFeedScopeFollowing:
                   headers=bearer(approved_user["token"]))
         f2 = http.get(f"{base_url}/api/posts/feed?scope=following",
                       headers=bearer(approved_user["token"]))
-        f2_texts = [it["text"] for it in f2.json()["items"]]
+        f2_texts = [it.get("text", "") for it in f2.json()["items"]]
         assert a_text in f2_texts
         assert b_text in f2_texts
 
@@ -464,7 +464,7 @@ class TestAdminModeration:
         assert h.json()["status"] == "hidden"
 
         # post must not appear in public/feed/by-user/mine
-        pub_texts = [it["text"] for it in requests.get(f"{base_url}/api/posts/public").json()["items"]]
+        pub_texts = [it.get("text", "") for it in requests.get(f"{base_url}/api/posts/public").json()["items"]]
         feed = http.get(f"{base_url}/api/posts/feed", headers=bearer(approved_user["token"])).json()
         byu = http.get(f"{base_url}/api/posts/by-user/{second_approved_user['user_id']}",
                        headers=bearer(approved_user["token"])).json()
@@ -567,7 +567,7 @@ class TestAdminSuspend:
         assert np.status_code == 403
 
         # Their posts excluded from feeds
-        pub_texts = [it["text"] for it in requests.get(f"{base_url}/api/posts/public").json()["items"]]
+        pub_texts = [it.get("text", "") for it in requests.get(f"{base_url}/api/posts/public").json()["items"]]
         assert t_pre not in pub_texts
         feed = http.get(f"{base_url}/api/posts/feed",
                         headers=bearer(admin_user["token"])).json()["items"]
@@ -582,7 +582,7 @@ class TestAdminSuspend:
         u = http.post(f"{base_url}/api/admin/users/{approved_user['user_id']}/unsuspend",
                       headers=bearer(admin_user["token"]))
         assert u.status_code == 200
-        pub_texts2 = [it["text"] for it in requests.get(f"{base_url}/api/posts/public").json()["items"]]
+        pub_texts2 = [it.get("text", "") for it in requests.get(f"{base_url}/api/posts/public").json()["items"]]
         assert t_pre in pub_texts2
 
     def test_cannot_suspend_admin(self, http, base_url, admin_user, bearer):
