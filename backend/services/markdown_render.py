@@ -2,16 +2,22 @@
 import markdown as md_lib
 import bleach
 
-# Allowed tags & attributes for essay HTML. Conservative.
+# Allowed tags & attributes for essay HTML. Conservative but now supports inline
+# video / audio / iframe media inserted from the rich-text editor.
 ALLOWED_TAGS = [
-    "h1", "h2", "h3", "h4", "p", "br", "hr",
+    "h1", "h2", "h3", "h4", "p", "br", "hr", "div", "span",
     "em", "strong", "i", "b", "u", "code", "pre", "blockquote",
     "ul", "ol", "li",
     "a", "img",
+    "video", "audio", "source", "iframe",
 ]
 ALLOWED_ATTRS = {
     "a": ["href", "title"],
     "img": ["src", "alt", "title"],
+    "video": ["src", "controls", "poster", "preload", "playsinline", "style", "width", "height"],
+    "audio": ["src", "controls", "preload", "style"],
+    "source": ["src", "type"],
+    "iframe": ["src", "width", "height", "frameborder", "allow", "allowfullscreen", "title", "loading"],
 }
 
 

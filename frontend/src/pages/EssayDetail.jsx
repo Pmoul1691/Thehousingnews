@@ -2,11 +2,28 @@ import React, { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import rehypeRaw from "rehype-raw";
+import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import api, { API } from "@/lib/api";
 import Replies from "@/components/Replies";
 import MediaBlock from "@/components/MediaBlock";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
+
+// Extend default sanitize schema to allow inline video/audio/iframe inserted via rich-text editor.
+const SANITIZE_SCHEMA = {
+  ...defaultSchema,
+  tagNames: [...(defaultSchema.tagNames || []), "video", "audio", "source", "iframe"],
+  attributes: {
+    ...(defaultSchema.attributes || {}),
+    video: ["src", "controls", "poster", "preload", "playsInline", "playsinline", "style", "width", "height"],
+    audio: ["src", "controls", "preload", "style"],
+    source: ["src", "type"],
+    iframe: ["src", "width", "height", "frameBorder", "frameborder", "allow", "allowFullScreen", "allowfullscreen", "title", "loading"],
+    "*": [...((defaultSchema.attributes && defaultSchema.attributes["*"]) || []), "className", "style"],
+  },
+  protocols: { ...(defaultSchema.protocols || {}), src: ["http", "https"] },
+};
 
 function formatWhen(iso) {
   if (!iso) return "";
@@ -192,7 +209,12 @@ export default function EssayDetail() {
           </>
         ) : (
           <div ref={bodyRef} className="essay-body prose-serif text-lg leading-[1.78] ink/90" data-testid="essay-body">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{essay.text || ""}</ReactMarkdown>
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              rehypePlugins={[rehypeRaw, [rehypeSanitize, SANITIZE_SCHEMA]]}
+            >
+              {essay.text || ""}
+            </ReactMarkdown>
           </div>
         )}
 

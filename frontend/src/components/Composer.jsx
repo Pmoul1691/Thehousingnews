@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import api, { API } from "@/lib/api";
 import { toast } from "sonner";
+import RichTextEditor from "@/components/RichTextEditor";
 
 function formatLocal(iso) {
   if (!iso) return "";
@@ -24,6 +25,7 @@ const MAX_IMAGES = 4;
 
 export default function Composer({ onPosted }) {
   const [mode, setMode] = useState("post");
+  const [editorMode, setEditorMode] = useState(() => localStorage.getItem("essay_editor_mode") || "visual");
   const [text, setText] = useState("");
   const [title, setTitle] = useState("");
   const [subtitle, setSubtitle] = useState("");
@@ -244,15 +246,38 @@ export default function Composer({ onPosted }) {
         </div>
       )}
 
-      <textarea
-        data-testid="composer-text"
-        className={`w-full bg-cream border-0 focus:outline-none font-serif text-base sm:text-lg ink leading-relaxed resize-none ${isEssay ? "min-h-[340px]" : "min-h-[110px]"}`}
-        placeholder={isEssay ? "Write the essay. Markdown is supported: **bold**, _italic_, # heading, - lists, > quotes, [link](url)." : "Plain words. What did you see today?"}
-        value={text}
-        maxLength={isEssay ? 50000 : 500}
-        onChange={(e) => setText(e.target.value)}
-      />
+      {isEssay && (
+        <div className="flex items-center gap-1 mb-2 border hairline rounded-sm p-0.5 w-fit" data-testid="essay-editor-toggle">
+          {[{ k: "visual", l: "Visual" }, { k: "markdown", l: "Markdown" }].map((t) => (
+            <button
+              key={t.k}
+              type="button"
+              data-testid={`essay-editor-${t.k}`}
+              onClick={() => { setEditorMode(t.k); localStorage.setItem("essay_editor_mode", t.k); }}
+              className={`px-3 py-1 font-sans text-[11px] font-semibold uppercase tracking-wider transition-colors ${editorMode === t.k ? "bg-gold text-cream" : "text-muted-ink hover:text-ink"}`}
+            >
+              {t.l}
+            </button>
+          ))}
+        </div>
+      )}
 
+      {isEssay && editorMode === "visual" ? (
+        <RichTextEditor
+          value={text}
+          onChange={setText}
+          placeholder="Write the essay. Type / to insert headings, images, video, audio, or links."
+        />
+      ) : (
+        <textarea
+          data-testid="composer-text"
+          className={`w-full bg-cream border-0 focus:outline-none font-serif text-base sm:text-lg ink leading-relaxed resize-none ${isEssay ? "min-h-[340px]" : "min-h-[110px]"}`}
+          placeholder={isEssay ? "Write the essay. Markdown is supported: **bold**, _italic_, # heading, - lists, > quotes, [link](url)." : "Plain words. What did you see today?"}
+          value={text}
+          maxLength={isEssay ? 50000 : 500}
+          onChange={(e) => setText(e.target.value)}
+        />
+      )}
       {/* Media previews */}
       {media.length > 0 && (
         <div className="mt-4 space-y-2" data-testid="composer-media-list">

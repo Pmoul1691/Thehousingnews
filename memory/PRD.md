@@ -116,6 +116,14 @@ of teams.
 
 **Stats**: 148/148 backend tests passing (24 new in `tests/test_media_uploads.py`).
 
+## Phase 4b - Email auth, invites, open-rate tracking — Implemented (2026-05-13)
+- **Admin email-health page** (`/admin/email-health`): admin-only DNS records checklist (SPF / DKIM / DMARC / Brevo verification / www CNAME) with one-click copy and a Brevo-backed "test send" button. Static runbook lives at `/app/docs/email-setup.md`. Backend: `GET /api/admin/email/dns-records`, `POST /api/admin/email/test-send`.
+- **Member invite codes** (`routes/invites.py`): 2 codes per member per quarter (`YEAR-Q{1..4}`), 8-char alphanumeric, 60-day expiry, one-time use. Atomic redeem on application submit (`POST /api/applications` accepts `invite_code`). Admin queue shows an "Invited by X" chip on each application. Settings page has copy/revoke UI.
+- **Open + click tracking** (`services/tracking.py`, `routes/tracking.py`): `services/brevo.send_email` accepts a `dispatch_id`; the HTML is wrapped with a 1x1 open pixel at `/api/track/open/{dispatch_id}.gif` and every external `<a href>` is rewritten to `/api/track/click/{dispatch_id}?to=...` which 302-redirects after logging. Tracking is a no-op when `APP_PUBLIC_URL` is empty. Each digest + essay email mints its own `dispatch_id` and stores a row in the new `email_dispatches` collection (with `first_opened_at`, `first_clicked_at`). Open/click events also land in `email_events`.
+- **Admin email engagement** (`/api/admin/analytics/email`): aggregated sent/opened/clicked counts and open/click rates per batch for the last 30 days, surfaced inside Admin > Analytics tab as a table + stat cards.
+
+**Stats**: 166/166 backend tests passing (18 new in `tests/test_phase4b_email_invites_tracking.py`).
+
 ## Phases 2-4 (not built yet, listed in architecture)
 - **Phase 2**: Batched 8:30am/5:30pm release scheduler. AM/PM digest emails via Brevo.
   Reply threads. Posts move from `pending_release` to `approved` at scheduled times.

@@ -1,0 +1,36 @@
+{
+  "summary": "Phase 5e (Tiptap WYSIWYG essay editor + inline media support) tested end-to-end. ALL critical surfaces pass. Backend: added /app/backend/tests/test_phase5e_richtext_media.py (6 new tests covering markdown_render allowlist for iframe/video/audio/source plus essay round-trip with raw <iframe> in body) - 6/6 PASS. Phase 5b regression (19/19) re-run unchanged - PASS. Frontend Playwright on /feed verified: short-post mode has NO essay-editor-toggle; clicking composer-mode-essay reveals essay-editor-toggle with essay-editor-visual + essay-editor-markdown; default Visual renders rich-text-editor + rich-toolbar + rich-editor; all 12 toolbar testids (rt-bold/italic/h1/h2/quote/ul/ol/link/image/video/audio/youtube) present; rich-editor-file input exists and after clicking rt-image its accept attribute correctly switches to image/*; toggling to Markdown swaps to data-testid=composer-text textarea and rich-text-editor disappears; toggling back to Visual re-renders editor; typing 'Hello world' + Ctrl+A + rt-bold injects <strong> in editor and the Markdown view shows **Hello world**; typing '/' opens data-testid=rich-slash-menu with all 10 entries (slash-h1/h2/quote/ul/ol/image/video/audio/yt/hr) and clicking slash-h1 turns the line into <h1> which round-trips to '# Big Heading' in markdown view. Direct API publish flow (POST /api/posts with markdown body containing raw <iframe>) verified: GET /api/essays/{pid} returns text starting with '# Heading', text contains <iframe>, html contains <h1>+<strong>+<iframe src=youtube.com/embed/dQw4w9WgXcQ>. EssayDetail (/essays/{id}) renders the YouTube iframe inline inside [data-testid=essay-body] (rehype-raw + rehype-sanitize allowlist works).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_phase5e_richtext_media.py",
+    "/app/test_reports/pytest/pytest_iter11.xml"
+  ],
+  "action_items": [
+    "(Optional, carry-over from iteration_10) Apply.jsx still passes Pydantic 422 detail array straight to toast.error / React children. Not regressed in this iteration; happy path works.",
+    "(Minor enhancement) RichTextEditor slash menu currently triggers only when the paragraph contains ONLY '/' (text === '/'). Typing '/' mid-line will not open the menu. This matches the spec ('typing / in an empty paragraph') but worth noting for product polish (Notion-style triggers on any '/').",
+    "(Minor enhancement) The visual-mode placeholder is rendered as a sibling <p> overlaid via negative margin. It can shift if the user types a heading or list as the first block (cosmetic, not blocking)."
+  ],
+  "critical_code_review_comments": [
+    "services/markdown_render.py allowlist now permits iframe/video/audio/source with src restricted to http/https via bleach protocols - safe.",
+    "EssayDetail.jsx SANITIZE_SCHEMA extends rehype-sanitize defaultSchema with video/audio/iframe/source and restricts iframe src to http/https. rehype-raw runs BEFORE rehype-sanitize, which is the correct order (raw HTML is parsed then sanitized).",
+    "RichTextEditor.jsx stores markdown via tiptap-markdown.getMarkdown() and onChange emits markdown string - wire format end-to-end is markdown. Backend POST /api/posts payload `text` confirmed to contain markdown markers (#, **, [link](url)) via direct API test.",
+    "RichTextEditor useEffect [value, editor] uses lastEmittedRef to avoid setContent loops when its own onUpdate fires - prevents infinite render loops. Looks correct.",
+    "Composer.jsx localStorage persistence of essay_editor_mode (visual|markdown) works; toggling does NOT reset text state, so content survives view swap.",
+    "Image extension is configured with allowBase64:false (good - prevents data: URIs bloating payloads).",
+    "Link extension uses openOnClick:false + autolink:true + target=_blank rel=noopener - safe defaults.",
+    "Minor: bleach emits NoCssSanitizerWarning for 'style' attribute in allowed attrs. Functional but consider css-sanitizer addon to strip dangerous CSS (e.g., url(javascript:...) ). Low priority."
+  ],
+  "updated_files": ["/app/backend/tests/test_phase5e_richtext_media.py"],
+  "success_rate": {"backend": "100% (6/6 new + 19/19 phase5b regression)", "frontend": "100% (toggle, toolbar, slash menu, round-trip, EssayDetail iframe render all verified)"},
+  "test_credentials": "Ephemeral member user seeded then deleted: tok_p5e_1778682682787 / user_p5e_1778682682787 with profile.",
+  "seed_data_creation": "One member user + profile + session for Playwright; one essay post post_38f6db3b1ac5 to verify iframe rendering on EssayDetail. All cleaned up after test.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Phase 5e complete. RichTextEditor (Tiptap) ships markdown, sanitizer allowlist supports inline iframe/video/audio, EssayDetail renders raw HTML via rehype-raw+rehype-sanitize. Test report at /app/test_reports/pytest/pytest_iter11.xml. Carry-forward issue: Apply.jsx 422 detail array crash from iteration_10 unrelated to this phase but still open. Slash-menu trigger is paragraph-exact-match-'/' (not Notion-style mid-line). Note: app routes use /essays/:id (plural), not /essay/:id - earlier test failure was a routing typo on my side, not a bug."
+}

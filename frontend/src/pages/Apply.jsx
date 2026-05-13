@@ -44,7 +44,9 @@ export default function Apply() {
       await refresh();
       navigate("/pending", { replace: true });
     } catch (e) {
-      toast.error(e?.response?.data?.detail || "Could not submit. Try again.");
+      const d = e?.response?.data?.detail;
+      const msg = Array.isArray(d) ? d.map((x) => x?.msg || JSON.stringify(x)).join("; ") : (d || "Could not submit. Try again.");
+      toast.error(msg);
     } finally {
       setSubmitting(false);
     }
