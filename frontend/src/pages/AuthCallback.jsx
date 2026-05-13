@@ -26,15 +26,13 @@ export default function AuthCallback() {
         if (r.data?.session_token) setSessionToken(r.data.session_token);
         // Clear hash
         window.history.replaceState(null, "", window.location.pathname);
-        setUser({ ...r.data, has_profile: false });
+        const me = { ...r.data, has_profile: !!r.data.has_profile };
+        setUser(me);
         if (r.data.status === "approved") {
-          // Approved users without profile go to onboarding
-          const me = await api.get("/auth/me");
-          setUser(me.data);
-          if (!me.data.has_profile) {
-            navigate("/onboarding", { replace: true, state: { user: me.data } });
+          if (!me.has_profile) {
+            navigate("/onboarding", { replace: true, state: { user: me } });
           } else {
-            navigate("/feed", { replace: true, state: { user: me.data } });
+            navigate("/feed", { replace: true, state: { user: me } });
           }
         } else if (r.data.status === "needs_application") {
           navigate("/apply", { replace: true, state: { user: r.data } });

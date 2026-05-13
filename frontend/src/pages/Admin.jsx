@@ -6,6 +6,31 @@ import { toast } from "sonner";
 import AdminAnalyticsPanel from "@/components/AdminAnalyticsPanel";
 import AdminPromptsPanel from "@/components/AdminPromptsPanel";
 
+function RssImportButton() {
+  const [busy, setBusy] = useState(false);
+  const run = async () => {
+    setBusy(true);
+    try {
+      const r = await api.post("/admin/rss/import");
+      const { imported = 0, skipped = 0 } = r.data || {};
+      toast.success(`Imported ${imported}, skipped ${skipped}.`);
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || "Import failed");
+    } finally { setBusy(false); }
+  };
+  return (
+    <button
+      type="button"
+      onClick={run}
+      disabled={busy}
+      data-testid="admin-rss-import-btn"
+      className="font-sans text-xs uppercase tracking-wider font-semibold border border-gold-mid text-gold px-3 py-1.5 rounded-sm hover:bg-gold hover:text-cream transition-colors disabled:opacity-50"
+    >
+      {busy ? "Importing." : "Import essays now"}
+    </button>
+  );
+}
+
 export default function Admin() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
@@ -97,9 +122,12 @@ export default function Admin() {
           <p className="uppercase-label mb-3">Admin</p>
           <h1 className="font-display font-semibold text-3xl ink">Pete's queue</h1>
         </div>
-        <Link to="/admin/email-health" data-testid="nav-email-health" className="font-sans text-xs uppercase tracking-wider text-gold font-semibold hover:opacity-80 transition-opacity">
-          Email health →
-        </Link>
+        <div className="flex items-center gap-4">
+          <RssImportButton />
+          <Link to="/admin/email-health" data-testid="nav-email-health" className="font-sans text-xs uppercase tracking-wider text-gold font-semibold hover:opacity-80 transition-opacity">
+            Email health →
+          </Link>
+        </div>
       </div>
 
       <div className="flex items-center gap-6 mb-8 border-b hairline">

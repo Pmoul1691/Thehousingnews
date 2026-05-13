@@ -7,6 +7,7 @@ import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import api, { API } from "@/lib/api";
 import Replies from "@/components/Replies";
 import MediaBlock from "@/components/MediaBlock";
+import ShareButtons from "@/components/ShareButtons";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 
@@ -226,6 +227,16 @@ export default function EssayDetail() {
             >
               {essay.text || ""}
             </ReactMarkdown>
+          </div>
+        )}
+
+        {!essay.paywall && (
+          <div className="mt-12 pt-8 border-t hairline" data-testid="essay-share">
+            <ShareButtons
+              url={typeof window !== "undefined" ? window.location.href : ""}
+              title={essay.title}
+              hasVideo={(essay.media || []).some((m) => m.kind === "video" || m.kind === "embed")}
+            />
           </div>
         )}
 

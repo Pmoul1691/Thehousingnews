@@ -33,6 +33,7 @@ from routes.tracking import setup as setup_tracking
 from routes.invites import setup as setup_invites
 from routes.email_health import setup as setup_email_health
 from routes.prompts import setup as setup_prompts
+from routes.admin_rss import setup as setup_admin_rss
 from services.object_storage import init_storage
 from services.release_window import next_window, now_chicago
 from services.scheduler import start_scheduler, release_batch
@@ -210,3 +211,4 @@ app.include_router(setup_email_health(db))
 prompts_pub_r, prompts_admin_r = setup_prompts(db)
 app.include_router(prompts_pub_r)
 app.include_router(prompts_admin_r)
+app.include_router(setup_admin_rss(db))

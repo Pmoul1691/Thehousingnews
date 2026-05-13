@@ -122,6 +122,9 @@ def setup(db):
             path="/",
         )
 
+        # Compute has_profile so the frontend can skip the follow-up /auth/me round trip.
+        has_profile = bool(await db.profiles.find_one({"user_id": user["user_id"]}, {"_id": 0, "user_id": 1}))
+
         return {
             "user_id": user["user_id"],
             "email": user["email"],
@@ -129,6 +132,7 @@ def setup(db):
             "picture": user.get("picture", ""),
             "is_admin": user.get("is_admin", False),
             "status": user["status"],
+            "has_profile": has_profile,
             "session_token": session_token,
         }
 

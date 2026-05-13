@@ -8,6 +8,7 @@ from services.release_window import CHICAGO, previous_window, window_kind, windo
 from services.brevo import send_digest_email
 from services.essay_dispatch import dispatch_essay_to_followers
 from services.admin_digest import send_admin_digest
+from services.substack_import import import_substack_feed
 from routes.prompts import advance_weekly_prompt
 
 logger = logging.getLogger(__name__)
@@ -225,6 +226,16 @@ def start_scheduler(db) -> AsyncIOScheduler:
         replace_existing=True,
         misfire_grace_time=600,
     )
+    scheduler.add_job(
+        import_substack_feed,
+        trigger="cron",
+        hour=7,
+        minute=0,
+        args=[db],
+        id="substack_rss_import",
+        replace_existing=True,
+        misfire_grace_time=600,
+    )
     scheduler.start()
-    logger.info("Release scheduler started (8:30 AM and 5:30 PM America/Chicago + per-minute scheduled-essays sweep)")
+    logger.info("Release scheduler started (8:30 AM and 5:30 PM America/Chicago + per-minute scheduled-essays sweep + 7:00 AM daily Substack import)")
     return scheduler

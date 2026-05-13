@@ -21,7 +21,7 @@ export const clearSessionToken = () => {
 
 const api = axios.create({
   baseURL: API,
-  withCredentials: true,
+  withCredentials: false,
 });
 
 api.interceptors.request.use((config) => {

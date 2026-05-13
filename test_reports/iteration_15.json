@@ -1,0 +1,43 @@
+{
+  "summary": "Iter-15 testing complete. Backend: 11/11 new pytest cases pass in /app/backend/tests/test_iter15_substack_share.py (admin RSS import + idempotent dedupe, /admin/rss/status shape, non-admin 403, unauthenticated 401, imported essay queryable + de-branded with trailing #Hashtag block stripped, /auth/me has_profile false then true after profile insert, unit tests on _strip_trailing_hashtag_block helper). Iter-14 suite (9/9) still green - no regression. Frontend (Playwright on the public preview URL): (a) Landing renders with [data-testid=landing-magazine-top], 1 landing-featured-* + 3 landing-mini-* cards via the new shared EssayCards components and shows NO share-buttons pre-auth (paywall path); (b) Anonymous /essays/{id} shows the paywall and does NOT expose [data-testid=share-buttons]; (c) authenticated member /essays/{id} renders [data-testid=share-buttons] with ALL eight testids present: share-linkedin, share-x, share-facebook, share-substack, share-instagram, share-tiktok, share-youtube, share-copy. The intent hrefs are correct (LinkedIn /sharing/share-offsite, twitter.com /intent/tweet with url+text, FB sharer, substack.com/note/quote). The copy-style button calls navigator.clipboard.writeText with the canonical essay URL; (d) /admin renders [data-testid=admin-rss-import-btn] for admins; clicking it triggers POST /api/admin/rss/import returning 200 ok=true imported=0 skipped=20 (idempotent on second run, matching the backend contract). axios withCredentials confirmed false at /app/frontend/src/lib/api.js:24.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/auth/session", "issue": "Still calls response.set_cookie(samesite='none', secure=True) even though the canonical auth path is localStorage + Bearer. Harmless dead weight; cookie is silently dropped by the browser in this preview because the ingress rewrites Access-Control-Allow-Origin to '*'. Consider removing the cookie write to make the contract explicit."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter15_substack_share.py",
+    "/app/test_reports/pytest/pytest_iter15.xml",
+    "/app/backend/tests/test_iter14_auth_landing.py"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "backend/services/substack_import.py picks the admin user via ADMIN_FALLBACK_EMAILS tuple hardcoded in code (peter@1691inc.com, peter@ultradianpartners.com). The auth_helpers.is_admin_email reads ADMIN_EMAILS from .env. These two lists can drift. Consider sourcing both from os.environ.get('ADMIN_EMAILS') so a single env var governs admin attribution and admin RBAC.",
+    "backend/routes/admin_rss.py POST /import has no timeout/retry around feedparser.parse - a slow Substack outage would block the request thread for whatever the default urllib socket timeout is (no timeout by default). For the cron path this is acceptable; for the manual UI button consider wrapping in asyncio.to_thread with a hard timeout so the admin sees a clean 504 instead of a hung request.",
+    "backend/services/substack_import.py inserts posts with status='approved' and release_at = entry.published, then immediately surfaces them on the public feed. There is no batched-release window for imported essays (the rest of the site uses 5:30pm CT batched release per phase2). This is fine for backfill but if Pete posts a NEW Substack essay mid-day the import would surface it instantly, bypassing the batched-release voice. Consider gating to next 5:30pm CT window for entries published <24h ago.",
+    "backend/services/substack_import.py de-dupes on $or:[source_guid, source_url] but does NOT have a unique index on either. Under concurrency (manual click + cron firing simultaneously) you could double-insert. Add a partial unique index: db.posts.createIndex({source_guid:1}, {unique:true, partialFilterExpression:{source:'substack_import'}}).",
+    "frontend/src/components/ShareButtons.jsx hardcodes the X intent URL with the essay title in the `text=` param even though the title may contain quote chars; encodeURIComponent handles it but the resulting tweet body is the bare title with no attribution. Consider templating: `${title} - read more ${url}` so the shared tweet is self-explanatory.",
+    "frontend/src/components/ShareButtons.jsx Substack intent points to substack.com/note/quote?url=... which creates a Substack Note quoting our URL. Functionally correct, but consider whether quoting back into Substack defeats the 'de-branded, NOT Substack' positioning the import logic enforces. This is a product decision more than a bug.",
+    "backend/routes/auth.py still calls response.set_cookie for backwards compatibility but the cookie is dropped by the browser in this env. The session_token is now also in the JSON body. Either ship cookies properly (same-domain) or drop the cookie write entirely.",
+    "backend/services/substack_import.py imports HTML and converts with markdownify. There is no length cap - a 50K-word Substack post would be ingested verbatim. Consider a sanity cap (e.g., 80K chars) with a `truncated_at` marker."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter15_substack_share.py"
+  ],
+  "success_rate": {
+    "backend": "100% (11/11 iter-15 tests pass; iter-14 9/9 still green)",
+    "frontend": "100% on every verified flow: Landing shared-grid render, anon paywall hides share-buttons, member share-buttons render with all 8 testids and correct intent URLs, clipboard copy works, admin RSS button visible and wired to /api/admin/rss/import."
+  },
+  "test_credentials": "Ephemeral mongosh-seeded admin (peter@1691inc.com) and a non-admin approved member, plus a dedicated UI-test admin/member pair for the Playwright run. All cleaned up at the end.",
+  "seed_data_creation": "test_iter15_substack_share.py creates per-test user+user_sessions rows (and a profile doc for the has_profile=true case) via mongosh and tears them down in finally blocks. The Substack import itself creates ~20 posts in db.posts with source='substack_import' which is the production-intended state - these are NOT cleaned up because they represent the user's real essays.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All iter-15 contracts verified end-to-end. The Substack feed has 20 entries as of the test run; a successful /api/admin/rss/import on a fresh DB returns imported=20 skipped=0 and the second call returns imported=0 skipped=20 (idempotent on source_guid). The hashtag-stripping helper is verified via unit + integration tests - a typical Substack essay loses its trailing '#realestate #leadership #ops' block while keeping body-internal hashtags. To re-test the authenticated frontend share-buttons, seed a member with status='approved' AND a matching profile (so the app does not redirect to /profile onboarding), then visit /essays/{post_id} for a non-paywalled imported essay. For Feed page testid validation (featured-essay-* and mini-essay-*) you must seed a profile alongside the member session - otherwise /feed redirects to /profile. The Landing page is the easier place to validate the shared EssayCards component because it does not gate on profile."
+}
