@@ -86,6 +86,14 @@ of teams.
 
 **Stats**: 94/94 backend tests passing (24 new in `test_phase5_essays.py`).
 
+## Phase 5b - Markdown, drafts, scheduled essays, member archive — Implemented (2026-05-13)
+- **Markdown rendering**: essays now support full markdown (#, **, _, lists, blockquotes, links, code, hr, images). `services/markdown_render.py` uses `python-markdown` + `bleach` allowlist (no `<script>`, no event handlers, http/https/mailto only). `GET /api/essays/{post_id}` returns both raw `text` and sanitized `html` for members. Brevo essay emails render the markdown to HTML inline. Frontend renders via `react-markdown` + `remark-gfm` with brand-styled `.essay-body` CSS.
+- **Drafts**: one draft per user via `GET/PUT/DELETE /api/drafts/mine` (new `drafts` collection with unique index on `user_id`). Composer auto-saves every 5 seconds (with a "Draft saved at 8:14am" indicator). Drafts auto-clear on successful publish/schedule.
+- **Scheduled essays**: composer has a `datetime-local` schedule picker. `POST /api/posts kind=essay` with `scheduled_at` future ISO stores `status="scheduled"` and `release_at=scheduled_at`. Past timestamps return 422. A new per-minute `process_scheduled_essays` apscheduler job flips due rows to `approved` and dispatches follower emails (idempotent via `essay_dispatches` unique index + `modified_count==1` guard). Scheduled essays show as "Queued" in the writer's `/feed` view.
+- **Member archive**: `GET /api/profile/{user_id}/essays` returns released essays only (chronological desc), full body excluded, paginated up to 100. Profile page renders an "Essays" section below recent posts: title + subtitle + date list, each linking to the essay reader. Suspended writers' archives return `[]` for non-admins.
+
+**Stats**: 113/113 backend tests passing (19 new in `test_phase5b_drafts_markdown_schedule_archive.py`).
+
 ## Phases 2-4 (not built yet, listed in architecture)
 - **Phase 2**: Batched 8:30am/5:30pm release scheduler. AM/PM digest emails via Brevo.
   Reply threads. Posts move from `pending_release` to `approved` at scheduled times.
