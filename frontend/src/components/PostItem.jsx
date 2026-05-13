@@ -99,6 +99,7 @@ function EssayCard({ post, user, onChange }) {
 
 export default function PostItem({ post, showReplies = true, compact = false, onChange }) {
   const { user } = useAuth();
+  const [busy, setBusy] = useState(false);
   const kind = post.kind || "post";
 
   // Render essay as a card
@@ -112,7 +113,6 @@ export default function PostItem({ post, showReplies = true, compact = false, on
   const imageUrl = post.image_path ? `${API}/uploads/file/${post.image_path}` : null;
   const isQueued = post.is_released === false;
   const isOwner = user && user.user_id === author.user_id;
-  const [busy, setBusy] = useState(false);
 
   const togglePick = async () => {
     setBusy(true);
