@@ -51,13 +51,25 @@ db = client[os.environ["DB_NAME"]]
 app = FastAPI(title="The Ultradian Network")
 app.state.scheduler = None
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=os.environ.get("CORS_ORIGINS", "*").split(","),
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+_cors_env = os.environ.get("CORS_ORIGINS", "*")
+if _cors_env.strip() == "*":
+    # Reflect the request Origin so credentialed requests work
+    # (browsers reject Access-Control-Allow-Origin: * with credentials).
+    app.add_middleware(
+        CORSMiddleware,
+        allow_credentials=True,
+        allow_origin_regex=".*",
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+else:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_credentials=True,
+        allow_origins=[o.strip() for o in _cors_env.split(",") if o.strip()],
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 
 @app.on_event("startup")

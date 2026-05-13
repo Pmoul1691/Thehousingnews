@@ -1,0 +1,41 @@
+{
+  "summary": "Tested the iter-14 changes (Google Auth redirect-loop fix + new Landing/About). Backend: 9/9 new pytest cases pass in /app/backend/tests/test_iter14_auth_landing.py covering (a) public endpoints used by Landing - GET /posts/public, /essays?limit=4, /prompts/current; (b) /auth/session 401 on a bogus session_id; (c) end-to-end Authorization Bearer auth - seed a session in MongoDB, GET /auth/me with header returns the user, logout deletes the session, subsequent /me returns 401; (d) a cross-origin Bearer GET succeeds even though Cloudflare/ingress rewrites Access-Control-Allow-Origin to '*' (this is the precise reason the cookie-based flow had to be replaced by localStorage + Authorization Bearer). Frontend (Playwright on the public preview URL): Landing page renders with data-testid=landing-page, landing-signin-btn, landing-apply-btn, landing-about-link; the magazine grid shows 1 featured essay (`landing-featured-<id>` article + its CTA), 3 also-reading mini cards, and 6 short feed items; zero like/reply buttons are exposed pre-auth; no em-dash / en-dash in About body; /about renders rule-card-1/2/3 + about-signin-btn. Authenticated /feed flow: with localStorage.ultradian_session_token preset to the seeded token, navigating to /feed renders Layout's full nav including [data-testid=nav-feed], [data-testid=nav-logout], etc., proving the axios interceptor + /auth/me Bearer path works end-to-end in the browser. Logout: nav-logout exists; the backend test (token deleted -> next /me 401) verifies the server side; the AuthContext.logout() implementation calls clearSessionToken() and redirects to '/'. Conclusion: redirect-loop is fixed; landing magazine + about are wired correctly.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "OPTIONS /api/* (preflight via Cloudflare ingress)", "issue": "Ingress overwrites Access-Control-Allow-Origin to '*' and strips Access-Control-Allow-Credentials. Browsers therefore reject the cookie-based flow when withCredentials=true. Current code already routes around this by sending Authorization: Bearer from localStorage, so functionally fine - just an env-level fact to remember."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter14_auth_landing.py",
+    "/app/test_reports/pytest/pytest_iter14_auth_landing.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "frontend/src/lib/api.js still sets `withCredentials: true` on the axios instance. Given the ingress rewrites CORS Allow-Origin to '*', any request that the browser deems CORS-credentialed will be rejected. Empirically the requests still succeed in the live page because the browser only enforces this when a non-simple request is preflighted with credentials, and GETs without custom headers stay 'simple'. Still, consider flipping `withCredentials` to `false` now that Bearer-token-in-localStorage is the canonical auth - it removes a class of intermittent CORS failures and makes the contract explicit.",
+    "backend/routes/auth.py POST /auth/session still calls `response.set_cookie(... samesite='none', secure=True)` for the session_token. Cookie is silently dropped by the browser in this preview env (the original bug). Harmless but dead weight - leave it ONLY if there is a same-domain production scenario. The functional flow now depends on returning `session_token` in the JSON body, which is done correctly.",
+    "frontend/src/pages/Landing.jsx initial fetch uses Promise.all of three /api/* GETs; if any fails the whole try-block is caught and silently swallowed (`catch (_e)`). For a public landing page that is actually fine, but you lose the ability to surface a 'feed is temporarily unavailable' message. Consider rendering the existing `landing-empty` block on hard 5xx instead of an empty white middle section.",
+    "frontend/src/context/AuthContext.jsx checkAuth is fired unconditionally on mount even on the Landing page (where the user is anonymous), so every cold visit to '/' hits /auth/me and burns a 401. Cheap, but consider gating the call to routes that actually need a user, or caching the negative answer for the session.",
+    "frontend/src/pages/AuthCallback.jsx after a successful exchange, the success path fires *two* network calls (POST /auth/session, then GET /auth/me) just to read has_profile. Since /auth/session response already includes the user shape, you could include has_profile in that response and skip the extra round trip - shaves ~300ms off perceived sign-in latency.",
+    "frontend/src/pages/Landing.jsx renders the same set of essay/short DOM as the Feed page but server-truncated to 30 short + 4 essay. Components are duplicated between Landing and Feed; consider extracting a `MagazineGrid` shared component to avoid drift in voice/spacing rules."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter14_auth_landing.py"
+  ],
+  "success_rate": {
+    "backend": "100% (9/9 iter-14 tests pass; existing 198/198 suite untouched)",
+    "frontend": "100% on the verified flows (Landing render, About rules, Bearer auth on /feed). Logout button is present at [data-testid=nav-logout]; click was demonstrated to be wired but browser-side localStorage clearing was not visually re-verified because add_init_script kept re-injecting the token across navigations in the test harness. Backend logout test passes - DB session is deleted, /me returns 401 - so the end-state is correct."
+  },
+  "test_credentials": "Ephemeral mongosh-seeded user_test_iter14_* + tok_iter14_* in test_database. All seeded data cleaned up at the end of the run.",
+  "seed_data_creation": "test_iter14_auth_landing.py._seed_member() inserts a user + user_sessions row per test and tears them down in finally blocks.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "The Google Auth redirect-loop is fixed by switching from HttpOnly cookie to Authorization: Bearer with the token stored in localStorage under key `ultradian_session_token`. To simulate an authenticated browser test, seed a session via the snippet in /app/memory/test_credentials.md and add `await page.add_init_script(\"localStorage.setItem('ultradian_session_token','<TOKEN>')\")` BEFORE navigating - but be aware that init_script re-runs on every navigation in the same context, which can mask localStorage clearing on logout. Use a fresh context (`await browser.new_context()`) to test logout state. The Cloudflare ingress in this preview rewrites CORS headers to '*' on every response - any new test that asserts on specific Access-Control-* values will fail; rely on body assertions instead.",
+  "rca of the issue": "Original bug: after Google sign-in the user was bounced back to '/' in an infinite loop. Root cause: Kubernetes ingress rewrote the backend's `Access-Control-Allow-Origin` to '*' while preserving `Access-Control-Allow-Credentials: true`, which the browser spec forbids - so the `session_token` HttpOnly cookie set by POST /api/auth/session was silently dropped, the follow-up GET /api/auth/me returned 401, and AuthCallback redirected to '/'. Fix (verified): backend now also returns `session_token` in the /auth/session JSON body; frontend stores it in localStorage; axios interceptor sends Authorization: Bearer <token> on every request; AuthContext.logout() clears the localStorage key and navigates back to '/'. Verified end-to-end via Playwright with a seeded session - /feed loads, Layout nav renders, logout testid present and wired."
+}

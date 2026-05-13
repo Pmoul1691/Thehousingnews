@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import api from "@/lib/api";
+import api, { setSessionToken } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 
 export default function AuthCallback() {
@@ -22,6 +22,8 @@ export default function AuthCallback() {
     (async () => {
       try {
         const r = await api.post("/auth/session", { session_id });
+        // Persist token so Authorization header works even when cookies are blocked
+        if (r.data?.session_token) setSessionToken(r.data.session_token);
         // Clear hash
         window.history.replaceState(null, "", window.location.pathname);
         setUser({ ...r.data, has_profile: false });

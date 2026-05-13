@@ -5,6 +5,7 @@ import { Toaster } from "sonner";
 import { AuthProvider } from "@/context/AuthContext";
 import Layout from "@/components/Layout";
 import Landing from "@/pages/Landing";
+import About from "@/pages/About";
 import AuthCallback from "@/pages/AuthCallback";
 import Apply from "@/pages/Apply";
 import PendingReview from "@/pages/PendingReview";
@@ -36,6 +37,7 @@ function Router() {
     <Layout>
       <Routes>
         <Route path="/" element={<Landing />} />
+        <Route path="/about" element={<About />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/apply" element={<Apply />} />
         <Route path="/pending" element={<PendingReview />} />

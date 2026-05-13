@@ -129,6 +129,7 @@ def setup(db):
             "picture": user.get("picture", ""),
             "is_admin": user.get("is_admin", False),
             "status": user["status"],
+            "session_token": session_token,
         }
 
     @router.get("/me")
