@@ -26,6 +26,88 @@ def _preview(text: str, limit: int = PREVIEW_CHARS) -> str:
 
 
 def setup(db):
+    @router.get("")
+    async def list_essays(
+        q: Optional[str] = None,
+        market: Optional[str] = None,
+        writer_id: Optional[str] = None,
+        before: Optional[str] = None,
+        limit: int = 30,
+    ):
+        """Browse essays. Public. Returns title/subtitle/preview/author for each."""
+        limit = min(max(1, limit), 60)
+        now_iso = _now_iso()
+        query = {
+            "kind": "essay",
+            "status": {"$nin": ["declined", "hidden"]},
+            "release_at": {"$lte": before or now_iso},
+        }
+        # Exclude suspended authors
+        sus_rows = await db.users.find({"suspended": True}, {"_id": 0, "user_id": 1}).to_list(2000)
+        sus = [s["user_id"] for s in sus_rows]
+        if writer_id:
+            if writer_id in sus:
+                return {"items": [], "next_before": None}
+            query["user_id"] = writer_id
+        else:
+            if sus:
+                query["user_id"] = {"$nin": sus}
+
+        if q:
+            ql = q.strip()
+            query["$or"] = [
+                {"title": {"$regex": ql, "$options": "i"}},
+                {"subtitle": {"$regex": ql, "$options": "i"}},
+                {"text": {"$regex": ql, "$options": "i"}},
+            ]
+
+        # Pull a bit more than needed so we can filter by market in-memory
+        raw_limit = limit * 3 if market else limit
+        cur = db.posts.find(query, {"_id": 0}).sort("release_at", -1).limit(raw_limit)
+        items = await cur.to_list(raw_limit)
+        if not items:
+            return {"items": [], "next_before": None}
+
+        # Hydrate authors
+        user_ids = list({p["user_id"] for p in items})
+        profiles = await db.profiles.find({"user_id": {"$in": user_ids}}, {"_id": 0}).to_list(500)
+        users = await db.users.find({"user_id": {"$in": user_ids}}, {"_id": 0}).to_list(500)
+        pmap = {p["user_id"]: p for p in profiles}
+        umap = {u["user_id"]: u for u in users}
+
+        out = []
+        for p in items:
+            prof = pmap.get(p["user_id"]) or {}
+            usr = umap.get(p["user_id"]) or {}
+            author_market = prof.get("market") or ""
+            if market and market.strip().lower() not in author_market.lower():
+                continue
+            text = p.get("text") or ""
+            out.append({
+                "post_id": p["post_id"],
+                "kind": "essay",
+                "title": p.get("title"),
+                "subtitle": p.get("subtitle"),
+                "preview": _preview(text),
+                "word_count": len(text.split()),
+                "image_path": p.get("image_path"),
+                "created_at": p.get("created_at"),
+                "release_at": p.get("release_at"),
+                "is_pete_pick": bool(p.get("is_pete_pick")),
+                "author": {
+                    "user_id": p["user_id"],
+                    "name": prof.get("name") or usr.get("name") or "Member",
+                    "market": author_market,
+                    "avatar_path": prof.get("avatar_path"),
+                    "is_supporter": (usr.get("supporter_until") or "") > _now_iso(),
+                },
+            })
+            if len(out) >= limit:
+                break
+
+        next_before = out[-1]["release_at"] if len(out) == limit else None
+        return {"items": out, "next_before": next_before}
+
     @router.get("/{post_id}")
     async def get_essay(
         post_id: str,

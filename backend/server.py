@@ -27,6 +27,8 @@ from routes.analytics import setup as setup_analytics
 from routes.payments import setup as setup_payments
 from routes.essays import setup as setup_essays
 from routes.drafts import setup as setup_drafts
+from routes.reader import setup as setup_reader
+from routes.writer import setup as setup_writer
 from services.object_storage import init_storage
 from services.release_window import next_window, now_chicago
 from services.scheduler import start_scheduler, release_batch
@@ -88,6 +90,9 @@ async def on_startup():
     await db.essay_dispatches.create_index([("post_id", 1), ("recipient_user_id", 1)], unique=True)
     await db.essay_dispatches.create_index("post_id")
     await db.drafts.create_index("user_id", unique=True)
+    await db.bookmarks.create_index([("user_id", 1), ("post_id", 1)], unique=True)
+    await db.bookmarks.create_index([("user_id", 1), ("created_at", -1)])
+    await db.reads.create_index([("user_id", 1), ("post_id", 1)], unique=True)
     # Start scheduler
     try:
         app.state.scheduler = start_scheduler(db)
@@ -155,3 +160,5 @@ app.include_router(setup_analytics(db))
 app.include_router(setup_payments(db))
 app.include_router(setup_essays(db))
 app.include_router(setup_drafts(db))
+app.include_router(setup_reader(db))
+app.include_router(setup_writer(db))
