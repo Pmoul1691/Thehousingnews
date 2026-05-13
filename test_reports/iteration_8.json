@@ -1,0 +1,40 @@
+{
+  "summary": "Iteration 8 media features (image gallery + video + audio + URL embed) thoroughly tested. 24/24 new media tests pass. Frontend Composer + MediaBlock + PostItem render correctly with all required data-testids. However, 7 prior-iteration regression tests fail due to /api/posts/feed and /api/posts/public now stripping 'text' from essay items in feed listings (essays_routes design choice).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/posts/feed and /api/posts/public", "issue": "_attach_meta now pops 'text' for essay-kind items in feeds (only ships preview). This breaks 7 existing regression tests that iterate it['text'] across all feed items: test_phase2_batched_release(3), test_phase3_moderation_follows(3), test_ultradian_backend(1). Either restore text in lists or update legacy tests."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_media_uploads.py",
+    "/app/test_reports/pytest/pytest_media.xml",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "Main agent: Decide on /api/posts feed text-stripping for essays. Either (a) restore 'text' so legacy assertions pass, or (b) update 3 legacy test files to skip essay items / filter by kind. Recommend (b) since dropping essay full-text from feeds is a sensible payload optimization.",
+    "Optional: Add a kind filter in the test helper to avoid iterating all-kinds items expecting 'text'."
+  ],
+  "critical_code_review_comments": [
+    "services/media.py probe_audio simply delegates to probe_video — fine but rename or document this.",
+    "routes/uploads.py: thumbnail extraction failure is silently swallowed (returns None) which is acceptable but should log at warn level for visibility (currently does).",
+    "routes/posts.py: legacy image_path is preserved AND injected into media[0]. The back-compat path in _attach_meta synthesizes media from image_path when media is empty — works correctly. Tested via TestLegacyBackCompat.",
+    "MediaItem pydantic validator correctly rejects embed missing provider/url and non-embed missing path."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_media_uploads.py (new)"
+  ],
+  "success_rate": {"backend": "95% (141/148 — 7 legacy failures are due to a known feed-payload change documented above)", "frontend": "100% (composer + media-block + embed iframe render correctly)"},
+  "test_credentials": "Seeded member: user_id=user_media_test_1778641344953, token=tok_media_test_1778641344953 (also seeded profile so /feed shows composer). Use as 'Authorization: Bearer ...' or cookie 'session_token=...'",
+  "seed_data_creation": "Created 1 approved member (Media Test Member) with profile in test_database. Generated /tmp/short.mp4 (3s), /tmp/long.mp4 (65s), /tmp/audio.mp3 (2s), /tmp/longaudio.mp3 (310s) via ffmpeg lavfi for upload tests.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "New media tests live in /app/backend/tests/test_media_uploads.py — they generate fixtures on first run via ffmpeg lavfi (no external fixtures needed). All 24 cases pass against the preview URL. Backend image upload returns media_kind='image'; video returns thumbnail_path that is retrievable via /api/uploads/file/{path} as JPEG (verified by magic bytes). Embed endpoint correctly parses YouTube watch?v=, youtu.be, /shorts/, /embed/, and Vimeo /id. Frontend Composer (at /feed) exposes all required data-testids; YouTube embed attach renders into composer-media-list; final post renders MediaBlock + media-embed iframe with src 'https://www.youtube.com/embed/{vid}'. The 7 legacy failures all share the same root cause: assertion `it['text']` across feed items where essay items now intentionally lack the full text. Not a true bug, but the prompt asked for regression-pass so reporting it.",
+  "rca of the issue": "Regression cause: routes/posts.py:_attach_meta lines 169-173 do `p.pop('text', None)` for essay items in feed responses (added in iteration 8 to keep feed payloads small). Legacy tests written before essay support assumed every public-feed item has a 'text' field. Fix: either keep text in feeds or update test_phase2_batched_release, test_phase3_moderation_follows, test_ultradian_backend to filter `[it['text'] for it in items if it.get('kind','post') == 'post']`."
+}

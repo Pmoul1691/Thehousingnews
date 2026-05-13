@@ -1,4 +1,4 @@
-"""File upload routes (avatars + post images)."""
+"""File upload routes (images, video, audio). Auto-generates a thumbnail for video uploads."""
 import logging
 from datetime import datetime, timezone
 from typing import Optional
@@ -6,18 +6,40 @@ from fastapi import APIRouter, HTTPException, Depends, Cookie, Header, UploadFil
 
 from services.auth_helpers import get_current_user
 from services.object_storage import put_object, get_object, build_path
+from services.media import probe_video, extract_thumbnail
+from services.embed import parse_embed
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/uploads", tags=["uploads"])
 
-ALLOWED_TYPES = {
+ALLOWED_IMAGE_TYPES = {
     "image/jpeg": "jpg",
     "image/png": "png",
     "image/webp": "webp",
     "image/gif": "gif",
 }
-MAX_SIZE = 6 * 1024 * 1024  # 6MB
+ALLOWED_VIDEO_TYPES = {
+    "video/mp4": "mp4",
+    "video/quicktime": "mov",
+    "video/webm": "webm",
+}
+ALLOWED_AUDIO_TYPES = {
+    "audio/mpeg": "mp3",
+    "audio/mp4": "m4a",
+    "audio/x-m4a": "m4a",
+    "audio/aac": "aac",
+    "audio/wav": "wav",
+    "audio/x-wav": "wav",
+    "audio/ogg": "ogg",
+    "audio/webm": "webm",
+}
+
+MAX_IMAGE_SIZE = 6 * 1024 * 1024     # 6 MB
+MAX_VIDEO_SIZE = 50 * 1024 * 1024    # 50 MB
+MAX_AUDIO_SIZE = 20 * 1024 * 1024    # 20 MB
+MAX_VIDEO_SECONDS = 60
+MAX_AUDIO_SECONDS = 5 * 60
 
 
 def setup(db):
@@ -27,39 +49,105 @@ def setup(db):
     ):
         return await get_current_user(db, session_token, authorization)
 
-    @router.post("")
-    async def upload(
-        file: UploadFile = File(...),
-        kind: str = Form("posts"),
-        user=Depends(_user),
-    ):
-        content_type = (file.content_type or "").lower()
-        if content_type not in ALLOWED_TYPES:
-            raise HTTPException(status_code=400, detail="Unsupported image type")
-        if kind not in ("avatars", "posts"):
-            kind = "posts"
-        data = await file.read()
-        if len(data) > MAX_SIZE:
-            raise HTTPException(status_code=413, detail="Image too large (max 6MB)")
-        ext = ALLOWED_TYPES[content_type]
-        path = build_path(user["user_id"], kind, ext)
+    async def _persist(user_id: str, kind: str, content_type: str, data: bytes, extra: dict, filename: str) -> dict:
+        ext = (ALLOWED_IMAGE_TYPES | ALLOWED_VIDEO_TYPES | ALLOWED_AUDIO_TYPES).get(content_type, "bin")
+        path = build_path(user_id, kind, ext)
         try:
             result = put_object(path, data, content_type)
         except Exception as e:
             logger.exception("Object storage upload failed")
             raise HTTPException(status_code=502, detail=f"Upload failed: {e}")
         record = {
-            "user_id": user["user_id"],
+            "user_id": user_id,
             "storage_path": result["path"],
-            "original_filename": file.filename,
+            "original_filename": filename,
             "content_type": content_type,
             "size": result.get("size", len(data)),
             "kind": kind,
             "is_deleted": False,
             "created_at": datetime.now(timezone.utc).isoformat(),
+            **extra,
         }
         await db.files.insert_one(record)
-        return {"path": result["path"], "size": record["size"], "content_type": content_type}
+        return {"path": result["path"], "size": record["size"], "content_type": content_type, **extra}
+
+    @router.post("")
+    async def upload(
+        file: UploadFile = File(...),
+        kind: str = Form("posts"),
+        user=Depends(_user),
+    ):
+        if user.get("status") != "approved" and kind != "avatars":
+            raise HTTPException(status_code=403, detail="Membership not approved")
+        content_type = (file.content_type or "").lower()
+        data = await file.read()
+
+        # avatars: image only, 6MB cap
+        if kind == "avatars":
+            if content_type not in ALLOWED_IMAGE_TYPES:
+                raise HTTPException(status_code=400, detail="Avatars must be an image")
+            if len(data) > MAX_IMAGE_SIZE:
+                raise HTTPException(status_code=413, detail="Image too large (max 6MB)")
+            return await _persist(user["user_id"], "avatars", content_type, data, {}, file.filename or "")
+
+        # image
+        if content_type in ALLOWED_IMAGE_TYPES:
+            if len(data) > MAX_IMAGE_SIZE:
+                raise HTTPException(status_code=413, detail="Image too large (max 6MB)")
+            return await _persist(user["user_id"], "posts", content_type, data, {"media_kind": "image"}, file.filename or "")
+
+        # video
+        if content_type in ALLOWED_VIDEO_TYPES:
+            if len(data) > MAX_VIDEO_SIZE:
+                raise HTTPException(status_code=413, detail="Video too large (max 50MB)")
+            try:
+                meta = probe_video(data)
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=f"Could not read video: {e}")
+            duration = float(meta.get("duration_s") or 0)
+            if duration <= 0:
+                raise HTTPException(status_code=400, detail="Video has no readable duration")
+            if duration > MAX_VIDEO_SECONDS + 0.5:
+                raise HTTPException(status_code=400, detail=f"Video must be {MAX_VIDEO_SECONDS} seconds or shorter")
+            extra = {
+                "media_kind": "video",
+                "duration_s": round(duration, 2),
+                "width": meta.get("width") or 0,
+                "height": meta.get("height") or 0,
+            }
+            # Try to extract a poster thumbnail
+            thumb_bytes = extract_thumbnail(data, at_seconds=min(0.5, max(0.0, duration / 4)))
+            if thumb_bytes:
+                thumb_record = await _persist(
+                    user["user_id"], "posts", "image/jpeg", thumb_bytes,
+                    {"media_kind": "image", "is_thumbnail_of": True}, "thumbnail.jpg",
+                )
+                extra["thumbnail_path"] = thumb_record["path"]
+            return await _persist(user["user_id"], "posts", content_type, data, extra, file.filename or "")
+
+        # audio
+        if content_type in ALLOWED_AUDIO_TYPES:
+            if len(data) > MAX_AUDIO_SIZE:
+                raise HTTPException(status_code=413, detail="Audio too large (max 20MB)")
+            try:
+                meta = probe_video(data)
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=f"Could not read audio: {e}")
+            duration = float(meta.get("duration_s") or 0)
+            if duration > MAX_AUDIO_SECONDS + 0.5:
+                raise HTTPException(status_code=400, detail=f"Audio must be {MAX_AUDIO_SECONDS // 60} minutes or shorter")
+            extra = {"media_kind": "audio", "duration_s": round(duration, 2)}
+            return await _persist(user["user_id"], "posts", content_type, data, extra, file.filename or "")
+
+        raise HTTPException(status_code=400, detail="Unsupported file type")
+
+    @router.post("/embed")
+    async def parse_url(payload: dict, user=Depends(_user)):
+        url = (payload or {}).get("url", "")
+        result = parse_embed(url)
+        if not result:
+            raise HTTPException(status_code=400, detail="Only YouTube or Vimeo URLs are supported")
+        return result
 
     # Serve files. Public-ish: anyone can fetch by path (since profile photos are public).
     @router.get("/file/{path:path}")

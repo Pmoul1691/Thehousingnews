@@ -17,6 +17,32 @@ router = APIRouter(prefix="/api/posts", tags=["posts"])
 SHORT_POST_MAX = 500
 ESSAY_MAX = 50000
 ESSAY_PREVIEW_CHARS = 320
+MAX_IMAGES_PER_POST = 4
+
+
+class MediaItem(BaseModel):
+    kind: Literal["image", "video", "audio", "embed"]
+    path: Optional[str] = None  # storage path for uploaded media
+    mime: Optional[str] = None
+    thumbnail_path: Optional[str] = None
+    duration_s: Optional[float] = None
+    width: Optional[int] = None
+    height: Optional[int] = None
+    # For embeds
+    provider: Optional[Literal["youtube", "vimeo"]] = None
+    video_id: Optional[str] = None
+    embed_url: Optional[str] = None
+    thumbnail_url: Optional[str] = None  # external thumbnail url for embeds
+
+    @model_validator(mode="after")
+    def _validate(self):
+        if self.kind == "embed":
+            if not self.embed_url or not self.provider:
+                raise ValueError("Embed media requires provider and embed_url")
+        else:
+            if not self.path:
+                raise ValueError(f"{self.kind} media requires a storage path")
+        return self
 
 
 class PostCreate(BaseModel):
@@ -24,11 +50,28 @@ class PostCreate(BaseModel):
     text: str = Field(min_length=1, max_length=ESSAY_MAX)
     title: Optional[str] = Field(default=None, max_length=160)
     subtitle: Optional[str] = Field(default=None, max_length=240)
-    image_path: Optional[str] = None
+    image_path: Optional[str] = None  # legacy single-image (still respected)
+    media: List[MediaItem] = Field(default_factory=list)
     scheduled_at: Optional[str] = None  # ISO UTC, only valid for essays
 
     @model_validator(mode="after")
     def _validate_kind(self):
+        # Limit media composition
+        images = [m for m in self.media if m.kind == "image"]
+        videos = [m for m in self.media if m.kind == "video"]
+        audios = [m for m in self.media if m.kind == "audio"]
+        embeds = [m for m in self.media if m.kind == "embed"]
+        if len(images) > MAX_IMAGES_PER_POST:
+            raise ValueError(f"At most {MAX_IMAGES_PER_POST} images per post")
+        if len(videos) > 1:
+            raise ValueError("Only one video per post")
+        if len(audios) > 1:
+            raise ValueError("Only one audio per post")
+        if len(embeds) > 1:
+            raise ValueError("Only one embed per post")
+        if videos and embeds:
+            raise ValueError("Choose either an uploaded video or a URL embed, not both")
+
         if self.kind == "post":
             if len(self.text) > SHORT_POST_MAX:
                 raise ValueError(f"Short posts must be {SHORT_POST_MAX} characters or fewer")
@@ -117,6 +160,12 @@ def setup(db):
             p["viewer_flagged"] = p["post_id"] in flagged_ids
             p["is_pete_pick"] = bool(p.get("is_pete_pick"))
             p["kind"] = p.get("kind") or "post"
+            # Back-compat: synthesize media list from legacy image_path if missing
+            if not p.get("media"):
+                if p.get("image_path"):
+                    p["media"] = [{"kind": "image", "path": p["image_path"]}]
+                else:
+                    p["media"] = []
             if p["kind"] == "essay":
                 # In feeds, only return the preview to keep payload small
                 p["preview"] = _preview_text(p.get("text") or "")
@@ -144,6 +193,11 @@ def setup(db):
             release_at = next_window(datetime.now(CHICAGO)).astimezone(timezone.utc).isoformat()
             status = "pending_release"
 
+        # Normalize media: if legacy image_path provided and no media, treat as a single image
+        media_payload = [m.model_dump(exclude_none=True) for m in payload.media]
+        if payload.image_path and not any(m.get("kind") == "image" for m in media_payload):
+            media_payload.insert(0, {"kind": "image", "path": payload.image_path})
+
         doc = {
             "post_id": post_id,
             "user_id": user["user_id"],
@@ -151,7 +205,8 @@ def setup(db):
             "title": payload.title,
             "subtitle": payload.subtitle,
             "text": payload.text.strip(),
-            "image_path": payload.image_path,
+            "image_path": payload.image_path or (media_payload[0]["path"] if media_payload and media_payload[0]["kind"] == "image" else None),
+            "media": media_payload,
             "status": status,
             "created_at": now_iso,
             "release_at": release_at,

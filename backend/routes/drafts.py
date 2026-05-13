@@ -18,6 +18,7 @@ class DraftSave(BaseModel):
     title: Optional[str] = Field(default=None, max_length=160)
     subtitle: Optional[str] = Field(default=None, max_length=240)
     image_path: Optional[str] = None
+    media: Optional[list] = None
     scheduled_at: Optional[str] = None
 
 
@@ -48,6 +49,7 @@ def setup(db):
             "title": payload.title,
             "subtitle": payload.subtitle,
             "image_path": payload.image_path,
+            "media": payload.media or [],
             "scheduled_at": payload.scheduled_at,
             "updated_at": _now_iso(),
         }

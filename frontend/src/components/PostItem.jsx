@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import api, { API } from "@/lib/api";
 import Replies from "@/components/Replies";
 import FlagButton from "@/components/FlagButton";
+import MediaBlock from "@/components/MediaBlock";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 
@@ -18,7 +19,10 @@ function formatWhen(iso) {
 function EssayCard({ post, user, onChange }) {
   const author = post.author || {};
   const avatarUrl = author.avatar_path ? `${API}/uploads/file/${author.avatar_path}` : null;
-  const coverUrl = post.image_path ? `${API}/uploads/file/${post.image_path}` : null;
+  const mediaList = post.media && post.media.length ? post.media : (post.image_path ? [{ kind: "image", path: post.image_path }] : []);
+  const firstImage = mediaList.find((m) => m.kind === "image");
+  const hasNonImageMedia = mediaList.some((m) => m.kind !== "image");
+  const coverUrl = firstImage ? `${API}/uploads/file/${firstImage.path}` : null;
   const isOwner = user && user.user_id === author.user_id;
   const [busy, setBusy] = useState(false);
 
@@ -62,6 +66,11 @@ function EssayCard({ post, user, onChange }) {
           <p className="prose-serif text-base text-[#2C2410]/85 leading-relaxed line-clamp-3">{post.preview}</p>
         )}
       </Link>
+      {hasNonImageMedia && (
+        <div className="mt-4">
+          <MediaBlock media={mediaList.filter((m) => m.kind !== "image")} compact />
+        </div>
+      )}
       <div className="flex items-center justify-between mt-5">
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-8 h-8 rounded-full bg-[#F5EDD6] border hairline overflow-hidden flex items-center justify-center shrink-0">
@@ -110,7 +119,6 @@ export default function PostItem({ post, showReplies = true, compact = false, on
   // Regular short post
   const author = post.author || {};
   const avatarUrl = author.avatar_path ? `${API}/uploads/file/${author.avatar_path}` : null;
-  const imageUrl = post.image_path ? `${API}/uploads/file/${post.image_path}` : null;
   const isQueued = post.is_released === false;
   const isOwner = user && user.user_id === author.user_id;
 
@@ -163,11 +171,7 @@ export default function PostItem({ post, showReplies = true, compact = false, on
         </div>
       </header>
       <div className="prose-serif text-base sm:text-lg leading-relaxed ink whitespace-pre-wrap">{post.text}</div>
-      {imageUrl && (
-        <div className="mt-5 border hairline rounded-sm overflow-hidden">
-          <img src={imageUrl} alt="" className="w-full max-h-[520px] object-cover" />
-        </div>
-      )}
+      <MediaBlock media={post.media} imagePath={post.image_path} />
 
       {!isQueued && !compact && (
         <div className="mt-3 flex items-center justify-end gap-3">

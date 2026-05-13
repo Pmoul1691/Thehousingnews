@@ -4,6 +4,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import api, { API } from "@/lib/api";
 import Replies from "@/components/Replies";
+import MediaBlock from "@/components/MediaBlock";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 
@@ -119,7 +120,10 @@ export default function EssayDetail() {
 
   const author = essay.author || {};
   const avatarUrl = author.avatar_path ? `${API}/uploads/file/${author.avatar_path}` : null;
-  const coverUrl = essay.image_path ? `${API}/uploads/file/${essay.image_path}` : null;
+  const mediaList = essay.media && essay.media.length ? essay.media : (essay.image_path ? [{ kind: "image", path: essay.image_path }] : []);
+  const firstImage = mediaList.find((m) => m.kind === "image");
+  const coverUrl = firstImage ? `${API}/uploads/file/${firstImage.path}` : null;
+  const extraMedia = mediaList.filter((m) => m !== firstImage);
   const canBookmark = user && user.status === "approved" && !essay.paywall;
 
   return (
@@ -173,6 +177,11 @@ export default function EssayDetail() {
         {coverUrl && (
           <div className="border hairline rounded-sm overflow-hidden mb-10">
             <img src={coverUrl} alt="" className="w-full max-h-[480px] object-cover" />
+          </div>
+        )}
+        {extraMedia.length > 0 && (
+          <div className="mb-10">
+            <MediaBlock media={extraMedia} compact />
           </div>
         )}
 
