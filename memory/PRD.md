@@ -190,6 +190,15 @@ of teams.
 - **Small copy nudges**: short-post placeholder is now "Plain words. What happened on a deal today?" - more inviting than the previous generic prompt.
 - **Removed**: the in-nav "Support" link (one less item competing with Write) and the second/inner composer that used to live inside the "Short notes" section (eliminated duplication).
 
+## Phase 14 - Facebook + Substack intuitive Feed (2026-05-13)
+- **New `/feed` layout**: single-column main + sticky right rail. Drops the previous magazine grid clutter (featured + Pete picks block + recent essays grid) entirely. Top-to-bottom: greeting ("Good day, {firstName}."), Substack-style collapsed compose row, Subject of the week hairline link (if active), pending-queue tiny stack, Everyone/Following scope tabs, mixed essay+short-post stream sorted by `release_at` desc.
+- **`FeedCompose.jsx` (new)**: Facebook-style collapsed compose card. Shows avatar + italic "Write something, {firstName}..." pseudo-input + Photo/Video/Essay quick-action chips. Click anywhere on the row OR a chip to expand the full Composer in place. Expanded view has a small X-icon `Close` button (testid `feed-compose-collapse`) to collapse back. `scrollIntoView` uses `block: 'nearest'` so the close button does not jitter mid-animation.
+- **Right rail**: NEXT RELEASE timer, Pete picks (3 most recent, hairline-stacked), Shortcuts (Browse all essays, See members, Your library, Past subjects). No bordered cards. Picks now fall back to `text.slice(0,90)` when a Pete pick is a short post without a title.
+- **`NextReleaseTimer` dedup**: hidden in the Layout header on `/feed` as well as `/` so the timer only appears once (in the right rail).
+- **Following empty state fixed**: dropped the now-redundant `/api/essays?limit=8` call and feed the stream from the scope-aware `/api/posts/feed` endpoint (which already returns mixed essays + shorts). Previously essays were unconditionally merged into the stream regardless of scope, which made `feed-empty` unreachable on the Following tab. Now empty state shows: "No released posts from people you follow yet. Switch to Everyone to see the full room."
+
+**Stats**: iter-17 ran on the previous version and reported 95% green with one real product bug (empty state); the bug is now fixed and self-verified via Playwright (`feed-empty` resolves on a fresh non-admin account with `scope=following`).
+
 ## Phase 13 - "Originally published on Substack" footnote (2026-05-13)
 - **Backend** (`routes/essays.py` GET `/api/essays/{id}`): for members only (post-paywall), the response now includes `source` and `source_published_at` when the essay was pulled from a Substack import. Anonymous viewers still see the preview + paywall and do not get these fields.
 - **Frontend** (`pages/EssayDetail.jsx`): when `essay.source === "substack_import"`, the reader page renders a quiet italic serif footnote at the bottom of the body: *"Originally published on Substack, {Month D, YYYY}."* with a hairline separator above. No logo, no link - text-only trust signal that does not break the de-brand rule.

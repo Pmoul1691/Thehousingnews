@@ -40,17 +40,17 @@ export default function Feed() {
   const load = useCallback(async (currentScope) => {
     setFetching(true);
     try {
-      const [feedRes, mineRes, essaysRes, picksRes, promptRes, profRes] = await Promise.all([
+      // /api/posts/feed already returns both essays + short posts, scope-filtered
+      const [feedRes, mineRes, picksRes, promptRes, profRes] = await Promise.all([
         api.get(`/posts/feed?scope=${currentScope}`),
         api.get("/posts/mine"),
-        api.get("/essays?limit=8"),
         api.get("/posts/picks?limit=4"),
         api.get("/prompts/current").catch(() => ({ data: {} })),
         api.get("/profile").catch(() => ({ data: {} })),
       ]);
-      const shorts = (feedRes.data.items || []).filter((p) => (p.kind || "post") !== "essay");
-      const essays = essaysRes.data.items || [];
-      const mixed = [...essays, ...shorts].sort((a, b) => {
+      const items = feedRes.data.items || [];
+      // Sort defensively in case the backend orders different kinds independently
+      const mixed = items.slice().sort((a, b) => {
         const at = new Date(a.release_at || a.created_at).getTime();
         const bt = new Date(b.release_at || b.created_at).getTime();
         return bt - at;
@@ -58,7 +58,7 @@ export default function Feed() {
       setStream(mixed);
       const pending = (mineRes.data.items || []).filter((p) => p.is_released === false);
       setMyPending(pending);
-      setPicks((picksRes.data.items || []).filter((p) => p.kind === "essay"));
+      setPicks(picksRes.data.items || []);
       setCurrentPrompt(promptRes.data && promptRes.data.prompt_id ? promptRes.data : null);
       setProfile(profRes.data || null);
     } finally {
@@ -173,9 +173,9 @@ export default function Feed() {
                 <div className="divide-y divide-[#E8D4A0]/60">
                   {picks.slice(0, 3).map((p) => (
                     <div key={p.post_id} className="py-3 first:pt-0">
-                      <Link to={`/essays/${p.post_id}`} data-testid={`rail-pick-${p.post_id}`} className="block group">
+                      <Link to={p.kind === "essay" ? `/essays/${p.post_id}` : `/feed`} data-testid={`rail-pick-${p.post_id}`} className="block group">
                         <h4 className="font-display font-semibold text-sm ink leading-snug group-hover:text-gold transition-colors line-clamp-2 mb-1">
-                          {p.title}
+                          {p.title || (p.text || "").slice(0, 90)}
                         </h4>
                         <p className="font-sans text-[11px] text-muted-ink">{p.author?.name}</p>
                       </Link>

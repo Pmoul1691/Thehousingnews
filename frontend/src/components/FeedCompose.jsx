@@ -21,7 +21,7 @@ export default function FeedCompose({ user, profile, onPosted }) {
   // Scroll the expanded composer into view on first expand
   useEffect(() => {
     if (expanded && wrapRef.current) {
-      wrapRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+      wrapRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
   }, [expanded]);
 
@@ -37,9 +37,13 @@ export default function FeedCompose({ user, profile, onPosted }) {
             type="button"
             data-testid="feed-compose-collapse"
             onClick={() => setExpanded(false)}
-            className="font-sans text-xs text-muted-ink hover:text-gold transition-colors"
+            aria-label="Close compose"
+            className="inline-flex items-center gap-1.5 font-sans text-xs font-medium text-muted-ink hover:text-gold transition-colors px-3 py-1.5"
           >
-            Hide
+            <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
+            Close
           </button>
         </div>
         <Composer onPosted={() => { onPosted && onPosted(); }} />
