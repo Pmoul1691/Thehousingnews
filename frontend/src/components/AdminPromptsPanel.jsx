@@ -82,7 +82,7 @@ export default function AdminPromptsPanel() {
     } catch (e) { toast.error(e?.response?.data?.detail || "Failed"); }
   };
 
-  if (loading) return <div className="font-serif text-base text-muted-ink py-12 text-center">Loading.</div>;
+  if (loading) return <div data-testid="admin-prompts-panel" className="font-serif text-base text-muted-ink py-12 text-center">Loading.</div>;
 
   return (
     <div className="space-y-12" data-testid="admin-prompts-panel">

@@ -132,6 +132,16 @@ of teams.
 
 **Stats**: 172/172 backend tests passing (6 new in `tests/test_phase5e_richtext_media.py`).
 
+## Phase 6 - Subject of the Week + P1 polish — Implemented (2026-05-13)
+- **Subject of the Week** (`routes/prompts.py`): admin-set weekly writing prompt (Mon-Sun), one active at a time, auto-advances Monday 8:30am CT via the existing APScheduler (`advance_weekly_prompt` cron). Members can suggest subjects (`POST /api/prompts/suggestions`); admin queue accepts or rejects them. Posts/essays carry an optional `prompt_id` link; feed responses include a `post.prompt={prompt_id,title}` snapshot. Magazine home (`/feed`) shows the hero strip, Composer offers a "Writing about this week's subject" checkbox, PostItem + EssayCard show a chip linking to the prompt page, and the digest emails include the prompt block. Dedicated `/prompts` archive + `/prompts/:id` response list.
+- **Admin Subjects tab** (`components/AdminPromptsPanel.jsx`): create new prompts (set live now / queue for later), list with set-active and delete, member suggestions inbox with accept/reject. Accept loads the suggestion as a draft in the create form.
+- **Applications rate-limit**: at most one application per email per 24h. Second submit returns 429.
+- **Image resize at upload** (`routes/uploads.py::_maybe_resize_image`): images >1MB are downscaled to a max dimension of 1920px and recompressed to JPEG q85; PNG with alpha keeps PNG; GIFs are left intact to preserve animation.
+- **Composer gallery reorder**: up/down arrows on each image entry swap order; arrows only show on `image` media entries; first/last are correctly disabled.
+- **HLS for longer-form video**: explicitly deferred (requires multi-output ffmpeg segmentation + hls.js + storage strategy). Current 60s/50MB cap remains.
+
+**Stats**: 184/185 backend tests passing (13 new in `tests/test_phase6_prompts_p1.py`; 1 pre-existing flake in `test_decline_application` unrelated to this phase).
+
 ## Phases 2-4 (not built yet, listed in architecture)
 - **Phase 2**: Batched 8:30am/5:30pm release scheduler. AM/PM digest emails via Brevo.
   Reply threads. Posts move from `pending_release` to `approved` at scheduled times.
