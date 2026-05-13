@@ -160,6 +160,15 @@ of teams.
 
 **Stats**: 198+ backend tests still pass; new endpoints verified by direct curl (next-essay smart routing returns expected `more_from_author` / `discover` reasons; admin-digest preview returns 6.3KB HTML; send emails N admins via Brevo wrap with tracking pixel).
 
+## Phase 9 - Auth redirect-loop fix + Landing magazine (2026-05-13)
+- **Auth redirect-loop fixed**: Kubernetes ingress was rewriting `Access-Control-Allow-Origin` to `*` while keeping `Access-Control-Allow-Credentials: true`, which browsers reject. The HttpOnly `session_token` cookie was silently dropped, so `/auth/me` after sign-in returned 401 and AuthCallback bounced the user back to `/`. Fix: `POST /api/auth/session` now also returns `session_token` in the JSON body; `frontend/src/lib/api.js` stores it in localStorage (`ultradian_session_token`) and an axios request interceptor attaches it as `Authorization: Bearer <token>` on every request. `AuthContext.logout()` clears the token. Backend kept its cookie response as a same-domain fallback. Backend CORS also switched to `allow_origin_regex=".*"` so direct-to-backend traffic gets a credential-safe response.
+- **Landing magazine**: `/` now renders the live read-only magazine (`pages/Landing.jsx`) — featured essay + 3 also-reading minis + up to 6 batched short posts pulled from public endpoints (`/posts/public`, `/essays`, `/prompts/current`). No like/reply/follow controls exposed for unauthenticated visitors. Two CTAs: "Sign in with Google" and "Apply for membership". Subject-of-the-week banner shows when a prompt is active.
+- **About page** at `/about` (`pages/About.jsx`): houses the original "Three rules of the room" + "Who I am" sections that used to live on the landing splash.
+
+**Stats**: 9 new pytest cases in `tests/test_iter14_auth_landing.py` (all pass); end-to-end Playwright verified Landing render + authenticated `/feed` via Bearer header.
+
+
+
 ## Phases 2-4 (not built yet, listed in architecture)
 - **Phase 2**: Batched 8:30am/5:30pm release scheduler. AM/PM digest emails via Brevo.
   Reply threads. Posts move from `pending_release` to `approved` at scheduled times.
