@@ -31,6 +31,7 @@
     "@radix-ui/react-toggle": "^1.1.6",
     "@radix-ui/react-toggle-group": "^1.1.7",
     "@radix-ui/react-tooltip": "^1.2.4",
+    "@tiptap/extension-bubble-menu": "^3.23.4",
     "@tiptap/extension-image": "^3.23.2",
     "@tiptap/extension-link": "^3.23.2",
     "@tiptap/extension-youtube": "^3.23.2",

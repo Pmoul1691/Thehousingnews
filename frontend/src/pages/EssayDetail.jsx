@@ -125,6 +125,17 @@ export default function EssayDetail() {
     return () => window.removeEventListener("scroll", onScroll);
   }, [essay, user]);
 
+  // Load the "next essay" recommendation
+  const [next, setNext] = useState(null);
+  useEffect(() => {
+    if (!essay || essay.paywall) { setNext(null); return; }
+    let cancelled = false;
+    api.get(`/essays/${essay.post_id}/next`)
+      .then((r) => { if (!cancelled && r.data?.next) setNext({ ...r.data.next, reason: r.data.reason }); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [essay]);
+
   if (loading) return <div className="container-prose py-24 text-center font-serif text-muted-ink">Loading.</div>;
   if (notFound || !essay) {
     return (
@@ -221,6 +232,34 @@ export default function EssayDetail() {
         {!essay.paywall && (
           <div className="mt-16 pt-10 border-t hairline">
             <Replies postId={essay.post_id} replyCount={essay.reply_count || 0} />
+          </div>
+        )}
+
+        {!essay.paywall && next && (
+          <div className="mt-16 pt-10 border-t hairline" data-testid="next-essay">
+            <p className="uppercase-label mb-4">{next.reason === "more_from_author" ? `More from ${next.author?.name || "this writer"}` : "Also in the room"}</p>
+            <Link to={`/essays/${next.post_id}`} className="block border hairline rounded-sm p-6 bg-cream hover:border-gold transition-colors group">
+              <div className="flex gap-5">
+                <div className="flex-1 min-w-0">
+                  {next.is_pete_pick && (
+                    <p className="font-sans text-[10px] uppercase tracking-wider font-semibold text-gold mb-2">Pete pick</p>
+                  )}
+                  <h3 className="font-display font-semibold text-xl ink group-hover:text-gold transition-colors leading-tight mb-2">{next.title}</h3>
+                  {next.subtitle && (
+                    <p className="font-serif italic text-base text-[#2C2410]/75 line-clamp-2 mb-3">{next.subtitle}</p>
+                  )}
+                  {next.preview && (
+                    <p className="prose-serif text-sm text-[#2C2410]/80 line-clamp-2">{next.preview}</p>
+                  )}
+                  <div className="font-sans text-xs text-muted-ink mt-3">{next.author?.name}{next.author?.market ? ` . ${next.author.market}` : ""}</div>
+                </div>
+                {next.image_path && (
+                  <div className="hidden sm:block w-28 h-28 shrink-0 border hairline rounded-sm overflow-hidden">
+                    <img src={`${API}/uploads/file/${next.image_path}`} alt="" className="w-full h-full object-cover" />
+                  </div>
+                )}
+              </div>
+            </Link>
           </div>
         )}
       </article>

@@ -7,6 +7,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from services.release_window import CHICAGO, previous_window, window_kind, window_label
 from services.brevo import send_digest_email
 from services.essay_dispatch import dispatch_essay_to_followers
+from services.admin_digest import send_admin_digest
 from routes.prompts import advance_weekly_prompt
 
 logger = logging.getLogger(__name__)
@@ -210,6 +211,17 @@ def start_scheduler(db) -> AsyncIOScheduler:
         minute=30,
         args=[db],
         id="advance_weekly_prompt",
+        replace_existing=True,
+        misfire_grace_time=600,
+    )
+    scheduler.add_job(
+        send_admin_digest,
+        trigger="cron",
+        day_of_week="sun",
+        hour=8,
+        minute=0,
+        args=[db],
+        id="send_admin_digest",
         replace_existing=True,
         misfire_grace_time=600,
     )

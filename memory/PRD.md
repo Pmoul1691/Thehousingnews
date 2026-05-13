@@ -152,6 +152,14 @@ of teams.
 
 **Stats**: 198/198 backend tests passing (13 new in `tests/test_phase7_hls_launch.py`; `test_media_uploads.py` updated for the new HLS behavior).
 
+## Phase 8 - P2 batch: Sunday admin digest, Next essay, Bubble menu — Implemented (2026-05-13)
+- **Weekly admin digest** (`services/admin_digest.py`): kitchen-sink HTML email sent every Sunday 8am Chicago time to every `is_admin=true` user. Includes applications (pending / approved / declined 7d), members (total + active 7d), posts/essays released, top 3 conversations by reply count, Pete picks 7d, top member subject suggestions, and digest open/click/send rates. Scheduler cron `send_admin_digest`. Admin endpoints: `GET /api/admin/email/admin-digest/preview` (returns data + rendered HTML) and `POST /api/admin/email/admin-digest/send` (manual fire). Surfaced on `/admin/email-health` as a "Send to all admins now" button.
+- **Smart Next Essay** (`GET /api/essays/{id}/next`): if the reader follows the author, returns the next unread essay from the same author with `reason:more_from_author`; otherwise returns a recent globally unread essay with `reason:discover`. Falls back gracefully when the reader is signed-out or no unread candidates exist. Rendered as a `next-essay` card at the bottom of `EssayDetail` below the replies.
+- **Rich-text BubbleMenu** (`@tiptap/extension-bubble-menu`): floating toolbar appears on text selection inside the visual editor with Bold / Italic / Link buttons (`bubble-bold`, `bubble-italic`, `bubble-link`).
+- **Mid-line slash trigger**: typing `/` after a space (or at the start of any line) now opens the slash command menu in addition to the original "start of empty paragraph" rule. Both paths work; backward compatible.
+
+**Stats**: 198+ backend tests still pass; new endpoints verified by direct curl (next-essay smart routing returns expected `more_from_author` / `discover` reasons; admin-digest preview returns 6.3KB HTML; send emails N admins via Brevo wrap with tracking pixel).
+
 ## Phases 2-4 (not built yet, listed in architecture)
 - **Phase 2**: Batched 8:30am/5:30pm release scheduler. AM/PM digest emails via Brevo.
   Reply threads. Posts move from `pending_release` to `approved` at scheduled times.

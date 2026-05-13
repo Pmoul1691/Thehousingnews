@@ -27,6 +27,7 @@ export default function EmailHealth() {
   const [publicUrl, setPublicUrl] = useState("");
   const [publicUrlSource, setPublicUrlSource] = useState("");
   const [savingUrl, setSavingUrl] = useState(false);
+  const [sendingDigest, setSendingDigest] = useState(false);
 
   useEffect(() => {
     if (loading) return;
@@ -60,6 +61,17 @@ export default function EmailHealth() {
       const d = e?.response?.data?.detail;
       toast.error(Array.isArray(d) ? d.map((x) => x?.msg).join("; ") : (d || "Save failed"));
     } finally { setSavingUrl(false); }
+  };
+
+  const sendDigestNow = async () => {
+    if (!window.confirm("Send the Sunday brief to every admin right now?")) return;
+    setSendingDigest(true);
+    try {
+      const r = await api.post("/admin/email/admin-digest/send");
+      toast.success(`Sent to ${r.data.admins_emailed} admin${r.data.admins_emailed === 1 ? "" : "s"}`);
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || "Digest send failed");
+    } finally { setSendingDigest(false); }
   };
 
   const sendTest = async () => {
@@ -205,6 +217,23 @@ export default function EmailHealth() {
             ) : (
               <p className="font-serif text-sm text-muted-ink italic">Click run to verify SPF, DKIM, DMARC, public URL reachability, and the Brevo key.</p>
             )}
+          </section>
+
+          <section className="border hairline rounded-sm p-6 bg-cream mb-6" data-testid="email-health-admin-digest">
+            <div className="flex items-end justify-between mb-2 flex-wrap gap-3">
+              <h2 className="font-display font-semibold text-xl ink">Sunday admin brief</h2>
+              <button
+                data-testid="admin-digest-send"
+                onClick={sendDigestNow}
+                disabled={sendingDigest}
+                className="font-sans text-xs uppercase tracking-wider font-semibold text-gold hover:opacity-80 transition-opacity disabled:opacity-50"
+              >
+                {sendingDigest ? "Sending..." : "Send to all admins now"}
+              </button>
+            </div>
+            <p className="prose-serif text-sm ink/80 leading-relaxed max-w-prose">
+              An engagement summary email goes to every admin every Sunday at 8am Chicago time. Use the button to fire it on demand for testing.
+            </p>
           </section>
 
           <section className="border hairline rounded-sm p-6 bg-cream" data-testid="email-health-test">

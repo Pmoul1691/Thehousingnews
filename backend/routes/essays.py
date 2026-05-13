@@ -181,4 +181,86 @@ def setup(db):
 
         return body
 
+    @router.get("/{post_id}/next")
+    async def next_essay(
+        post_id: str,
+        session_token: Optional[str] = Cookie(default=None),
+        authorization: Optional[str] = Header(default=None),
+    ):
+        """Smart pick for the bottom of the EssayDetail page.
+
+        Rule: if the viewer is a member who follows the author, return the most-recent
+        unread essay BY THE SAME AUTHOR. Otherwise return a recent global unread essay.
+        Falls back to a generic recent essay if nothing else matches.
+        """
+        user = None
+        try:
+            user = await get_current_user(db, session_token, authorization)
+        except Exception:
+            user = None
+        now_iso = _now_iso()
+        current = await db.posts.find_one({"post_id": post_id, "kind": "essay"}, {"_id": 0})
+        if not current:
+            raise HTTPException(status_code=404, detail="Essay not found")
+
+        # Build the "already read" set for this user (if signed in + approved)
+        read_post_ids = set()
+        is_following_author = False
+        if user and user.get("status") == "approved":
+            reads = await db.reads.find({"user_id": user["user_id"]}, {"_id": 0, "post_id": 1}).to_list(2000)
+            read_post_ids = {r["post_id"] for r in reads}
+            follow = await db.follows.find_one({"follower_id": user["user_id"], "target_id": current["user_id"]}, {"_id": 0})
+            is_following_author = bool(follow)
+        read_post_ids.add(post_id)
+
+        async def _pick(query: dict):
+            cur = db.posts.find(query, {"_id": 0}).sort("release_at", -1).limit(20)
+            rows = await cur.to_list(20)
+            for r in rows:
+                if r["post_id"] not in read_post_ids:
+                    return r
+            return None
+
+        base = {
+            "kind": "essay",
+            "release_at": {"$lte": now_iso},
+            "status": {"$nin": ["declined", "hidden"]},
+            "post_id": {"$ne": post_id},
+        }
+        candidate = None
+        if is_following_author:
+            candidate = await _pick({**base, "user_id": current["user_id"]})
+        if not candidate:
+            candidate = await _pick(base)
+        if not candidate:
+            # absolute fallback: any other recent essay (including read)
+            candidate = await db.posts.find_one(
+                {"kind": "essay", "release_at": {"$lte": now_iso}, "status": {"$nin": ["declined", "hidden"]}, "post_id": {"$ne": post_id}},
+                {"_id": 0},
+                sort=[("release_at", -1)],
+            )
+        if not candidate:
+            return {"next": None}
+
+        prof = await db.profiles.find_one({"user_id": candidate["user_id"]}, {"_id": 0}) or {}
+        usr = await db.users.find_one({"user_id": candidate["user_id"]}, {"_id": 0}) or {}
+        return {
+            "reason": "more_from_author" if is_following_author and candidate["user_id"] == current["user_id"] else "discover",
+            "next": {
+                "post_id": candidate["post_id"],
+                "title": candidate.get("title"),
+                "subtitle": candidate.get("subtitle"),
+                "image_path": candidate.get("image_path"),
+                "preview": _preview(candidate.get("text") or ""),
+                "release_at": candidate.get("release_at"),
+                "is_pete_pick": bool(candidate.get("is_pete_pick")),
+                "author": {
+                    "user_id": candidate["user_id"],
+                    "name": prof.get("name") or usr.get("name") or "Member",
+                    "market": prof.get("market"),
+                    "avatar_path": prof.get("avatar_path"),
+                },
+            },
+        }
+
     return router

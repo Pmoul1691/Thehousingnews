@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
+import { BubbleMenu } from "@tiptap/react/menus";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
 import Image from "@tiptap/extension-image";
@@ -150,8 +151,13 @@ export default function RichTextEditor({ value, onChange, placeholder }) {
       const { state } = editor;
       const { from, $from } = state.selection;
       const text = $from.parent.textContent;
-      // Detect a paragraph that contains only "/"
-      if (text === "/" && $from.parent.type.name === "paragraph") {
+      // Trigger when "/" was just typed: either an empty paragraph that contains only "/",
+      // OR a paragraph whose character right before the cursor is "/" preceded by a space or start.
+      const charBefore = text.slice(Math.max(0, $from.parentOffset - 1), $from.parentOffset);
+      const charBeforeThat = $from.parentOffset >= 2 ? text.slice($from.parentOffset - 2, $from.parentOffset - 1) : "";
+      const isStartSlash = text === "/" && $from.parent.type.name === "paragraph";
+      const isMidlineSlash = charBefore === "/" && (charBeforeThat === "" || /\s/.test(charBeforeThat)) && $from.parent.type.name === "paragraph";
+      if (isStartSlash || isMidlineSlash) {
         try {
           const coords = editor.view.coordsAtPos(from);
           const box = containerRef.current?.getBoundingClientRect();
@@ -175,11 +181,12 @@ export default function RichTextEditor({ value, onChange, placeholder }) {
 
   const runSlash = (action) => {
     if (!editor) return;
-    // Delete the "/" character
+    // Delete the "/" character immediately before the cursor (or the whole "/" paragraph in start mode)
     const { from } = editor.state.selection;
     editor.chain().focus().deleteRange({ from: from - 1, to: from }).run();
     setSlashOpen(false);
-    action();
+    // Defer slightly so the deleteRange transaction commits before the action runs
+    setTimeout(() => action(), 0);
   };
 
   if (!editor) return <div className="font-serif text-sm text-muted-ink">Loading editor.</div>;
@@ -202,6 +209,34 @@ export default function RichTextEditor({ value, onChange, placeholder }) {
           </p>
         )}
       </div>
+
+      <BubbleMenu
+        editor={editor}
+        shouldShow={({ editor, from, to }) => {
+          // Only show when there is a non-collapsed text selection inside the editor
+          if (!editor.isEditable || from === to) return false;
+          return editor.isFocused;
+        }}
+        options={{ placement: "top" }}
+      >
+        <div data-testid="rich-bubble-menu" className="flex items-center gap-1 border hairline rounded-sm bg-cream shadow-md px-1 py-1">
+          {[
+            { k: "bold", l: "B", className: "font-semibold", on: editor.isActive("bold"), run: () => editor.chain().focus().toggleBold().run() },
+            { k: "italic", l: "I", className: "italic", on: editor.isActive("italic"), run: () => editor.chain().focus().toggleItalic().run() },
+            { k: "link", l: "Link", className: "", on: editor.isActive("link"), run: promptLink },
+          ].map((it) => (
+            <button
+              key={it.k}
+              type="button"
+              data-testid={`bubble-${it.k}`}
+              onMouseDown={(e) => { e.preventDefault(); it.run(); }}
+              className={`${it.className} px-2 py-1 font-sans text-xs uppercase tracking-wider rounded-sm transition-colors ${it.on ? "bg-gold text-cream" : "text-muted-ink hover:text-gold"}`}
+            >
+              {it.l}
+            </button>
+          ))}
+        </div>
+      </BubbleMenu>
 
       {slashOpen && (
         <div

@@ -10,6 +10,7 @@ from pydantic import BaseModel, EmailStr, AnyHttpUrl
 
 from services.auth_helpers import get_current_user, is_admin_email
 from services.brevo import send_email, BREVO_API_KEY, SENDER_EMAIL, SENDER_NAME
+from services.admin_digest import send_admin_digest, build_admin_digest, render_admin_digest_html
 
 logger = logging.getLogger(__name__)
 
@@ -232,5 +233,17 @@ def setup(db):
             "public_url": public_url,
             "checks": checks,
         }
+
+    @router.get("/admin-digest/preview")
+    async def admin_digest_preview(admin=Depends(_admin)):
+        """Return the digest data + HTML preview without sending."""
+        data = await build_admin_digest(db)
+        return {"data": data, "html": render_admin_digest_html(data)}
+
+    @router.post("/admin-digest/send")
+    async def admin_digest_send_now(admin=Depends(_admin)):
+        """Trigger the Sunday admin digest right now (sends to ALL admins)."""
+        result = await send_admin_digest(db)
+        return {"sent": True, "admins_emailed": result["admins_emailed"]}
 
     return router
