@@ -94,6 +94,17 @@ of teams.
 
 **Stats**: 113/113 backend tests passing (19 new in `test_phase5b_drafts_markdown_schedule_archive.py`).
 
+## Phase 5c - Substack shell — Implemented (2026-05-13)
+- **Browse essays** (`/essays`): public page listing all released essays with full-text search (`q`) + market filter, Pete recommends rail when no filter applied. Backend: `GET /api/essays?q=&market=&writer_id=&limit=` (in `routes/essays.py`).
+- **Library** (`/library`): member-only bookmark inbox. Backend: `routes/reader.py` with `POST/DELETE/GET /api/me/bookmarks[/{id}]`. New `bookmarks` Mongo collection (unique compound index on `user_id+post_id`).
+- **Writer desk** (`/write`): member-only writer dashboard. 5 stat cards (published, scheduled, short posts 30d, followers, emails sent 30d), inline composer toggle, Published/Scheduled tabs with per-essay email counts. Backend: `routes/writer.py` with `GET /api/me/writer/stats|published|scheduled`.
+- **EssayDetail upgrades**: inline bookmark button above the title (member-only), fixed top reading-progress bar with auto mark-as-read at 80% scroll (POST `/api/me/reads/{id}`). New `reads` Mongo collection.
+- **Magazine `/feed`**: replaces the old short-post stream view. Featured essay + Pete recommends sidebar + recent essays grid + short post composer + short post stream + right-rail "Open your desk" and "Open library" cards. Short posts and essays are now separated in the stream.
+- **Layout nav**: new links Essays, Library, Write. Removed Public.
+- **Emergent badge removed** from `public/index.html`.
+
+**Stats**: 124/124 backend tests passing (11 new in `tests/test_substack_shell.py`).
+
 ## Phases 2-4 (not built yet, listed in architecture)
 - **Phase 2**: Batched 8:30am/5:30pm release scheduler. AM/PM digest emails via Brevo.
   Reply threads. Posts move from `pending_release` to `approved` at scheduled times.
