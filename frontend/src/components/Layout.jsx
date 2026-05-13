@@ -24,6 +24,7 @@ export default function Layout({ children }) {
               <>
                 <Link to="/feed" data-testid="nav-feed" className="font-sans text-sm font-medium hover:text-gold transition-colors">Feed</Link>
                 <Link to="/essays" data-testid="nav-essays" className="font-sans text-sm font-medium hover:text-gold transition-colors">Essays</Link>
+                <Link to="/prompts" data-testid="nav-prompts" className="font-sans text-sm font-medium hover:text-gold transition-colors">Subjects</Link>
                 <Link to="/library" data-testid="nav-library" className="font-sans text-sm font-medium hover:text-gold transition-colors">Library</Link>
                 <Link to="/write" data-testid="nav-write" className="font-sans text-sm font-medium hover:text-gold transition-colors">Write</Link>
                 <Link to="/members" data-testid="nav-members" className="font-sans text-sm font-medium hover:text-gold transition-colors">Members</Link>

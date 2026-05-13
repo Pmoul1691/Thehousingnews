@@ -23,6 +23,8 @@ import Library from "@/pages/Library";
 import Write from "@/pages/Write";
 import Admin from "@/pages/Admin";
 import EmailHealth from "@/pages/EmailHealth";
+import Prompts from "@/pages/Prompts";
+import PromptDetail from "@/pages/PromptDetail";
 
 function Router() {
   const location = useLocation();
@@ -53,6 +55,8 @@ function Router() {
         <Route path="/write" element={<Write />} />
         <Route path="/admin" element={<Admin />} />
         <Route path="/admin/email-health" element={<EmailHealth />} />
+        <Route path="/prompts" element={<Prompts />} />
+        <Route path="/prompts/:id" element={<PromptDetail />} />
       </Routes>
     </Layout>
   );

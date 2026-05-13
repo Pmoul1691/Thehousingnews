@@ -1,8 +1,10 @@
 """File upload routes (images, video, audio). Auto-generates a thumbnail for video uploads."""
+import io
 import logging
 from datetime import datetime, timezone
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends, Cookie, Header, UploadFile, File, Form, Response
+from PIL import Image, ImageOps
 
 from services.auth_helpers import get_current_user
 from services.object_storage import put_object, get_object, build_path
@@ -40,6 +42,41 @@ MAX_VIDEO_SIZE = 50 * 1024 * 1024    # 50 MB
 MAX_AUDIO_SIZE = 20 * 1024 * 1024    # 20 MB
 MAX_VIDEO_SECONDS = 60
 MAX_AUDIO_SECONDS = 5 * 60
+
+# Resize images > this threshold to keep payloads reasonable
+RESIZE_TRIGGER_BYTES = 1 * 1024 * 1024  # 1 MB
+RESIZE_MAX_DIM = 1920
+RESIZE_JPEG_QUALITY = 85
+
+
+def _maybe_resize_image(data: bytes, content_type: str) -> tuple[bytes, str]:
+    """If the image is larger than RESIZE_TRIGGER_BYTES, downscale + recompress.
+    GIFs are left alone (animation would be destroyed by Pillow's default save).
+    Returns (new_bytes, new_content_type)."""
+    if len(data) <= RESIZE_TRIGGER_BYTES:
+        return data, content_type
+    if content_type == "image/gif":
+        return data, content_type
+    try:
+        img = Image.open(io.BytesIO(data))
+        img = ImageOps.exif_transpose(img)
+        # Force RGB(A); JPEG cannot save RGBA.
+        target_ct = "image/jpeg"
+        if content_type == "image/png" and img.mode in ("RGBA", "LA"):
+            target_ct = "image/png"
+        if target_ct == "image/jpeg" and img.mode not in ("RGB", "L"):
+            img = img.convert("RGB")
+
+        img.thumbnail((RESIZE_MAX_DIM, RESIZE_MAX_DIM), Image.LANCZOS)
+        out = io.BytesIO()
+        if target_ct == "image/jpeg":
+            img.save(out, format="JPEG", quality=RESIZE_JPEG_QUALITY, optimize=True, progressive=True)
+        else:
+            img.save(out, format="PNG", optimize=True)
+        return out.getvalue(), target_ct
+    except Exception:
+        logger.exception("image resize failed; storing original")
+        return data, content_type
 
 
 def setup(db):
@@ -88,12 +125,14 @@ def setup(db):
                 raise HTTPException(status_code=400, detail="Avatars must be an image")
             if len(data) > MAX_IMAGE_SIZE:
                 raise HTTPException(status_code=413, detail="Image too large (max 6MB)")
+            data, content_type = _maybe_resize_image(data, content_type)
             return await _persist(user["user_id"], "avatars", content_type, data, {}, file.filename or "")
 
         # image
         if content_type in ALLOWED_IMAGE_TYPES:
             if len(data) > MAX_IMAGE_SIZE:
                 raise HTTPException(status_code=413, detail="Image too large (max 6MB)")
+            data, content_type = _maybe_resize_image(data, content_type)
             return await _persist(user["user_id"], "posts", content_type, data, {"media_kind": "image"}, file.filename or "")
 
         # video

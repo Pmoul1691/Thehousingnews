@@ -1,0 +1,50 @@
+{
+  "summary": "Phase 6 batch (Subject of the Week + 3 P1 items: applications rate-limit, image resize on upload, composer media reorder) tested end-to-end. Backend: created /app/backend/tests/test_phase6_prompts_p1.py covering 13 scenarios -- 13/13 PASS. Full regression: 184/185 PASS (1 flaky test_decline_application in test_ultradian_backend.py - 401 in full-suite run, passes when run alone; unrelated to Phase 6). Frontend Playwright on the public URL verified: /prompts renders active prompt + suggest textarea for approved member; /prompts/:id renders body; nav-prompts visible for approved member; magazine-prompt hero strip visible on /feed when active prompt exists; post-prompt-{id} chip renders on PostItem in feed; admin-section-subjects renders on /admin after clicking Subjects tab. Direct API test confirmed POST /api/posts with prompt_id attaches post.prompt={prompt_id,title} snapshot in /api/posts/public feed. Image resize: a 2.7MB JPEG was downscaled below 1MB with max dim <=1920px; a 1.1MB GIF was preserved untouched (no resize, content_type stayed image/gif). Rate-limit: second POST /api/applications with same email after first declined returns 429 inside 24h. advance_weekly_prompt(db) demoted active and promoted a scheduled prompt whose week_start<=now.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/applications/{id}/decline", "issue": "test_decline_application in test_ultradian_backend.py is flaky in full-suite run (got 401 once at line 136; passes when run in isolation). Same fixture peter@1691inc.com is reseeded across many phase6 + earlier tests via deleteMany on email -> insertOne new user; sessions for the old admin row remain orphaned. Not a Phase 6 regression -- the failing call is admin decline, not anything new. Likely pre-existing test isolation race in conftest._seed_user / _cleanup_user when many fixtures share the same email."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Composer prompt-link checkbox visibility", "issue": "On /feed (Magazine view) the Composer component is rendered but composer-prompt-link / composer-prompt-link-checkbox testids were NOT found in the DOM during the Playwright pass. Feed.jsx mounts <Composer> at line 207, but the testids only appear after the user opens/expands the composer (mode-aware rendering) OR Composer requires a particular gating (e.g. supporter / write mode). This needs UI-level investigation -- the testids exist in the component source but were not in the rendered DOM at /feed for an approved member. Possible cause: composer-prompt-link inside Composer is gated on `currentPrompt` state which may not be loaded yet, or the Composer pane requires user interaction (e.g. clicking 'New post' / focusing text area) to expand and reveal the prompt-link block.", "affected_selectors": ["[data-testid=\"composer-prompt-link\"]", "[data-testid=\"composer-prompt-link-checkbox\"]"]},
+      {"flow": "Admin Subjects panel children", "issue": "admin-section-subjects renders (count=1) after clicking the Subjects tab on /admin, but children testids admin-prompts-create / admin-prompts-list / admin-prompts-suggestions returned count=0. Likely the AdminPromptsPanel does an async fetch and the children render conditionally on fetched data -- the Playwright pass did not wait long enough OR the testid wrappers in AdminPromptsPanel.jsx wrap each section in a conditional that requires data. Recommend main agent verify these data-testids are unconditionally on the section root (not nested behind a loading guard)."}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_phase6_prompts_p1.py",
+    "/app/test_reports/pytest/pytest_iter12.xml",
+    "/app/test_reports/pytest/pytest_iter12_full.xml"
+  ],
+  "action_items": [
+    "Investigate why composer-prompt-link testid is not present in the rendered DOM at /feed for an approved member when an active prompt exists. Source has the testid -- likely gated behind a state/UI toggle that wasn't activated in test.",
+    "Verify AdminPromptsPanel.jsx puts data-testid=admin-prompts-create, admin-prompts-list, admin-prompts-suggestions on the section roots (visible even before fetch completes) so they're testable.",
+    "(Optional) Investigate flakiness of test_decline_application in full-suite run. Likely conftest._seed_user race for shared peter@1691inc.com email; consider adding session-scoped admin fixture or unique-email per admin seed."
+  ],
+  "critical_code_review_comments": [
+    "routes/prompts.py advance_weekly_prompt() correctly demotes all active prompts to past before promoting next scheduled - idempotent and safe.",
+    "routes/prompts.py POST /admin/prompts demote-then-insert is NOT atomic (no transaction). Two near-simultaneous admin creates with status=active could leave both 'active' for a few ms. Low risk for single-admin workflow.",
+    "routes/applications.py rate-limit short-circuits after the existing-pending-or-approved check, so an existing pending user gets their app back without a 429 -- correct UX.",
+    "routes/uploads.py _maybe_resize_image: only kicks in >1MB, preserves PNG with alpha, preserves GIF (animation), recompresses everything else as JPEG q=85 max 1920px. Pillow's thumbnail() preserves aspect ratio.",
+    "routes/posts.py _attach_meta now fetches db.prompts for prompt_ids referenced by feed items in one batched query - good (avoids N+1).",
+    "Pydantic PostCreate.prompt_id max_length=40 - matches prompt_{uuid12chars} format. Good.",
+    "Composer.jsx: feed mounts Composer in Feed.jsx but on the Magazine view the composer-prompt-link testid was not present in the live DOM. Suggest making the prompt-link block render unconditionally (just disabled) so tests can grab the testid before user interaction."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_phase6_prompts_p1.py"
+  ],
+  "success_rate": {
+    "backend": "99.5% (184/185; Phase 6 itself: 13/13)",
+    "frontend": "~80% (5/7 testid surfaces verified live; 2 testid groups not surfaced - see integration_issues)"
+  },
+  "test_credentials": "Ephemeral users seeded then cleaned per test via conftest._seed_user (peter@1691inc.com for admin).",
+  "seed_data_creation": "All test data created via mongosh in setup_method, cleaned via teardown_method. Phase 6 tests prefix prompts with TEST_ for safe wipe. Playwright pass cleans up its own admin+member+prompt+post at end.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Phase 6 backend is solid - 13 new tests live in test_phase6_prompts_p1.py (CRUD, demotion, suggestions, post.prompt_id, applications rate-limit, image resize JPEG vs GIF, advance_weekly_prompt direct invocation). Frontend has 2 testid surfacing gaps to address: composer-prompt-link (likely state-gated) and admin-prompts-create/list/suggestions (likely fetch-gated). Carry-forward: test_decline_application flakiness in full-suite was observed once -- can re-run with -n0 or in isolation.",
+  "rca of the issue": "composer-prompt-link DOM absence at /feed: testids exist in Composer.jsx source but Composer in Feed.jsx is mounted lazily / gated; an approved member visiting /feed sees the Magazine layout (essay grid + magazine-prompt hero) without an open composer. Repro: visit /feed as approved member with an active prompt -> open devtools -> querySelectorAll('[data-testid=composer-prompt-link]') returns []. Mitigation: ensure the Composer prompt-link block is unconditionally rendered (use display:none when no prompt, but keep the testid root) OR document that the composer needs to be opened by clicking a 'Compose' button first."
+}

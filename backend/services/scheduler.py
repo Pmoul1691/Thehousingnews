@@ -7,6 +7,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from services.release_window import CHICAGO, previous_window, window_kind, window_label
 from services.brevo import send_digest_email
 from services.essay_dispatch import dispatch_essay_to_followers
+from routes.prompts import advance_weekly_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -126,6 +127,13 @@ async def release_batch(db) -> dict:
         {"status": "approved", "suspended": {"$ne": True}},
         {"_id": 0},
     ).to_list(2000)
+    # Fetch the current Subject of the Week (best-effort)
+    current_prompt = None
+    try:
+        current_prompt = await db.prompts.find_one({"status": "active"}, {"_id": 0, "prompt_id": 1, "title": 1, "body": 1})
+    except Exception:
+        current_prompt = None
+
     sent = 0
     skipped = 0
     for r in recipients:
@@ -148,7 +156,7 @@ async def release_batch(db) -> dict:
             })
         except Exception:
             pass
-        send_digest_email(r["email"], r.get("name") or "", label, kind, due_posts, picks=picks, dispatch_id=dispatch_id)
+        send_digest_email(r["email"], r.get("name") or "", label, kind, due_posts, picks=picks, dispatch_id=dispatch_id, prompt=current_prompt)
         sent += 1
 
     logger.info("Digest sent for window %s to %s recipients (%s skipped by prefs)", label, sent, skipped)
@@ -193,6 +201,17 @@ def start_scheduler(db) -> AsyncIOScheduler:
         id="process_scheduled_essays",
         replace_existing=True,
         misfire_grace_time=60,
+    )
+    scheduler.add_job(
+        advance_weekly_prompt,
+        trigger="cron",
+        day_of_week="mon",
+        hour=8,
+        minute=30,
+        args=[db],
+        id="advance_weekly_prompt",
+        replace_existing=True,
+        misfire_grace_time=600,
     )
     scheduler.start()
     logger.info("Release scheduler started (8:30 AM and 5:30 PM America/Chicago + per-minute scheduled-essays sweep)")

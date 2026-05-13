@@ -37,6 +37,8 @@ export default function Composer({ onPosted }) {
   const [nextWindow, setNextWindow] = useState(null);
   const [savedAt, setSavedAt] = useState(null);
   const [draftLoaded, setDraftLoaded] = useState(false);
+  const [currentPrompt, setCurrentPrompt] = useState(null);
+  const [linkPrompt, setLinkPrompt] = useState(false);
   const draftDirty = useRef(false);
 
   const images = media.filter((m) => m.kind === "image");
@@ -57,6 +59,9 @@ export default function Composer({ onPosted }) {
       }
     }).catch(() => {}).finally(() => setDraftLoaded(true));
     api.get("/release-window").then((r) => setNextWindow(r.data)).catch(() => {});
+    api.get("/prompts/current").then((r) => {
+      if (r.data && r.data.prompt_id) setCurrentPrompt(r.data);
+    }).catch(() => {});
   }, []);
 
   // Auto-save every 5s when dirty
@@ -163,6 +168,16 @@ export default function Composer({ onPosted }) {
     setMedia((arr) => arr.filter((_, i) => i !== idx));
   };
 
+  const moveMedia = (idx, delta) => {
+    setMedia((arr) => {
+      const next = [...arr];
+      const target = idx + delta;
+      if (target < 0 || target >= next.length) return arr;
+      [next[idx], next[target]] = [next[target], next[idx]];
+      return next;
+    });
+  };
+
   const reset = async () => {
     setText(""); setTitle(""); setSubtitle(""); setMedia([]); setEmbedUrl(""); setScheduledAt("");
     try { await api.delete("/drafts/mine"); } catch (_e) {}
@@ -188,6 +203,7 @@ export default function Composer({ onPosted }) {
         image_path: images[0]?.path || null,
         media,
         scheduled_at: scheduledIso,
+        prompt_id: linkPrompt && currentPrompt ? currentPrompt.prompt_id : null,
       });
       if (mode === "essay") {
         if (r.data.status === "scheduled") toast.success("Essay scheduled");
@@ -298,13 +314,37 @@ export default function Composer({ onPosted }) {
                   )}
                   <span className="font-sans text-xs ink truncate">{label}</span>
                 </div>
-                <button
-                  data-testid={`composer-media-remove-${idx}`}
-                  onClick={() => removeMedia(idx)}
-                  className="font-sans text-[11px] text-muted-ink hover:text-deepred uppercase tracking-wide transition-colors"
-                >
-                  Remove
-                </button>
+                <div className="flex items-center gap-1">
+                  {m.kind === "image" && (
+                    <>
+                      <button
+                        data-testid={`composer-media-up-${idx}`}
+                        onClick={() => moveMedia(idx, -1)}
+                        disabled={idx === 0 || media.slice(0, idx).every((x) => x.kind !== "image")}
+                        title="Move up"
+                        className="font-sans text-[11px] text-muted-ink hover:text-gold disabled:opacity-30 uppercase tracking-wide transition-colors px-1"
+                      >
+                        ↑
+                      </button>
+                      <button
+                        data-testid={`composer-media-down-${idx}`}
+                        onClick={() => moveMedia(idx, 1)}
+                        disabled={idx === media.length - 1 || media.slice(idx + 1).every((x) => x.kind !== "image")}
+                        title="Move down"
+                        className="font-sans text-[11px] text-muted-ink hover:text-gold disabled:opacity-30 uppercase tracking-wide transition-colors px-1"
+                      >
+                        ↓
+                      </button>
+                    </>
+                  )}
+                  <button
+                    data-testid={`composer-media-remove-${idx}`}
+                    onClick={() => removeMedia(idx)}
+                    className="font-sans text-[11px] text-muted-ink hover:text-deepred uppercase tracking-wide transition-colors px-2"
+                  >
+                    Remove
+                  </button>
+                </div>
               </div>
             );
           })}
@@ -347,6 +387,23 @@ export default function Composer({ onPosted }) {
               Publish now instead
             </button>
           )}
+        </div>
+      )}
+
+      {currentPrompt && (
+        <div className="mt-3 border hairline rounded-sm p-3 bg-cream flex items-start gap-3" data-testid="composer-prompt-link">
+          <input
+            id="link-prompt"
+            type="checkbox"
+            checked={linkPrompt}
+            onChange={(e) => setLinkPrompt(e.target.checked)}
+            data-testid="composer-prompt-link-checkbox"
+            className="mt-1 accent-gold cursor-pointer"
+          />
+          <label htmlFor="link-prompt" className="flex-1 cursor-pointer">
+            <div className="font-sans text-[11px] uppercase tracking-wider font-semibold text-gold mb-0.5">This week's subject</div>
+            <div className="font-display font-semibold text-sm ink leading-snug">{currentPrompt.title}</div>
+          </label>
         </div>
       )}
 

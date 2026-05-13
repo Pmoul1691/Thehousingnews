@@ -74,25 +74,27 @@ export default function Feed() {
   const [myPending, setMyPending] = useState([]);
   const [essays, setEssays] = useState([]);
   const [picks, setPicks] = useState([]);
+  const [currentPrompt, setCurrentPrompt] = useState(null);
   const [fetching, setFetching] = useState(true);
   const [scope, setScope] = useState(() => localStorage.getItem("feed_scope") || "everyone");
 
   const load = useCallback(async (currentScope) => {
     setFetching(true);
     try {
-      const [feedRes, mineRes, essaysRes, picksRes] = await Promise.all([
+      const [feedRes, mineRes, essaysRes, picksRes, promptRes] = await Promise.all([
         api.get(`/posts/feed?scope=${currentScope}`),
         api.get("/posts/mine"),
         api.get("/essays?limit=8"),
         api.get("/posts/picks?limit=4"),
+        api.get("/prompts/current").catch(() => ({ data: {} })),
       ]);
       const allFeed = feedRes.data.items || [];
-      // Magazine: separate short posts from essays in the stream
       setShortPosts(allFeed.filter((p) => (p.kind || "post") !== "essay"));
       const pending = (mineRes.data.items || []).filter((p) => p.is_released === false);
       setMyPending(pending);
       setEssays(essaysRes.data.items || []);
       setPicks((picksRes.data.items || []).filter((p) => p.kind === "essay"));
+      setCurrentPrompt(promptRes.data && promptRes.data.prompt_id ? promptRes.data : null);
     } finally {
       setFetching(false);
     }
@@ -127,6 +129,21 @@ export default function Feed() {
         </div>
         <div className="hidden sm:block"><NextReleaseTimer /></div>
       </header>
+
+      {currentPrompt && (
+        <section className="mb-10" data-testid="magazine-prompt">
+          <Link to={`/prompts/${currentPrompt.prompt_id}`} className="block border-l-4 border-gold pl-5 pr-4 py-4 bg-cream hover:bg-[#F5EDD6]/50 transition-colors group">
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="font-sans text-[10px] uppercase tracking-[0.18em] font-semibold text-gold">Subject of the week</span>
+              <span className="font-sans text-xs text-muted-ink">. {currentPrompt.response_count || 0} {currentPrompt.response_count === 1 ? "response" : "responses"}</span>
+            </div>
+            <h3 className="font-display font-semibold text-xl ink leading-snug group-hover:text-gold transition-colors">{currentPrompt.title}</h3>
+            {currentPrompt.body && (
+              <p className="font-serif text-sm text-[#2C2410]/75 leading-relaxed mt-1 line-clamp-2">{currentPrompt.body}</p>
+            )}
+          </Link>
+        </section>
+      )}
 
       {fetching && !featured ? (
         <div className="font-serif text-base text-muted-ink py-12 text-center">Loading.</div>

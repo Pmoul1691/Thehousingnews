@@ -220,7 +220,7 @@ def _digest_item_html(post: dict) -> str:
     """
 
 
-def send_digest_email(email: str, name: str, window_label: str, kind: str, posts: list[dict], picks: list[dict] | None = None, dispatch_id: Optional[str] = None) -> dict:
+def send_digest_email(email: str, name: str, window_label: str, kind: str, posts: list[dict], picks: list[dict] | None = None, dispatch_id: Optional[str] = None, prompt: dict | None = None) -> dict:
     """Send the AM or PM digest of the just-released batch."""
     count = len(posts)
     if count == 0:
@@ -241,9 +241,22 @@ def send_digest_email(email: str, name: str, window_label: str, kind: str, posts
         </div>
         """
 
+    prompt_html = ""
+    if prompt and prompt.get("title"):
+        prompt_url = f"{os.environ.get('APP_PUBLIC_URL', '')}/prompts/{prompt.get('prompt_id', '')}"
+        prompt_body = (prompt.get("body") or "")[:240]
+        prompt_html = f"""
+        <div style="margin-top:24px; padding:16px 20px; border-left:3px solid #AD893E; background:#FBF6E8;">
+          <div style="font-family:'Plus Jakarta Sans', Arial, sans-serif; font-weight:600; font-size:11px; letter-spacing:0.18em; text-transform:uppercase; color:#AD893E; margin-bottom:6px;">Subject of the week</div>
+          <a href="{prompt_url}" style="font-family:'Plus Jakarta Sans', Arial, sans-serif; font-weight:600; font-size:16px; color:#2C2410; text-decoration:none;">{prompt['title']}</a>
+          {f'<p style="font-family:Georgia, serif; color:#2C2410; font-size:13px; margin:6px 0 0 0;">{prompt_body}</p>' if prompt_body else ''}
+        </div>
+        """
+
     html = _wrap(f"""
       <p>Hi {name},</p>
       <p>The {intro_word} release just dropped. {count} {'post' if count == 1 else 'posts'} from the room.</p>
+      {prompt_html}
       {items_html}
       {more_note}
       {picks_html}

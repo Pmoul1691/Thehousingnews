@@ -32,6 +32,7 @@ from routes.writer import setup as setup_writer
 from routes.tracking import setup as setup_tracking
 from routes.invites import setup as setup_invites
 from routes.email_health import setup as setup_email_health
+from routes.prompts import setup as setup_prompts
 from services.object_storage import init_storage
 from services.release_window import next_window, now_chicago
 from services.scheduler import start_scheduler, release_batch
@@ -102,6 +103,11 @@ async def on_startup():
     await db.email_events.create_index([("dispatch_id", 1), ("kind", 1), ("created_at", -1)])
     await db.invite_codes.create_index("code", unique=True)
     await db.invite_codes.create_index([("owner_user_id", 1), ("quarter_key", 1)])
+    await db.prompts.create_index("prompt_id", unique=True)
+    await db.prompts.create_index([("status", 1), ("week_start", -1)])
+    await db.prompt_suggestions.create_index("suggestion_id", unique=True)
+    await db.prompt_suggestions.create_index([("status", 1), ("created_at", -1)])
+    await db.posts.create_index("prompt_id")
     # Start scheduler
     try:
         app.state.scheduler = start_scheduler(db)
@@ -176,3 +182,6 @@ invites_r, invite_public_r = setup_invites(db)
 app.include_router(invites_r)
 app.include_router(invite_public_r)
 app.include_router(setup_email_health(db))
+prompts_pub_r, prompts_admin_r = setup_prompts(db)
+app.include_router(prompts_pub_r)
+app.include_router(prompts_admin_r)

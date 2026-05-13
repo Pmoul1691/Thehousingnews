@@ -71,6 +71,12 @@ function EssayCard({ post, user, onChange }) {
           <MediaBlock media={mediaList.filter((m) => m.kind !== "image")} compact />
         </div>
       )}
+      {post.prompt && (
+        <Link to={`/prompts/${post.prompt.prompt_id}`} data-testid={`essay-prompt-${post.post_id}`} className="mt-4 inline-flex items-center gap-1.5 font-sans text-[11px] uppercase tracking-wider font-semibold text-gold border border-gold-mid px-2 py-1 rounded-sm hover:bg-gold hover:text-cream transition-colors">
+          <span className="text-[9px]">▸</span>
+          Subject: {post.prompt.title}
+        </Link>
+      )}
       <div className="flex items-center justify-between mt-5">
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-8 h-8 rounded-full bg-[#F5EDD6] border hairline overflow-hidden flex items-center justify-center shrink-0">
@@ -172,6 +178,12 @@ export default function PostItem({ post, showReplies = true, compact = false, on
       </header>
       <div className="prose-serif text-base sm:text-lg leading-relaxed ink whitespace-pre-wrap">{post.text}</div>
       <MediaBlock media={post.media} imagePath={post.image_path} />
+      {post.prompt && (
+        <Link to={`/prompts/${post.prompt.prompt_id}`} data-testid={`post-prompt-${post.post_id}`} className="mt-4 inline-flex items-center gap-1.5 font-sans text-[11px] uppercase tracking-wider font-semibold text-gold border border-gold-mid px-2 py-1 rounded-sm hover:bg-gold hover:text-cream transition-colors">
+          <span className="text-[9px]">▸</span>
+          Subject: {post.prompt.title}
+        </Link>
+      )}
 
       {!isQueued && !compact && (
         <div className="mt-3 flex items-center justify-end gap-3">

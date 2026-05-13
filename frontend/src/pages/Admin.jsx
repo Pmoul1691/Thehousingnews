@@ -4,6 +4,7 @@ import api from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import AdminAnalyticsPanel from "@/components/AdminAnalyticsPanel";
+import AdminPromptsPanel from "@/components/AdminPromptsPanel";
 
 export default function Admin() {
   const { user, loading } = useAuth();
@@ -105,6 +106,7 @@ export default function Admin() {
         {[
           { k: "apps", l: "Applications" },
           { k: "mod", l: "Moderation" },
+          { k: "subjects", l: "Subjects" },
           { k: "stats", l: "Analytics" },
         ].map((t) => (
           <button
@@ -120,6 +122,8 @@ export default function Admin() {
 
       {section === "stats" ? (
         <AdminAnalyticsPanel />
+      ) : section === "subjects" ? (
+        <AdminPromptsPanel />
       ) : section === "apps" ? (
         <>
           <div className="flex items-center gap-4 mb-10 border-b hairline">

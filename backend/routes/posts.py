@@ -53,6 +53,7 @@ class PostCreate(BaseModel):
     image_path: Optional[str] = None  # legacy single-image (still respected)
     media: List[MediaItem] = Field(default_factory=list)
     scheduled_at: Optional[str] = None  # ISO UTC, only valid for essays
+    prompt_id: Optional[str] = Field(default=None, max_length=40)  # Subject of the Week link
 
     @model_validator(mode="after")
     def _validate_kind(self):
@@ -129,6 +130,11 @@ def setup(db):
         profile_map = {p["user_id"]: p for p in profiles}
         user_map = {u["user_id"]: u for u in users}
         post_ids = [p["post_id"] for p in items]
+        prompt_ids = list({p["prompt_id"] for p in items if p.get("prompt_id")})
+        prompt_map = {}
+        if prompt_ids:
+            prows = await db.prompts.find({"prompt_id": {"$in": prompt_ids}}, {"_id": 0, "prompt_id": 1, "title": 1}).to_list(100)
+            prompt_map = {x["prompt_id"]: x for x in prows}
         now_iso = _now_iso()
         pipeline = [
             {"$match": {"post_id": {"$in": post_ids}, "release_at": {"$lte": now_iso}, "status": {"$ne": "hidden"}}},
@@ -160,6 +166,8 @@ def setup(db):
             p["viewer_flagged"] = p["post_id"] in flagged_ids
             p["is_pete_pick"] = bool(p.get("is_pete_pick"))
             p["kind"] = p.get("kind") or "post"
+            if p.get("prompt_id") and p["prompt_id"] in prompt_map:
+                p["prompt"] = prompt_map[p["prompt_id"]]
             # Back-compat: synthesize media list from legacy image_path if missing
             if not p.get("media"):
                 if p.get("image_path"):
@@ -198,6 +206,17 @@ def setup(db):
         if payload.image_path and not any(m.get("kind") == "image" for m in media_payload):
             media_payload.insert(0, {"kind": "image", "path": payload.image_path})
 
+        # Validate prompt_id (Subject of the Week) if provided
+        prompt_snapshot = None
+        if payload.prompt_id:
+            prompt_row = await db.prompts.find_one({"prompt_id": payload.prompt_id}, {"_id": 0})
+            if not prompt_row:
+                raise HTTPException(status_code=400, detail="Subject not found")
+            prompt_snapshot = {
+                "prompt_id": prompt_row["prompt_id"],
+                "title": prompt_row["title"],
+            }
+
         doc = {
             "post_id": post_id,
             "user_id": user["user_id"],
@@ -210,6 +229,7 @@ def setup(db):
             "status": status,
             "created_at": now_iso,
             "release_at": release_at,
+            "prompt_id": payload.prompt_id if prompt_snapshot else None,
         }
         await db.posts.insert_one(doc)
 

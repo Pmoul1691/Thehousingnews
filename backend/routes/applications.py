@@ -2,7 +2,7 @@
 import os
 import uuid
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional, List
 from fastapi import APIRouter, HTTPException, Depends, Cookie, Header
 from pydantic import BaseModel, Field
@@ -57,6 +57,17 @@ def setup(db):
         if existing and existing.get("status") in ("pending", "approved"):
             return {"status": existing["status"], "application_id": existing["application_id"]}
         app_id = f"app_{uuid.uuid4().hex[:12]}"
+
+        # Rate-limit: at most one application per email per 24 hours.
+        # The user might also re-submit if their previous app was declined; we allow
+        # that only after 24h.
+        since_iso = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
+        recent = await db.applications.count_documents({
+            "email": user["email"],
+            "created_at": {"$gte": since_iso},
+        })
+        if recent > 0:
+            raise HTTPException(status_code=429, detail="You can only submit one application per 24 hours")
 
         # Validate + redeem optional invite code
         invited_by_user_id = None
