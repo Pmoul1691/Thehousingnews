@@ -25,6 +25,7 @@ from routes.moderation import setup as setup_moderation
 from routes.picks import setup as setup_picks
 from routes.analytics import setup as setup_analytics
 from routes.payments import setup as setup_payments
+from routes.essays import setup as setup_essays
 from services.object_storage import init_storage
 from services.release_window import next_window, now_chicago
 from services.scheduler import start_scheduler, release_batch
@@ -83,6 +84,8 @@ async def on_startup():
     await db.payment_transactions.create_index("session_id", unique=True)
     await db.payment_transactions.create_index("user_id")
     await db.payment_transactions.create_index("payment_status")
+    await db.essay_dispatches.create_index([("post_id", 1), ("recipient_user_id", 1)], unique=True)
+    await db.essay_dispatches.create_index("post_id")
     # Start scheduler
     try:
         app.state.scheduler = start_scheduler(db)
@@ -148,3 +151,4 @@ app.include_router(setup_moderation(db))
 app.include_router(setup_picks(db))
 app.include_router(setup_analytics(db))
 app.include_router(setup_payments(db))
+app.include_router(setup_essays(db))

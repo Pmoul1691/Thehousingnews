@@ -1,0 +1,78 @@
+"""Essay dispatch: send a per-essay email to each of the writer's followers."""
+import logging
+import os
+from datetime import datetime, timezone
+
+from services.brevo import send_essay_email
+
+logger = logging.getLogger(__name__)
+
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+async def dispatch_essay_to_followers(db, post_id: str) -> dict:
+    """Find the essay, its author, the author's followers, and email each follower.
+
+    Idempotent: stores rows in essay_dispatches keyed by (post_id, recipient_user_id)
+    so re-running this for the same essay does not double-mail.
+    """
+    post = await db.posts.find_one({"post_id": post_id, "kind": "essay"}, {"_id": 0})
+    if not post:
+        logger.warning("dispatch_essay: post not found %s", post_id)
+        return {"sent": 0, "skipped": 0}
+
+    writer = await db.users.find_one({"user_id": post["user_id"]}, {"_id": 0})
+    writer_profile = await db.profiles.find_one({"user_id": post["user_id"]}, {"_id": 0})
+    if not writer:
+        return {"sent": 0, "skipped": 0}
+
+    writer_name = (writer_profile or {}).get("name") or writer.get("name") or "A member"
+
+    # Followers of this writer
+    follows = await db.follows.find({"followed_id": post["user_id"]}, {"_id": 0}).to_list(5000)
+    follower_ids = [f["follower_id"] for f in follows]
+    if not follower_ids:
+        logger.info("dispatch_essay: no followers for %s", post_id)
+        return {"sent": 0, "skipped": 0}
+
+    followers = await db.users.find(
+        {"user_id": {"$in": follower_ids}, "status": "approved", "suspended": {"$ne": True}},
+        {"_id": 0},
+    ).to_list(5000)
+
+    app_url = os.environ.get("APP_PUBLIC_URL", "")
+    sent = 0
+    skipped = 0
+    for f in followers:
+        # Idempotency check
+        existing = await db.essay_dispatches.find_one(
+            {"post_id": post_id, "recipient_user_id": f["user_id"]},
+            {"_id": 0},
+        )
+        if existing:
+            skipped += 1
+            continue
+        result = send_essay_email(
+            to_email=f["email"],
+            to_name=f.get("name") or "",
+            writer_name=writer_name,
+            essay_title=post.get("title") or "(untitled)",
+            essay_subtitle=post.get("subtitle") or "",
+            essay_body=post.get("text") or "",
+            essay_url=f"{app_url}/essays/{post_id}" if app_url else f"/essays/{post_id}",
+        )
+        await db.essay_dispatches.insert_one({
+            "post_id": post_id,
+            "writer_id": post["user_id"],
+            "recipient_user_id": f["user_id"],
+            "recipient_email": f["email"],
+            "result_status": result.get("status") if isinstance(result, dict) else None,
+            "skipped": bool(result.get("skipped")) if isinstance(result, dict) else False,
+            "created_at": _now_iso(),
+        })
+        sent += 1
+
+    logger.info("Essay %s dispatched to %s followers (%s skipped via idempotency)", post_id, sent, skipped)
+    return {"sent": sent, "skipped": skipped, "total_followers": len(followers)}

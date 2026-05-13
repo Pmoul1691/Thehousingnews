@@ -149,6 +149,39 @@ def send_application_accepted(email: str, name: str, app_url: str) -> dict:
     return send_email(email, name, "You are in", html, tags=["ultradian_network", "application_accepted"])
 
 
+def send_essay_email(
+    to_email: str,
+    to_name: str,
+    writer_name: str,
+    essay_title: str,
+    essay_subtitle: str,
+    essay_body: str,
+    essay_url: str,
+) -> dict:
+    """Send a per-essay email to one follower. Substack-style."""
+    safe_body = (essay_body
+                 .replace("&", "&amp;")
+                 .replace("<", "&lt;")
+                 .replace(">", "&gt;")
+                 .replace("\n\n", "</p><p style=\"font-family:Georgia, serif; font-size:16px; line-height:1.7; color:#2C2410; margin:0 0 16px;\">")
+                 .replace("\n", "<br />"))
+    subtitle_html = (
+        f'<p style="font-family:Georgia, serif; font-size:18px; line-height:1.5; color:#2C2410; font-style:italic; margin:0 0 24px;">{essay_subtitle}</p>'
+        if essay_subtitle else ""
+    )
+    html = _wrap(f"""
+      <div style="font-family:'Plus Jakarta Sans', Arial, sans-serif; font-size:11px; letter-spacing:0.18em; text-transform:uppercase; color:#AD893E; margin-bottom:8px;">{writer_name}</div>
+      <h1 style="font-family:'Plus Jakarta Sans', Arial, sans-serif; font-size:28px; font-weight:600; color:#2C2410; line-height:1.15; margin:0 0 12px;">{essay_title}</h1>
+      {subtitle_html}
+      <p style="font-family:Georgia, serif; font-size:16px; line-height:1.7; color:#2C2410; margin:0 0 16px;">{safe_body}</p>
+      <p style="margin-top:32px;">
+        <a href="{essay_url}" style="display:inline-block; background:#AD893E; color:#FDFAF4; padding:10px 20px; text-decoration:none; font-family:'Plus Jakarta Sans', Arial, sans-serif; font-weight:600; font-size:13px;">Read on the Network</a>
+      </p>
+    """)
+    subject = essay_title or "A new essay"
+    return send_email(to_email, to_name, subject, html, tags=["ultradian_network", "essay"])
+
+
 def send_application_declined(email: str, name: str) -> dict:
     html = _wrap(f"""
       <p>Hi {name},</p>

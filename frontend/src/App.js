@@ -17,6 +17,7 @@ import Members from "@/pages/Members";
 import Settings from "@/pages/Settings";
 import Upgrade from "@/pages/Upgrade";
 import UpgradeSuccess from "@/pages/UpgradeSuccess";
+import EssayDetail from "@/pages/EssayDetail";
 import Admin from "@/pages/Admin";
 
 function Router() {
@@ -42,6 +43,7 @@ function Router() {
         <Route path="/settings" element={<Settings />} />
         <Route path="/upgrade" element={<Upgrade />} />
         <Route path="/upgrade/success" element={<UpgradeSuccess />} />
+        <Route path="/essays/:id" element={<EssayDetail />} />
         <Route path="/admin" element={<Admin />} />
       </Routes>
     </Layout>

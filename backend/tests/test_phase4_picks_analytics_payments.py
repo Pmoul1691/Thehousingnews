@@ -306,9 +306,13 @@ class TestPayments:
         data = r.json()
         assert data["is_supporter"] is False
         assert data["supporter_until"] in (None, "")
-        # server-side price exposure
-        assert data["price_usd"] == 19.0 or data["price_usd"] == 19
-        assert data["period_days"] == 30
+        # server-side price exposure (tiers: monthly $10, yearly $100)
+        assert "tiers" in data and isinstance(data["tiers"], list)
+        tiers = {t["id"]: t for t in data["tiers"]}
+        assert tiers["monthly"]["amount"] in (10, 10.0)
+        assert tiers["monthly"]["period_days"] == 30
+        assert tiers["yearly"]["amount"] in (100, 100.0)
+        assert tiers["yearly"]["period_days"] == 365
 
     def test_checkout_403_for_unapproved(self, http, base_url, needs_app_user):
         r = http.post(
