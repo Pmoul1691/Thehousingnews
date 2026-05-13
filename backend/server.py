@@ -29,6 +29,9 @@ from routes.essays import setup as setup_essays
 from routes.drafts import setup as setup_drafts
 from routes.reader import setup as setup_reader
 from routes.writer import setup as setup_writer
+from routes.tracking import setup as setup_tracking
+from routes.invites import setup as setup_invites
+from routes.email_health import setup as setup_email_health
 from services.object_storage import init_storage
 from services.release_window import next_window, now_chicago
 from services.scheduler import start_scheduler, release_batch
@@ -93,6 +96,12 @@ async def on_startup():
     await db.bookmarks.create_index([("user_id", 1), ("post_id", 1)], unique=True)
     await db.bookmarks.create_index([("user_id", 1), ("created_at", -1)])
     await db.reads.create_index([("user_id", 1), ("post_id", 1)], unique=True)
+    await db.email_dispatches.create_index("dispatch_id", unique=True)
+    await db.email_dispatches.create_index("created_at")
+    await db.email_dispatches.create_index([("kind", 1), ("post_id", 1)])
+    await db.email_events.create_index([("dispatch_id", 1), ("kind", 1), ("created_at", -1)])
+    await db.invite_codes.create_index("code", unique=True)
+    await db.invite_codes.create_index([("owner_user_id", 1), ("quarter_key", 1)])
     # Start scheduler
     try:
         app.state.scheduler = start_scheduler(db)
@@ -162,3 +171,8 @@ app.include_router(setup_essays(db))
 app.include_router(setup_drafts(db))
 app.include_router(setup_reader(db))
 app.include_router(setup_writer(db))
+app.include_router(setup_tracking(db))
+invites_r, invite_public_r = setup_invites(db)
+app.include_router(invites_r)
+app.include_router(invite_public_r)
+app.include_router(setup_email_health(db))

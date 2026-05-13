@@ -1,5 +1,6 @@
 """APScheduler jobs: flip pending_release posts/replies to approved, send AM/PM digests, plus a per-minute job for scheduled essays."""
 import logging
+import uuid
 from datetime import datetime, timezone
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
@@ -132,7 +133,22 @@ async def release_batch(db) -> dict:
         if not prefs.get(kind, True):
             skipped += 1
             continue
-        send_digest_email(r["email"], r.get("name") or "", label, kind, due_posts, picks=picks)
+        dispatch_id = uuid.uuid4().hex
+        try:
+            await db.email_dispatches.insert_one({
+                "dispatch_id": dispatch_id,
+                "kind": f"digest_{kind}",
+                "window_label": label,
+                "posts_count": len(due_posts),
+                "recipient_user_id": r["user_id"],
+                "recipient_email": r["email"],
+                "first_opened_at": None,
+                "first_clicked_at": None,
+                "created_at": _to_iso(datetime.now(timezone.utc)),
+            })
+        except Exception:
+            pass
+        send_digest_email(r["email"], r.get("name") or "", label, kind, due_posts, picks=picks, dispatch_id=dispatch_id)
         sent += 1
 
     logger.info("Digest sent for window %s to %s recipients (%s skipped by prefs)", label, sent, skipped)

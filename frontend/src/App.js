@@ -22,6 +22,7 @@ import Essays from "@/pages/Essays";
 import Library from "@/pages/Library";
 import Write from "@/pages/Write";
 import Admin from "@/pages/Admin";
+import EmailHealth from "@/pages/EmailHealth";
 
 function Router() {
   const location = useLocation();
@@ -51,6 +52,7 @@ function Router() {
         <Route path="/library" element={<Library />} />
         <Route path="/write" element={<Write />} />
         <Route path="/admin" element={<Admin />} />
+        <Route path="/admin/email-health" element={<EmailHealth />} />
       </Routes>
     </Layout>
   );

@@ -12,8 +12,23 @@ export default function Apply() {
     market: "",
     years_in_real_estate: "",
     why_joining: "",
+    invite_code: "",
   });
   const [submitting, setSubmitting] = useState(false);
+  const [inviteState, setInviteState] = useState(null); // {ok, owner_name} | {error}
+  const [validating, setValidating] = useState(false);
+
+  const validateInvite = async () => {
+    const code = (form.invite_code || "").trim().toUpperCase();
+    if (!code) { setInviteState(null); return; }
+    setValidating(true);
+    try {
+      const r = await api.post("/invite/validate", { code });
+      setInviteState({ ok: true, owner_name: r.data.owner_name });
+    } catch (e) {
+      setInviteState({ ok: false, error: e?.response?.data?.detail || "Invalid code" });
+    } finally { setValidating(false); }
+  };
 
   const submit = async (e) => {
     e.preventDefault();
@@ -23,7 +38,9 @@ export default function Apply() {
     }
     setSubmitting(true);
     try {
-      await api.post("/applications", form);
+      const payload = { ...form };
+      payload.invite_code = (form.invite_code || "").trim().toUpperCase() || null;
+      await api.post("/applications", payload);
       await refresh();
       navigate("/pending", { replace: true });
     } catch (e) {
@@ -77,6 +94,37 @@ export default function Apply() {
             maxLength={600}
           />
           <div className="text-right font-sans text-xs text-muted-ink mt-1">{form.why_joining.length}/600</div>
+        </div>
+
+        <div>
+          <label className="block font-sans text-sm font-semibold ink mb-2">Invite code (optional)</label>
+          <p className="font-serif text-sm text-muted-ink mb-2">If a member sent you here, paste their code.</p>
+          <div className="flex items-center gap-2">
+            <input
+              data-testid="apply-invite-code"
+              value={form.invite_code}
+              onChange={(e) => { setForm({ ...form, invite_code: e.target.value }); setInviteState(null); }}
+              onBlur={validateInvite}
+              maxLength={32}
+              placeholder="ABCD1234"
+              className="flex-1 bg-cream border hairline rounded-sm p-3 font-sans text-sm ink tracking-widest uppercase focus:outline-none focus:ring-1 focus:ring-gold"
+            />
+            <button
+              type="button"
+              data-testid="apply-invite-validate"
+              onClick={validateInvite}
+              disabled={validating || !form.invite_code.trim()}
+              className="font-sans text-xs uppercase tracking-wider font-semibold text-gold hover:opacity-80 disabled:opacity-40 transition-opacity px-3 py-2"
+            >
+              {validating ? "Checking..." : "Check"}
+            </button>
+          </div>
+          {inviteState && inviteState.ok && (
+            <p data-testid="apply-invite-ok" className="font-sans text-xs text-gold mt-2">Valid. Invited by {inviteState.owner_name}.</p>
+          )}
+          {inviteState && inviteState.ok === false && (
+            <p data-testid="apply-invite-error" className="font-sans text-xs text-deepred mt-2">{inviteState.error}</p>
+          )}
         </div>
 
         <button

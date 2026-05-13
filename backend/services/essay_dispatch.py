@@ -1,6 +1,7 @@
 """Essay dispatch: send a per-essay email to each of the writer's followers."""
 import logging
 import os
+import uuid
 from datetime import datetime, timezone
 
 from services.brevo import send_essay_email
@@ -48,12 +49,14 @@ async def dispatch_essay_to_followers(db, post_id: str) -> dict:
     for f in followers:
         # Insert the dispatch row FIRST (idempotency guard). If a duplicate exists,
         # the unique index throws and we skip the send entirely.
+        dispatch_id = uuid.uuid4().hex
         try:
             await db.essay_dispatches.insert_one({
                 "post_id": post_id,
                 "writer_id": post["user_id"],
                 "recipient_user_id": f["user_id"],
                 "recipient_email": f["email"],
+                "dispatch_id": dispatch_id,
                 "result_status": None,
                 "skipped": False,
                 "created_at": _now_iso(),
@@ -63,6 +66,22 @@ async def dispatch_essay_to_followers(db, post_id: str) -> dict:
             skipped += 1
             continue
 
+        # Mirror into a unified email_dispatches collection so /api/track/* can update first_opened_at
+        try:
+            await db.email_dispatches.insert_one({
+                "dispatch_id": dispatch_id,
+                "kind": "essay",
+                "post_id": post_id,
+                "writer_id": post["user_id"],
+                "recipient_user_id": f["user_id"],
+                "recipient_email": f["email"],
+                "first_opened_at": None,
+                "first_clicked_at": None,
+                "created_at": _now_iso(),
+            })
+        except Exception:
+            pass
+
         result = send_essay_email(
             to_email=f["email"],
             to_name=f.get("name") or "",
@@ -71,6 +90,7 @@ async def dispatch_essay_to_followers(db, post_id: str) -> dict:
             essay_subtitle=post.get("subtitle") or "",
             essay_body=post.get("text") or "",
             essay_url=f"{app_url}/essays/{post_id}" if app_url else f"/essays/{post_id}",
+            dispatch_id=dispatch_id,
         )
         await db.essay_dispatches.update_one(
             {"post_id": post_id, "recipient_user_id": f["user_id"]},

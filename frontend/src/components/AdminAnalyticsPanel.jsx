@@ -13,10 +13,14 @@ function Stat({ label, value, hint }) {
 
 export default function AdminAnalyticsPanel() {
   const [data, setData] = useState(null);
+  const [emailData, setEmailData] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.get("/admin/analytics").then((r) => setData(r.data)).finally(() => setLoading(false));
+    Promise.all([
+      api.get("/admin/analytics").then((r) => setData(r.data)),
+      api.get("/admin/analytics/email").then((r) => setEmailData(r.data)).catch(() => setEmailData(null)),
+    ]).finally(() => setLoading(false));
   }, []);
 
   if (loading) return <div className="font-serif text-base text-muted-ink py-12 text-center">Loading.</div>;
@@ -86,6 +90,47 @@ export default function AdminAnalyticsPanel() {
         <Stat label="Open flags" value={data.open_flags} hint="Pending moderation review" />
         <Stat label="Pete picks (30d)" value={data.pete_picks_30d} />
       </section>
+
+      {emailData && (
+        <section data-testid="admin-email-analytics">
+          <p className="uppercase-label mb-4">Email engagement (30d)</p>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+            <Stat label="Sent" value={emailData.totals.sent} />
+            <Stat label="Opened" value={emailData.totals.opened} hint={`${emailData.totals.open_rate}%`} />
+            <Stat label="Clicked" value={emailData.totals.clicked} hint={`${emailData.totals.click_rate}%`} />
+            <Stat label="Open rate" value={`${emailData.totals.open_rate}%`} />
+            <Stat label="Click rate" value={`${emailData.totals.click_rate}%`} />
+          </div>
+          {emailData.items.length === 0 ? (
+            <p className="font-serif text-sm text-muted-ink italic">No tracked emails yet. Set APP_PUBLIC_URL and send a digest or essay to populate this.</p>
+          ) : (
+            <div className="border hairline rounded-sm overflow-x-auto">
+              <table className="w-full text-sm" data-testid="email-engagement-table">
+                <thead className="bg-[#F5EDD6]">
+                  <tr>
+                    <th className="text-left p-3 font-sans text-[11px] uppercase tracking-wider text-muted-ink">Batch</th>
+                    <th className="text-left p-3 font-sans text-[11px] uppercase tracking-wider text-muted-ink">Sent</th>
+                    <th className="text-left p-3 font-sans text-[11px] uppercase tracking-wider text-muted-ink">Open</th>
+                    <th className="text-left p-3 font-sans text-[11px] uppercase tracking-wider text-muted-ink">Click</th>
+                    <th className="text-left p-3 font-sans text-[11px] uppercase tracking-wider text-muted-ink">When</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {emailData.items.map((row, idx) => (
+                    <tr key={idx} className="border-t hairline">
+                      <td className="p-3 font-display font-semibold text-sm ink"><span className="font-sans text-[10px] uppercase tracking-wider text-gold mr-2">{row.kind}</span>{row.label}</td>
+                      <td className="p-3 font-sans text-sm ink">{row.sent}</td>
+                      <td className="p-3 font-sans text-sm ink">{row.opened} <span className="text-muted-ink">({row.open_rate}%)</span></td>
+                      <td className="p-3 font-sans text-sm ink">{row.clicked} <span className="text-muted-ink">({row.click_rate}%)</span></td>
+                      <td className="p-3 font-sans text-xs text-muted-ink">{new Date(row.first_at).toLocaleString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      )}
     </div>
   );
 }

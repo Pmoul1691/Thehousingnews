@@ -24,6 +24,7 @@ class ApplicationCreate(BaseModel):
     current_role: str = Field(min_length=2, max_length=200)
     market: str = Field(min_length=2, max_length=120)
     years_in_real_estate: str = Field(min_length=1, max_length=40)
+    invite_code: Optional[str] = Field(default=None, max_length=32)
 
 
 class ApplicationReview(BaseModel):
@@ -56,6 +57,33 @@ def setup(db):
         if existing and existing.get("status") in ("pending", "approved"):
             return {"status": existing["status"], "application_id": existing["application_id"]}
         app_id = f"app_{uuid.uuid4().hex[:12]}"
+
+        # Validate + redeem optional invite code
+        invited_by_user_id = None
+        invited_by_name = None
+        if payload.invite_code:
+            code = payload.invite_code.strip().upper()
+            row = await db.invite_codes.find_one({"code": code}, {"_id": 0})
+            if not row:
+                raise HTTPException(status_code=400, detail="Invite code not found")
+            if row.get("redeemed_by_user_id"):
+                raise HTTPException(status_code=400, detail="This invite has already been used")
+            if row.get("expires_at") and row["expires_at"] < now_iso:
+                raise HTTPException(status_code=400, detail="This invite has expired")
+            # Reserve it atomically
+            redeem = await db.invite_codes.update_one(
+                {"code": code, "redeemed_by_user_id": None},
+                {"$set": {
+                    "redeemed_by_user_id": user["user_id"],
+                    "redeemed_by_email": user["email"],
+                    "redeemed_at": now_iso,
+                }},
+            )
+            if redeem.modified_count != 1:
+                raise HTTPException(status_code=400, detail="This invite has already been used")
+            invited_by_user_id = row.get("owner_user_id")
+            invited_by_name = row.get("owner_name")
+
         doc = {
             "application_id": app_id,
             "user_id": user["user_id"],
@@ -65,13 +93,15 @@ def setup(db):
             "current_role": payload.current_role,
             "market": payload.market,
             "years_in_real_estate": payload.years_in_real_estate,
+            "invited_by_user_id": invited_by_user_id,
+            "invited_by_name": invited_by_name,
             "status": "pending",
             "created_at": now_iso,
             "reviewed_at": None,
             "reviewed_by": None,
         }
         await db.applications.insert_one(doc)
-        await db.users.update_one({"user_id": user["user_id"]}, {"$set": {"status": "pending"}})
+        await db.users.update_one({"user_id": user["user_id"]}, {"$set": {"status": "pending", "invited_by_user_id": invited_by_user_id}})
         send_application_received(user["email"], user["name"])
         return {"status": "pending", "application_id": app_id}
 

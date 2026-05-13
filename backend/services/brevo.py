@@ -26,8 +26,16 @@ def send_email(
     subject: str,
     html: str,
     tags: Optional[list[str]] = None,
+    dispatch_id: Optional[str] = None,
 ) -> dict:
-    """Send a transactional email. Returns response dict or {'skipped': True}."""
+    """Send a transactional email. Returns response dict or {'skipped': True}.
+    If dispatch_id is given, the HTML is wrapped with a tracking pixel and links are rewritten."""
+    if dispatch_id:
+        try:
+            from services.tracking import wrap_for_tracking
+            html = wrap_for_tracking(html, dispatch_id)
+        except Exception:
+            logger.exception("tracking wrap failed; sending raw")
     if not BREVO_API_KEY:
         logger.warning("BREVO_API_KEY missing; skipping email to %s", to_email)
         return {"skipped": True}
@@ -157,6 +165,7 @@ def send_essay_email(
     essay_subtitle: str,
     essay_body: str,
     essay_url: str,
+    dispatch_id: Optional[str] = None,
 ) -> dict:
     """Send a per-essay email to one follower. Substack-style. Body is rendered from markdown."""
     from services.markdown_render import render as md_render
@@ -175,7 +184,7 @@ def send_essay_email(
       </p>
     """)
     subject = essay_title or "A new essay"
-    return send_email(to_email, to_name, subject, html, tags=["ultradian_network", "essay"])
+    return send_email(to_email, to_name, subject, html, tags=["ultradian_network", "essay"], dispatch_id=dispatch_id)
 
 
 def send_application_declined(email: str, name: str) -> dict:
@@ -211,7 +220,7 @@ def _digest_item_html(post: dict) -> str:
     """
 
 
-def send_digest_email(email: str, name: str, window_label: str, kind: str, posts: list[dict], picks: list[dict] | None = None) -> dict:
+def send_digest_email(email: str, name: str, window_label: str, kind: str, posts: list[dict], picks: list[dict] | None = None, dispatch_id: Optional[str] = None) -> dict:
     """Send the AM or PM digest of the just-released batch."""
     count = len(posts)
     if count == 0:
@@ -244,4 +253,4 @@ def send_digest_email(email: str, name: str, window_label: str, kind: str, posts
       <p style="font-family:Georgia, serif; color:#2C2410;">Pete</p>
     """)
     subject = f"The {intro_word} release ({window_label})"
-    return send_email(email, name, subject, html, tags=["ultradian_network", f"digest_{kind}"])
+    return send_email(email, name, subject, html, tags=["ultradian_network", f"digest_{kind}"], dispatch_id=dispatch_id)

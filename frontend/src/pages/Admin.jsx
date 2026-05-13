@@ -91,8 +91,15 @@ export default function Admin() {
 
   return (
     <div className="container-wide py-12">
-      <p className="uppercase-label mb-3">Admin</p>
-      <h1 className="font-display font-semibold text-3xl ink mb-8">Pete's queue</h1>
+      <div className="flex items-end justify-between flex-wrap gap-4 mb-8">
+        <div>
+          <p className="uppercase-label mb-3">Admin</p>
+          <h1 className="font-display font-semibold text-3xl ink">Pete's queue</h1>
+        </div>
+        <Link to="/admin/email-health" data-testid="nav-email-health" className="font-sans text-xs uppercase tracking-wider text-gold font-semibold hover:opacity-80 transition-opacity">
+          Email health →
+        </Link>
+      </div>
 
       <div className="flex items-center gap-6 mb-8 border-b hairline">
         {[
@@ -141,6 +148,11 @@ export default function Admin() {
                     <div>
                       <h3 className="font-display font-semibold text-lg ink">{a.name}</h3>
                       <div className="font-sans text-sm text-muted-ink">{a.email}</div>
+                      {a.invited_by_name && (
+                        <div className="mt-1 inline-flex items-center gap-1 font-sans text-[10px] uppercase tracking-wide text-gold border border-gold-mid px-1.5 py-0.5 rounded-sm" data-testid={`invited-by-${a.application_id}`}>
+                          Invited by {a.invited_by_name}
+                        </div>
+                      )}
                     </div>
                     <div className="font-sans text-xs text-muted-ink">{new Date(a.created_at).toLocaleString()}</div>
                   </div>

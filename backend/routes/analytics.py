@@ -25,7 +25,6 @@ def setup(db):
     async def summary(admin=Depends(_admin)):
         now = datetime.now(timezone.utc)
         now_iso = now.isoformat()
-
         # Member counts
         total_approved = await db.users.count_documents({"status": "approved"})
         suspended = await db.users.count_documents({"suspended": True})
@@ -99,6 +98,63 @@ def setup(db):
             "open_flags": open_flags,
             "pete_picks_30d": pete_picks_count,
             "generated_at": now_iso,
+        }
+
+    @router.get("/email")
+    async def email_summary(admin=Depends(_admin)):
+        """Aggregate open / click stats per recent dispatch batch."""
+        now = datetime.now(timezone.utc)
+        cutoff_30 = (now - timedelta(days=30)).isoformat()
+
+        # Group dispatches by kind+window_label (digests) or kind+post_id (essays)
+        pipeline = [
+            {"$match": {"created_at": {"$gte": cutoff_30}}},
+            {"$group": {
+                "_id": {
+                    "kind": "$kind",
+                    "post_id": "$post_id",
+                    "window_label": "$window_label",
+                },
+                "sent": {"$sum": 1},
+                "opened": {"$sum": {"$cond": [{"$ifNull": ["$first_opened_at", False]}, 1, 0]}},
+                "clicked": {"$sum": {"$cond": [{"$ifNull": ["$first_clicked_at", False]}, 1, 0]}},
+                "first_at": {"$min": "$created_at"},
+            }},
+            {"$sort": {"first_at": -1}},
+            {"$limit": 30},
+        ]
+        rows = await db.email_dispatches.aggregate(pipeline).to_list(30)
+        items = []
+        total_sent = total_opened = total_clicked = 0
+        for r in rows:
+            kind = r["_id"].get("kind") or "unknown"
+            label = r["_id"].get("window_label") or r["_id"].get("post_id") or ""
+            sent = r.get("sent", 0)
+            opened = r.get("opened", 0)
+            clicked = r.get("clicked", 0)
+            total_sent += sent
+            total_opened += opened
+            total_clicked += clicked
+            items.append({
+                "kind": kind,
+                "label": label,
+                "sent": sent,
+                "opened": opened,
+                "clicked": clicked,
+                "open_rate": round((opened / sent) * 100, 1) if sent else 0,
+                "click_rate": round((clicked / sent) * 100, 1) if sent else 0,
+                "first_at": r.get("first_at"),
+            })
+        return {
+            "totals": {
+                "sent": total_sent,
+                "opened": total_opened,
+                "clicked": total_clicked,
+                "open_rate": round((total_opened / total_sent) * 100, 1) if total_sent else 0,
+                "click_rate": round((total_clicked / total_sent) * 100, 1) if total_sent else 0,
+            },
+            "items": items,
+            "generated_at": now.isoformat(),
         }
 
     return router
