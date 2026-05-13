@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import api from "@/lib/api";
 import { toast } from "sonner";
 
@@ -11,19 +11,70 @@ function formatLocal(iso) {
   } catch { return ""; }
 }
 
+function toLocalInput(iso) {
+  if (!iso) return "";
+  try {
+    const d = new Date(iso);
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  } catch { return ""; }
+}
+
 export default function Composer({ onPosted }) {
-  const [mode, setMode] = useState("post"); // post | essay
+  const [mode, setMode] = useState("post");
   const [text, setText] = useState("");
   const [title, setTitle] = useState("");
   const [subtitle, setSubtitle] = useState("");
   const [imagePath, setImagePath] = useState("");
+  const [scheduledAt, setScheduledAt] = useState("");  // local datetime-local format
   const [uploading, setUploading] = useState(false);
   const [posting, setPosting] = useState(false);
   const [nextWindow, setNextWindow] = useState(null);
+  const [savedAt, setSavedAt] = useState(null);
+  const [draftLoaded, setDraftLoaded] = useState(false);
+  const draftDirty = useRef(false);
 
+  // Load existing draft
   useEffect(() => {
+    api.get("/drafts/mine").then((r) => {
+      if (r.data && r.data.user_id) {
+        setMode(r.data.kind || "post");
+        setText(r.data.text || "");
+        setTitle(r.data.title || "");
+        setSubtitle(r.data.subtitle || "");
+        setImagePath(r.data.image_path || "");
+        setScheduledAt(r.data.scheduled_at ? toLocalInput(r.data.scheduled_at) : "");
+      }
+    }).catch(() => {}).finally(() => setDraftLoaded(true));
     api.get("/release-window").then((r) => setNextWindow(r.data)).catch(() => {});
   }, []);
+
+  // Auto-save every 5 seconds when dirty
+  useEffect(() => {
+    if (!draftLoaded) return;
+    draftDirty.current = true;
+    const t = setTimeout(async () => {
+      if (!draftDirty.current) return;
+      // Only save if there is something meaningful
+      if (!text && !title && !subtitle && !imagePath) return;
+      try {
+        const scheduledIso = scheduledAt ? new Date(scheduledAt).toISOString() : null;
+        await api.put("/drafts/mine", {
+          kind: mode,
+          text,
+          title: title || null,
+          subtitle: subtitle || null,
+          image_path: imagePath || null,
+          scheduled_at: scheduledIso,
+        });
+        setSavedAt(new Date());
+        draftDirty.current = false;
+      } catch (_e) {
+        // silent
+      }
+    }, 5000);
+    return () => clearTimeout(t);
+  }, [text, title, subtitle, imagePath, mode, scheduledAt, draftLoaded]);
 
   const upload = async (file) => {
     if (!file) return;
@@ -42,14 +93,21 @@ export default function Composer({ onPosted }) {
     }
   };
 
-  const reset = () => {
-    setText(""); setTitle(""); setSubtitle(""); setImagePath("");
+  const reset = async () => {
+    setText(""); setTitle(""); setSubtitle(""); setImagePath(""); setScheduledAt("");
+    try { await api.delete("/drafts/mine"); } catch (_e) {}
+    setSavedAt(null);
   };
 
   const submit = async () => {
     if (!text.trim()) return;
     if (mode === "essay" && !title.trim()) { toast.error("Essays need a title"); return; }
     if (mode === "essay" && text.trim().length < 100) { toast.error("Essays need at least 100 characters"); return; }
+    const scheduledIso = mode === "essay" && scheduledAt ? new Date(scheduledAt).toISOString() : null;
+    if (scheduledIso && new Date(scheduledIso) <= new Date()) {
+      toast.error("Schedule must be in the future");
+      return;
+    }
     setPosting(true);
     try {
       const r = await api.post("/posts", {
@@ -58,13 +116,18 @@ export default function Composer({ onPosted }) {
         title: mode === "essay" ? title.trim() : null,
         subtitle: mode === "essay" ? (subtitle.trim() || null) : null,
         image_path: imagePath || null,
+        scheduled_at: scheduledIso,
       });
       if (mode === "essay") {
-        toast.success("Essay published. Emails are going out now.");
+        if (r.data.status === "scheduled") {
+          toast.success("Essay scheduled");
+        } else {
+          toast.success("Essay published. Emails are going out now.");
+        }
       } else {
         toast.success(`Queued for ${formatLocal(r.data.release_at)} CT`);
       }
-      reset();
+      await reset();
       onPosted && onPosted();
     } catch (e) {
       toast.error(e?.response?.data?.detail || "Could not publish");
@@ -75,6 +138,7 @@ export default function Composer({ onPosted }) {
 
   const releaseLabel = nextWindow ? formatLocal(nextWindow.next_release_iso) : "";
   const isEssay = mode === "essay";
+  const savedLabel = savedAt ? `Draft saved at ${savedAt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : "";
 
   return (
     <section data-testid="composer" className="border hairline rounded-sm p-6 bg-cream">
@@ -97,7 +161,8 @@ export default function Composer({ onPosted }) {
         </div>
         <p className="font-sans text-xs text-muted-ink" data-testid="composer-release-note">
           {isEssay ? (
-            <>Publishes <span className="font-semibold ink">now</span>. Emails your followers.</>
+            scheduledAt ? (<>Publishes <span className="font-semibold ink">{new Date(scheduledAt).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}</span></>)
+              : (<>Publishes <span className="font-semibold ink">now</span>. Emails your followers.</>)
           ) : (
             releaseLabel ? (<>Releases at <span className="font-semibold ink">{releaseLabel} CT</span></>) : null
           )}
@@ -127,8 +192,8 @@ export default function Composer({ onPosted }) {
 
       <textarea
         data-testid="composer-text"
-        className={`w-full bg-cream border-0 focus:outline-none font-serif text-base sm:text-lg ink leading-relaxed resize-none ${isEssay ? "min-h-[320px]" : "min-h-[110px]"}`}
-        placeholder={isEssay ? "Write the essay. Plain words, real specifics, line breaks fine." : "Plain words. What did you see today?"}
+        className={`w-full bg-cream border-0 focus:outline-none font-serif text-base sm:text-lg ink leading-relaxed resize-none ${isEssay ? "min-h-[340px]" : "min-h-[110px]"}`}
+        placeholder={isEssay ? "Write the essay. Markdown is supported: **bold**, _italic_, # heading, - lists, > quotes, [link](url)." : "Plain words. What did you see today?"}
         value={text}
         maxLength={isEssay ? 50000 : 500}
         onChange={(e) => setText(e.target.value)}
@@ -139,11 +204,33 @@ export default function Composer({ onPosted }) {
           <button onClick={() => setImagePath("")} data-testid="composer-remove-image" className="underline underline-offset-2 hover:text-gold">remove</button>
         </div>
       )}
+
+      {isEssay && (
+        <div className="mt-3 flex items-center gap-3 flex-wrap" data-testid="composer-schedule">
+          <label className="font-sans text-xs uppercase tracking-wider font-semibold text-muted-ink">Schedule</label>
+          <input
+            type="datetime-local"
+            data-testid="composer-schedule-input"
+            value={scheduledAt}
+            onChange={(e) => setScheduledAt(e.target.value)}
+            className="bg-cream border hairline rounded-sm px-2 py-1 font-sans text-xs ink focus:outline-none focus:ring-1 focus:ring-gold"
+          />
+          {scheduledAt && (
+            <button onClick={() => setScheduledAt("")} data-testid="composer-schedule-clear" className="font-sans text-xs text-muted-ink hover:text-deepred transition-colors">
+              Publish now instead
+            </button>
+          )}
+        </div>
+      )}
+
       <div className="flex items-center justify-between mt-3 pt-3 border-t hairline">
-        <label className="cursor-pointer font-sans text-sm font-medium text-muted-ink hover:text-gold transition-colors">
-          {uploading ? "Uploading..." : isEssay ? "Add cover image" : "Attach image"}
-          <input data-testid="composer-image-input" type="file" accept="image/*" className="hidden" onChange={(e) => upload(e.target.files?.[0])} />
-        </label>
+        <div className="flex items-center gap-4">
+          <label className="cursor-pointer font-sans text-sm font-medium text-muted-ink hover:text-gold transition-colors">
+            {uploading ? "Uploading..." : isEssay ? "Add cover image" : "Attach image"}
+            <input data-testid="composer-image-input" type="file" accept="image/*" className="hidden" onChange={(e) => upload(e.target.files?.[0])} />
+          </label>
+          {savedLabel && <span data-testid="draft-saved" className="font-sans text-[11px] text-muted-ink italic">{savedLabel}</span>}
+        </div>
         <div className="flex items-center gap-4">
           <span className="font-sans text-xs text-muted-ink">{text.length}/{isEssay ? "50000" : "500"}</span>
           <button
@@ -152,7 +239,9 @@ export default function Composer({ onPosted }) {
             disabled={posting || !text.trim() || (isEssay && !title.trim())}
             className="bg-gold text-cream font-sans font-semibold text-sm px-5 py-2 rounded-sm hover:opacity-90 transition-opacity disabled:opacity-50"
           >
-            {posting ? (isEssay ? "Publishing..." : "Queueing...") : (isEssay ? "Publish essay" : "Queue for release")}
+            {posting
+              ? (isEssay ? (scheduledAt ? "Scheduling..." : "Publishing...") : "Queueing...")
+              : (isEssay ? (scheduledAt ? "Schedule" : "Publish essay") : "Queue for release")}
           </button>
         </div>
       </div>

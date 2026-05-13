@@ -25,6 +25,7 @@ class PostCreate(BaseModel):
     title: Optional[str] = Field(default=None, max_length=160)
     subtitle: Optional[str] = Field(default=None, max_length=240)
     image_path: Optional[str] = None
+    scheduled_at: Optional[str] = None  # ISO UTC, only valid for essays
 
     @model_validator(mode="after")
     def _validate_kind(self):
@@ -32,14 +33,24 @@ class PostCreate(BaseModel):
             if len(self.text) > SHORT_POST_MAX:
                 raise ValueError(f"Short posts must be {SHORT_POST_MAX} characters or fewer")
             if self.title or self.subtitle:
-                # Allow but ignore titles on short posts; nullify
                 self.title = None
                 self.subtitle = None
+            self.scheduled_at = None
         else:  # essay
             if not (self.title and self.title.strip()):
                 raise ValueError("Essays require a title")
             if len(self.text.strip()) < 100:
                 raise ValueError("Essays must be at least 100 characters")
+            if self.scheduled_at:
+                try:
+                    sched = datetime.fromisoformat(self.scheduled_at.replace("Z", "+00:00"))
+                    if sched.tzinfo is None:
+                        sched = sched.replace(tzinfo=timezone.utc)
+                    if sched <= datetime.now(timezone.utc):
+                        raise ValueError("scheduled_at must be in the future")
+                    self.scheduled_at = sched.astimezone(timezone.utc).isoformat()
+                except ValueError as e:
+                    raise ValueError(f"Invalid scheduled_at: {e}")
         return self
 
 
@@ -123,9 +134,12 @@ def setup(db):
         now_iso = _now_iso()
 
         if payload.kind == "essay":
-            # Instant release for essays
-            release_at = now_iso
-            status = "approved"
+            if payload.scheduled_at:
+                release_at = payload.scheduled_at
+                status = "scheduled"
+            else:
+                release_at = now_iso
+                status = "approved"
         else:
             release_at = next_window(datetime.now(CHICAGO)).astimezone(timezone.utc).isoformat()
             status = "pending_release"
@@ -144,9 +158,16 @@ def setup(db):
         }
         await db.posts.insert_one(doc)
 
-        if payload.kind == "essay":
-            # Dispatch follower email in background
+        if payload.kind == "essay" and status == "approved":
+            # Dispatch follower email in background only for instant essays.
+            # Scheduled essays will be dispatched by the per-minute scheduler job.
             background_tasks.add_task(dispatch_essay_to_followers, db, post_id)
+
+        # Clear the user's draft on successful publish/schedule
+        try:
+            await db.drafts.delete_one({"user_id": user["user_id"]})
+        except Exception:
+            pass
 
         return {
             "post_id": post_id,

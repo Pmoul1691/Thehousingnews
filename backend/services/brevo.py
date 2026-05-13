@@ -158,13 +158,9 @@ def send_essay_email(
     essay_body: str,
     essay_url: str,
 ) -> dict:
-    """Send a per-essay email to one follower. Substack-style."""
-    safe_body = (essay_body
-                 .replace("&", "&amp;")
-                 .replace("<", "&lt;")
-                 .replace(">", "&gt;")
-                 .replace("\n\n", "</p><p style=\"font-family:Georgia, serif; font-size:16px; line-height:1.7; color:#2C2410; margin:0 0 16px;\">")
-                 .replace("\n", "<br />"))
+    """Send a per-essay email to one follower. Substack-style. Body is rendered from markdown."""
+    from services.markdown_render import render as md_render
+    body_html = md_render(essay_body) or f"<p>{essay_body}</p>"
     subtitle_html = (
         f'<p style="font-family:Georgia, serif; font-size:18px; line-height:1.5; color:#2C2410; font-style:italic; margin:0 0 24px;">{essay_subtitle}</p>'
         if essay_subtitle else ""
@@ -173,7 +169,7 @@ def send_essay_email(
       <div style="font-family:'Plus Jakarta Sans', Arial, sans-serif; font-size:11px; letter-spacing:0.18em; text-transform:uppercase; color:#AD893E; margin-bottom:8px;">{writer_name}</div>
       <h1 style="font-family:'Plus Jakarta Sans', Arial, sans-serif; font-size:28px; font-weight:600; color:#2C2410; line-height:1.15; margin:0 0 12px;">{essay_title}</h1>
       {subtitle_html}
-      <p style="font-family:Georgia, serif; font-size:16px; line-height:1.7; color:#2C2410; margin:0 0 16px;">{safe_body}</p>
+      <div style="font-family:Georgia, serif; font-size:16px; line-height:1.7; color:#2C2410;">{body_html}</div>
       <p style="margin-top:32px;">
         <a href="{essay_url}" style="display:inline-block; background:#AD893E; color:#FDFAF4; padding:10px 20px; text-decoration:none; font-family:'Plus Jakarta Sans', Arial, sans-serif; font-weight:600; font-size:13px;">Read on the Network</a>
       </p>

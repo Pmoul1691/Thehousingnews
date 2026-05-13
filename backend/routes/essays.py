@@ -87,7 +87,9 @@ def setup(db):
         }
 
         if is_member:
+            from services.markdown_render import render as md_render
             body["text"] = post.get("text") or ""
+            body["html"] = md_render(post.get("text") or "")
             body["paywall"] = False
         else:
             body["preview"] = _preview(post.get("text") or "")

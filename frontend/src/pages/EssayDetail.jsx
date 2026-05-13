@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import api, { API } from "@/lib/api";
 import Replies from "@/components/Replies";
 import { useAuth } from "@/context/AuthContext";
@@ -86,7 +88,9 @@ export default function EssayDetail() {
           <Paywall />
         </>
       ) : (
-        <div className="prose-serif text-lg leading-[1.75] ink/90 whitespace-pre-wrap" data-testid="essay-body">{essay.text}</div>
+        <div className="essay-body prose-serif text-lg leading-[1.78] ink/90" data-testid="essay-body">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{essay.text || ""}</ReactMarkdown>
+        </div>
       )}
 
       {!essay.paywall && (

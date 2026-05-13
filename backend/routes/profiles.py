@@ -93,4 +93,24 @@ def setup(db):
             raise HTTPException(status_code=404, detail="Profile not found")
         return prof
 
+    @router.get("/{user_id}/essays")
+    async def list_essays(user_id: str, user=Depends(_user)):
+        target = await db.users.find_one({"user_id": user_id}, {"_id": 0})
+        if not target or (target.get("suspended") and not user.get("is_admin")):
+            return {"items": []}
+        now_iso = datetime.now(timezone.utc).isoformat()
+        cur = db.posts.find(
+            {
+                "user_id": user_id,
+                "kind": "essay",
+                "release_at": {"$lte": now_iso},
+                "status": {"$nin": ["declined", "hidden"]},
+            },
+            {"_id": 0, "text": 0},  # exclude full body for the archive list
+        ).sort("release_at", -1).limit(100)
+        items = await cur.to_list(100)
+        for it in items:
+            it["is_pete_pick"] = bool(it.get("is_pete_pick"))
+        return {"items": items}
+
     return router

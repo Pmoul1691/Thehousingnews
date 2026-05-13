@@ -5,11 +5,19 @@ import PostItem from "@/components/PostItem";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 
+function fmtEssay(iso) {
+  if (!iso) return "";
+  try {
+    return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(new Date(iso));
+  } catch { return ""; }
+}
+
 export default function Profile() {
   const { id } = useParams();
   const { user } = useAuth();
   const [profile, setProfile] = useState(null);
   const [posts, setPosts] = useState([]);
+  const [essays, setEssays] = useState([]);
   const [rel, setRel] = useState(null);
   const [notFound, setNotFound] = useState(false);
   const [following, setFollowing] = useState([]);
@@ -29,6 +37,8 @@ export default function Profile() {
           setProfile(r.data);
           const pr = await api.get(`/posts/by-user/${r.data.user_id}`);
           if (!cancelled) setPosts(pr.data.items || []);
+          const ess = await api.get(`/profile/${r.data.user_id}/essays`);
+          if (!cancelled) setEssays(ess.data.items || []);
           if (user) {
             const relRes = await api.get(`/users/${r.data.user_id}/relationship`);
             if (!cancelled) setRel(relRes.data);
@@ -152,9 +162,28 @@ export default function Profile() {
         {posts.length === 0 ? (
           <p className="font-serif text-base text-muted-ink">No posts yet.</p>
         ) : (
-          posts.map((p) => <PostItem key={p.post_id} post={p} />)
+          posts.filter((p) => (p.kind || "post") === "post").map((p) => <PostItem key={p.post_id} post={p} />)
         )}
       </section>
+
+      {essays.length > 0 && (
+        <section className="border-t hairline pt-10 mt-12" data-testid="profile-essays-archive">
+          <p className="uppercase-label mb-6">Essays</p>
+          <ul className="divide-y divide-[#E8D4A0] border-t border-b hairline">
+            {essays.map((e) => (
+              <li key={e.post_id} data-testid={`archive-essay-${e.post_id}`} className="py-5">
+                <Link to={`/essays/${e.post_id}`} className="block group">
+                  <div className="flex items-baseline gap-3">
+                    <h3 className="font-display font-semibold text-lg ink group-hover:text-gold transition-colors flex-1">{e.title}</h3>
+                    <span className="font-sans text-xs text-muted-ink whitespace-nowrap">{fmtEssay(e.release_at || e.created_at)}</span>
+                  </div>
+                  {e.subtitle && <p className="font-serif italic text-sm text-[#2C2410]/70 mt-1">{e.subtitle}</p>}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </div>
   );
 }

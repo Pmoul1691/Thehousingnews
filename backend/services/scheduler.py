@@ -1,16 +1,44 @@
-"""APScheduler jobs: flip pending_release posts/replies to approved, send AM/PM digests."""
+"""APScheduler jobs: flip pending_release posts/replies to approved, send AM/PM digests, plus a per-minute job for scheduled essays."""
 import logging
 from datetime import datetime, timezone
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from services.release_window import CHICAGO, previous_window, window_kind, window_label
 from services.brevo import send_digest_email
+from services.essay_dispatch import dispatch_essay_to_followers
 
 logger = logging.getLogger(__name__)
 
 
 def _to_iso(dt: datetime) -> str:
     return dt.astimezone(timezone.utc).isoformat()
+
+
+async def process_scheduled_essays(db) -> dict:
+    """Flip scheduled essays whose release_at <= now to approved and dispatch follower emails.
+
+    Runs every minute. Cheap when there is nothing to do.
+    """
+    now_iso = datetime.now(timezone.utc).isoformat()
+    due = await db.posts.find(
+        {"kind": "essay", "status": "scheduled", "release_at": {"$lte": now_iso}},
+        {"_id": 0},
+    ).to_list(200)
+    if not due:
+        return {"released": 0}
+    for essay in due:
+        result = await db.posts.update_one(
+            {"post_id": essay["post_id"], "status": "scheduled"},
+            {"$set": {"status": "approved"}},
+        )
+        # Only dispatch if we actually flipped this row (avoid double-fire across overlapping runs)
+        if result.modified_count == 1:
+            try:
+                await dispatch_essay_to_followers(db, essay["post_id"])
+            except Exception:
+                logger.exception("Scheduled essay dispatch failed for %s", essay["post_id"])
+    logger.info("Released %s scheduled essays", len(due))
+    return {"released": len(due)}
 
 
 async def release_batch(db) -> dict:
@@ -141,6 +169,15 @@ def start_scheduler(db) -> AsyncIOScheduler:
         replace_existing=True,
         misfire_grace_time=600,
     )
+    scheduler.add_job(
+        process_scheduled_essays,
+        trigger="interval",
+        minutes=1,
+        args=[db],
+        id="process_scheduled_essays",
+        replace_existing=True,
+        misfire_grace_time=60,
+    )
     scheduler.start()
-    logger.info("Release scheduler started (8:30 AM and 5:30 PM America/Chicago)")
+    logger.info("Release scheduler started (8:30 AM and 5:30 PM America/Chicago + per-minute scheduled-essays sweep)")
     return scheduler
