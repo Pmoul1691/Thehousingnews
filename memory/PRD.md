@@ -176,6 +176,16 @@ of teams.
 
 **Stats**: 11 new pytest cases in `tests/test_iter15_substack_share.py` (all green); iter-14's 9/9 still green; Playwright verified Landing shared-grid render, anonymous paywall hides share-buttons, member share-buttons render with all 8 testids and correct intent URLs, admin RSS import button visible and wired.
 
+## Phase 11 - Substack-quiet Landing redesign (2026-05-13)
+- **Landing rebuilt** as a Substack-style minimalist publication front page: single masthead with one gold pill `Sign in` + text `About` link, large 3-line display headline, italic serif tagline. Below the masthead a hairline separates the featured essay (no border, `variant="quiet"` from `EssayCards.jsx`), then a hairline-separated stack of `More essays` rows, then a `From the feed` stack of short notes. No bordered cards anywhere on landing - type and whitespace do all the work. Single quiet footer CTA.
+- **Removed distractions**: `NextReleaseTimer` hidden in the Layout header when on `/`; the "Reading without an account" sidebar box dropped; the "Subject of the week" colored banner dropped; multiple stacked CTAs collapsed to one masthead pill + one footer pill.
+- **EssayCards variants**: `FeaturedEssay` now has `variant="quiet"` (no border, big serif h2, italic subtitle, gold "LATEST ESSAY" eyebrow) and `EssayMini` has `variant="row"` (no border, serif headline + subtitle + 1-line preview + meta, designed to pair with `divide-y` on the parent).
+- **Toaster** repositioned to `bottom-center` with shorter `duration={2200}` and no shadow - notifications are now a calm hairline-bordered cream chip at the bottom of the screen rather than a top-center alert.
+- **Typographic polish**: switched the meta separator from a bare `. ` (which read like the end of a sentence) to a true middle dot `·` everywhere on Landing; added `line-clamp-3/4` safety on the featured essay subtitle and preview so a long subtitle cannot dominate the masthead-to-stack rhythm.
+
+**Stats**: iter-16 verified by Playwright on the live preview: 1 featured + 5 minis + 5 short posts render in the Substack-quiet layout, all required testids resolve (`landing-page`, `landing-headline`, `landing-eyebrow`, `landing-signin-btn`, `landing-about-link`, `landing-featured-*`, `landing-mini-*`, `landing-post-*`, `footer-signin-btn`), `NextReleaseTimer` confirmed hidden on `/` and visible on `/about`. No regressions on iter-14/15 contracts.
+
+
 
 
 

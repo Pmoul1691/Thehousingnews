@@ -23,8 +23,8 @@ function ShortPostRow({ post }) {
     <article data-testid={`landing-post-${post.post_id}`} className="py-7">
       <div className="font-sans text-xs text-muted-ink mb-3">
         <span className="ink font-medium">{author.name || "Member"}</span>
-        {author.market ? ` . ${author.market}` : ""}
-        {" . "}{formatWhen(post.release_at || post.created_at)}
+        {author.market ? ` · ${author.market}` : ""}
+        {" · "}{formatWhen(post.release_at || post.created_at)}
       </div>
       {post.text && (
         <p className="prose-serif text-[17px] leading-[1.72] ink whitespace-pre-wrap line-clamp-4 max-w-prose">

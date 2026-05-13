@@ -29,17 +29,17 @@ export function FeaturedEssay({ essay, linkTo, cta, variant = "card", testIdPref
           {essay.title}
         </h2>
         {essay.subtitle && (
-          <p className="font-serif italic text-lg sm:text-xl text-[#2C2410]/70 leading-relaxed mb-6 max-w-prose">
+          <p className="font-serif italic text-lg sm:text-xl text-[#2C2410]/70 leading-relaxed mb-6 max-w-prose line-clamp-3">
             {essay.subtitle}
           </p>
         )}
         {essay.preview && (
-          <p className="prose-serif text-base sm:text-lg leading-[1.7] text-[#2C2410]/85 mb-6 max-w-prose">
+          <p className="prose-serif text-base sm:text-lg leading-[1.7] text-[#2C2410]/85 mb-6 max-w-prose line-clamp-4">
             {essay.preview}
           </p>
         )}
         <div className="font-sans text-xs text-muted-ink">
-          {author.name}{author.market ? ` . ${author.market}` : ""} . {formatDate(essay.release_at || essay.created_at)}
+          {author.name}{author.market ? ` · ${author.market}` : ""} · {formatDate(essay.release_at || essay.created_at)}
         </div>
         {cta}
       </>
@@ -128,9 +128,9 @@ export function EssayMini({ essay, linkTo, variant = "card", testIdPrefix = "min
           </p>
         )}
         <div className="font-sans text-xs text-muted-ink">
-          {author.name}{author.market ? ` . ${author.market}` : ""}
-          {(essay.release_at || essay.created_at) ? ` . ${formatDate(essay.release_at || essay.created_at)}` : ""}
-          {essay.is_pete_pick ? " . Pete pick" : ""}
+          {author.name}{author.market ? ` · ${author.market}` : ""}
+          {(essay.release_at || essay.created_at) ? ` · ${formatDate(essay.release_at || essay.created_at)}` : ""}
+          {essay.is_pete_pick ? " · Pete pick" : ""}
         </div>
       </>
     );
