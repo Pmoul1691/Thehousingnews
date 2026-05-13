@@ -18,6 +18,9 @@ import Settings from "@/pages/Settings";
 import Upgrade from "@/pages/Upgrade";
 import UpgradeSuccess from "@/pages/UpgradeSuccess";
 import EssayDetail from "@/pages/EssayDetail";
+import Essays from "@/pages/Essays";
+import Library from "@/pages/Library";
+import Write from "@/pages/Write";
 import Admin from "@/pages/Admin";
 
 function Router() {
@@ -43,7 +46,10 @@ function Router() {
         <Route path="/settings" element={<Settings />} />
         <Route path="/upgrade" element={<Upgrade />} />
         <Route path="/upgrade/success" element={<UpgradeSuccess />} />
+        <Route path="/essays" element={<Essays />} />
         <Route path="/essays/:id" element={<EssayDetail />} />
+        <Route path="/library" element={<Library />} />
+        <Route path="/write" element={<Write />} />
         <Route path="/admin" element={<Admin />} />
       </Routes>
     </Layout>

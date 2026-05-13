@@ -1,0 +1,51 @@
+{
+  "summary": "Substack shell E2E tested. Backend: 124/124 pytest pass (113 existing + 11 new substack shell tests for /essays search, reader bookmarks CRUD, writer stats/published/scheduled). Frontend: full Playwright sweep on magazine /feed, /essays, /library, /write, /essays/:id detail, nav links, Emergent badge removal, bookmark toggle, library refresh.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "tested_endpoints_new": [
+    "GET /api/essays (q, market) - public, 200",
+    "GET /api/me/bookmarks - 200, returns items[], no _id leakage",
+    "GET /api/me/bookmarks/{id} - returns {is_bookmarked: bool}",
+    "POST /api/me/bookmarks/{id} - 200/201, idempotent persistence",
+    "DELETE /api/me/bookmarks/{id} - 200/204, returns is_bookmarked=false after",
+    "GET /api/me/writer/stats - returns 5 int keys (published_essays, scheduled_essays, short_posts_30d, follower_count, essay_emails_sent_30d)",
+    "GET /api/me/writer/published - 200, items[]",
+    "GET /api/me/writer/scheduled - 200, items[]",
+    "Auth gating: writer/* requires status=approved (needs_application user gets 401/403); bookmarks list requires auth"
+  ],
+  "tested_frontend_flows": [
+    "/feed: data-testid=magazine-feed, magazine-top, magazine-picks, magazine-stream all render. magazine-grid hidden when <2 essays (expected).",
+    "/essays: essays-list, essays-search-q/market/go all render. Search submits and updates URL with q param. essays-picks hidden when only 1 seeded essay (expected behavior, filter logic OK).",
+    "/library: library-page renders. Empty state shows library-empty + library-browse-link. After bookmark, library-list renders populated.",
+    "/write: write-page renders for approved user. write-stats card grid present (5 cards). write-new-essay-btn toggles inline composer (data-testid=write-composer). Published/Scheduled tabs (write-tab-published, write-tab-scheduled) functional; published list shows the seeded essay with 0 emails sent.",
+    "/essays/:id: essay-detail, essay-bookmark-btn (member-only), essay-progress-bar all render. Clicking bookmark flips Save->Saved and POST /api/me/bookmarks persists (library reflects on revisit).",
+    "Layout nav: nav-essays, nav-library, nav-write, nav-feed all visible for approved members.",
+    "Emergent badge: confirmed #emergent-badge element absent on the page (removed from index.html)."
+  ],
+  "test_report_links": [
+    "/app/backend/tests/test_substack_shell.py",
+    "/app/test_reports/pytest/pytest_substack.xml",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Library.jsx: When fetching bookmarks fails, fetching state stays false but items stays []. Errors silently swallowed (no .catch); user sees empty state. Add a .catch with toast.error('Could not load library').",
+    "Write.jsx: reload() runs all 3 GETs unconditionally on mount but Composer's onPosted callback also re-runs all 3 - including /stats which may be slightly expensive if user posts repeatedly. Consider debouncing or only refreshing the affected list.",
+    "EssayDetail.jsx: Reading progress useEffect attaches/detaches on every essay+user change but never recomputes on resize. If user resizes window mid-essay, progress percentage may drift. Add 'resize' listener or use IntersectionObserver.",
+    "EssayDetail.jsx BookmarkButton: Optimistic toggle good, but if POST fails it shows toast.error and leaves the UI un-toggled (correct). However, the parent re-fetches initialBookmarked on essay/user change, which could race with an in-flight toggle. Disable button during 'busy' guards this, OK.",
+    "Feed.jsx: Loads 4 parallel API calls on every mount + every scope change. Could cache picks/essays since scope only affects /posts/feed. Minor.",
+    "Layout.jsx: All nav links rendered server-side without keyboard focus styles beyond default. Add focus-visible:outline-gold for accessibility.",
+    "Essays.jsx EssayRow: line-clamp-2 on preview but preview is server-truncated already; safe but redundant.",
+    "All new pages use api.delete/get/post via shared lib - good consistency. No localhost or hardcoded URLs found."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_substack_shell.py (new - 11 tests)"
+  ],
+  "success_rate": {"backend": "100% (124/124)", "frontend": "100% (all data-testids found, all flows pass)"},
+  "test_credentials": "Seeded ephemeral users via mongosh per /app/memory/test_credentials.md (Bearer token + cookie). All TEST_/ftest data cleaned up post-run.",
+  "seed_data_creation": "Backend: per-test approved/needs_app/admin users + ephemeral essay rows + cleanup in fixtures. Frontend: 1 approved member + 1 published essay, deleted at end of run.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All 124 backend tests pass in ~225s. New file: tests/test_substack_shell.py covers reader/writer/essays-search routes. Frontend tested via Playwright with session_token cookie (set via context.add_cookies). External preview URL works. Reading progress bar is hard to assert positionally so only visibility was verified; if needed, scroll the page and assert the inline style width grows. magazine-grid only appears when there are >=2 essays; the seed only created 1 so it correctly stays hidden. essays-picks only renders when posts/picks?limit=3 has kind=essay items - on this clean env there were 0 pete-picked essays, so it stayed hidden (expected).",
+  "rca of the issue": "n/a - no bugs found. All Phase 5b + new shell endpoints + new pages working as specified. Emergent badge correctly removed."
+}

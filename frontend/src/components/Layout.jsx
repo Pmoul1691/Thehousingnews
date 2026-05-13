@@ -23,8 +23,10 @@ export default function Layout({ children }) {
             {user && user.status === "approved" && (
               <>
                 <Link to="/feed" data-testid="nav-feed" className="font-sans text-sm font-medium hover:text-gold transition-colors">Feed</Link>
+                <Link to="/essays" data-testid="nav-essays" className="font-sans text-sm font-medium hover:text-gold transition-colors">Essays</Link>
+                <Link to="/library" data-testid="nav-library" className="font-sans text-sm font-medium hover:text-gold transition-colors">Library</Link>
+                <Link to="/write" data-testid="nav-write" className="font-sans text-sm font-medium hover:text-gold transition-colors">Write</Link>
                 <Link to="/members" data-testid="nav-members" className="font-sans text-sm font-medium hover:text-gold transition-colors">Members</Link>
-                <Link to="/public" data-testid="nav-public" className="font-sans text-sm font-medium hover:text-gold transition-colors">Public</Link>
                 <Link to="/profile" data-testid="nav-profile" className="font-sans text-sm font-medium hover:text-gold transition-colors">Profile</Link>
                 <Link to="/upgrade" data-testid="nav-upgrade" className="font-sans text-sm font-medium text-gold hover:opacity-80 transition-opacity">Support</Link>
                 {user.is_admin && (

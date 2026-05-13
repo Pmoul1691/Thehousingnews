@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import api, { API } from "@/lib/api";
 import Replies from "@/components/Replies";
 import { useAuth } from "@/context/AuthContext";
+import { toast } from "sonner";
 
 function formatWhen(iso) {
   if (!iso) return "";
@@ -15,21 +16,96 @@ function formatWhen(iso) {
   } catch { return ""; }
 }
 
+function BookmarkButton({ postId, initialBookmarked }) {
+  const [bookmarked, setBookmarked] = useState(initialBookmarked);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => { setBookmarked(initialBookmarked); }, [initialBookmarked]);
+
+  const toggle = async () => {
+    setBusy(true);
+    try {
+      if (bookmarked) {
+        await api.delete(`/me/bookmarks/${postId}`);
+        setBookmarked(false);
+        toast.success("Removed from library");
+      } else {
+        await api.post(`/me/bookmarks/${postId}`);
+        setBookmarked(true);
+        toast.success("Saved to library");
+      }
+    } catch {
+      toast.error("Could not update");
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <button
+      data-testid="essay-bookmark-btn"
+      onClick={toggle}
+      disabled={busy}
+      className={`font-sans text-xs uppercase tracking-wide font-semibold px-3 py-1.5 rounded-sm border transition-colors disabled:opacity-50 ${bookmarked ? "bg-gold text-cream border-gold" : "border-gold-mid text-gold hover:bg-gold hover:text-cream"}`}
+    >
+      {bookmarked ? "Saved" : "Save"}
+    </button>
+  );
+}
+
 export default function EssayDetail() {
   const { id } = useParams();
   const { user } = useAuth();
   const [essay, setEssay] = useState(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [bookmarked, setBookmarked] = useState(false);
+  const markedReadRef = useRef(false);
+  const bodyRef = useRef(null);
 
   useEffect(() => {
     let cancelled = false;
+    setLoading(true);
+    setNotFound(false);
+    setProgress(0);
+    markedReadRef.current = false;
     api.get(`/essays/${id}`)
       .then((r) => { if (!cancelled) setEssay(r.data); })
       .catch(() => { if (!cancelled) setNotFound(true); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [id]);
+
+  // Load bookmark state when essay is loaded and user is a member
+  useEffect(() => {
+    if (!essay || !user || user.status !== "approved" || essay.paywall) return;
+    let cancelled = false;
+    api.get(`/me/bookmarks/${essay.post_id}`)
+      .then((r) => { if (!cancelled) setBookmarked(!!r.data.is_bookmarked); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [essay, user]);
+
+  // Reading progress + mark-as-read at 80%
+  useEffect(() => {
+    if (!essay || essay.paywall) return;
+    const onScroll = () => {
+      const el = bodyRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const total = el.offsetHeight;
+      const viewport = window.innerHeight;
+      const scrolled = Math.min(total, Math.max(0, viewport - rect.top));
+      const pct = total > 0 ? Math.min(100, Math.max(0, (scrolled / total) * 100)) : 0;
+      setProgress(pct);
+      if (pct >= 80 && !markedReadRef.current && user && user.status === "approved") {
+        markedReadRef.current = true;
+        api.post(`/me/reads/${essay.post_id}`).catch(() => {});
+      }
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [essay, user]);
 
   if (loading) return <div className="container-prose py-24 text-center font-serif text-muted-ink">Loading.</div>;
   if (notFound || !essay) {
@@ -44,61 +120,80 @@ export default function EssayDetail() {
   const author = essay.author || {};
   const avatarUrl = author.avatar_path ? `${API}/uploads/file/${author.avatar_path}` : null;
   const coverUrl = essay.image_path ? `${API}/uploads/file/${essay.image_path}` : null;
+  const canBookmark = user && user.status === "approved" && !essay.paywall;
 
   return (
-    <article className="container-prose py-12 sm:py-16" data-testid="essay-detail">
-      {essay.is_pete_pick && (
-        <div className="mb-6 flex items-center gap-2" data-testid="pete-pick-banner">
-          <span className="font-sans text-[10px] uppercase tracking-[0.18em] font-semibold text-gold">Pete pick</span>
-          <span className="h-px flex-1 bg-gold-mid" />
+    <>
+      {/* Reading progress bar */}
+      {!essay.paywall && (
+        <div className="fixed top-0 left-0 right-0 h-0.5 z-40 bg-cream" data-testid="essay-progress-track">
+          <div
+            data-testid="essay-progress-bar"
+            className="h-full bg-gold transition-[width] duration-150 ease-out"
+            style={{ width: `${progress}%` }}
+          />
         </div>
       )}
-      <p className="uppercase-label mb-4">Essay</p>
-      <h1 className="font-display font-semibold text-4xl sm:text-5xl ink leading-[1.08] mb-5" data-testid="essay-title">{essay.title}</h1>
-      {essay.subtitle && (
-        <p className="font-serif italic text-lg sm:text-xl text-[#2C2410]/75 leading-relaxed mb-8" data-testid="essay-subtitle">{essay.subtitle}</p>
-      )}
 
-      <header className="flex items-center gap-3 mb-10 pb-8 border-b hairline">
-        <div className="w-12 h-12 rounded-full bg-[#F5EDD6] border hairline overflow-hidden flex items-center justify-center shrink-0">
-          {avatarUrl ? <img src={avatarUrl} alt="" className="w-full h-full object-cover" /> : (
-            <span className="font-display text-base text-gold">{(author.name || "M")[0]}</span>
+      <article className="container-prose py-12 sm:py-16" data-testid="essay-detail">
+        {essay.is_pete_pick && (
+          <div className="mb-6 flex items-center gap-2" data-testid="pete-pick-banner">
+            <span className="font-sans text-[10px] uppercase tracking-[0.18em] font-semibold text-gold">Pete pick</span>
+            <span className="h-px flex-1 bg-gold-mid" />
+          </div>
+        )}
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <p className="uppercase-label">Essay</p>
+          {canBookmark && (
+            <BookmarkButton postId={essay.post_id} initialBookmarked={bookmarked} />
           )}
         </div>
-        <div className="min-w-0">
-          <div className="flex items-center gap-1.5">
-            <Link to={`/profile/${author.user_id}`} className="font-display font-semibold text-base ink hover:text-gold transition-colors">{author.name}</Link>
-            {author.is_supporter && <span className="text-gold text-sm leading-none">✦</span>}
+        <h1 className="font-display font-semibold text-4xl sm:text-5xl ink leading-[1.08] mb-5" data-testid="essay-title">{essay.title}</h1>
+        {essay.subtitle && (
+          <p className="font-serif italic text-lg sm:text-xl text-[#2C2410]/75 leading-relaxed mb-8" data-testid="essay-subtitle">{essay.subtitle}</p>
+        )}
+
+        <header className="flex items-center gap-3 mb-10 pb-8 border-b hairline">
+          <div className="w-12 h-12 rounded-full bg-[#F5EDD6] border hairline overflow-hidden flex items-center justify-center shrink-0">
+            {avatarUrl ? <img src={avatarUrl} alt="" className="w-full h-full object-cover" /> : (
+              <span className="font-display text-base text-gold">{(author.name || "M")[0]}</span>
+            )}
           </div>
-          <div className="font-sans text-xs text-muted-ink">
-            {author.market ? `${author.market} . ` : ""}{formatWhen(essay.release_at || essay.created_at)}
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5">
+              <Link to={`/profile/${author.user_id}`} className="font-display font-semibold text-base ink hover:text-gold transition-colors">{author.name}</Link>
+              {author.is_supporter && <span className="text-gold text-sm leading-none">✦</span>}
+            </div>
+            <div className="font-sans text-xs text-muted-ink">
+              {author.market ? `${author.market} . ` : ""}{formatWhen(essay.release_at || essay.created_at)}
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
 
-      {coverUrl && (
-        <div className="border hairline rounded-sm overflow-hidden mb-10">
-          <img src={coverUrl} alt="" className="w-full max-h-[480px] object-cover" />
-        </div>
-      )}
+        {coverUrl && (
+          <div className="border hairline rounded-sm overflow-hidden mb-10">
+            <img src={coverUrl} alt="" className="w-full max-h-[480px] object-cover" />
+          </div>
+        )}
 
-      {essay.paywall ? (
-        <>
-          <div className="prose-serif text-lg leading-[1.75] ink/90 whitespace-pre-wrap" data-testid="essay-preview">{essay.preview}</div>
-          <Paywall />
-        </>
-      ) : (
-        <div className="essay-body prose-serif text-lg leading-[1.78] ink/90" data-testid="essay-body">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{essay.text || ""}</ReactMarkdown>
-        </div>
-      )}
+        {essay.paywall ? (
+          <>
+            <div className="prose-serif text-lg leading-[1.75] ink/90 whitespace-pre-wrap" data-testid="essay-preview">{essay.preview}</div>
+            <Paywall />
+          </>
+        ) : (
+          <div ref={bodyRef} className="essay-body prose-serif text-lg leading-[1.78] ink/90" data-testid="essay-body">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{essay.text || ""}</ReactMarkdown>
+          </div>
+        )}
 
-      {!essay.paywall && (
-        <div className="mt-16 pt-10 border-t hairline">
-          <Replies postId={essay.post_id} replyCount={essay.reply_count || 0} />
-        </div>
-      )}
-    </article>
+        {!essay.paywall && (
+          <div className="mt-16 pt-10 border-t hairline">
+            <Replies postId={essay.post_id} replyCount={essay.reply_count || 0} />
+          </div>
+        )}
+      </article>
+    </>
   );
 }
 
