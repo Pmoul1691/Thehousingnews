@@ -72,14 +72,14 @@ export default function Landing() {
           The Ultradian Network
         </p>
         <h1 data-testid="landing-headline" className="font-display font-semibold tracking-tight text-5xl sm:text-6xl lg:text-7xl ink leading-[0.98] mb-8">
-          A quiet magazine
+          A daily magazine
           <br />
-          for working real
+          for the real estate
           <br />
-          estate operators.
+          industry.
         </h1>
         <p className="font-serif italic text-lg sm:text-xl text-[#2C2410]/70 leading-relaxed max-w-prose mb-10">
-          Written by people who close deals. Released twice a day, at 8:30am and 5:30pm Chicago time.
+          Written by people who close deals. Released twice a day, at 8:30am and 5:30pm.
         </p>
         <div className="flex items-center gap-6">
           <button

@@ -183,7 +183,13 @@ of teams.
 - **Toaster** repositioned to `bottom-center` with shorter `duration={2200}` and no shadow - notifications are now a calm hairline-bordered cream chip at the bottom of the screen rather than a top-center alert.
 - **Typographic polish**: switched the meta separator from a bare `. ` (which read like the end of a sentence) to a true middle dot `·` everywhere on Landing; added `line-clamp-3/4` safety on the featured essay subtitle and preview so a long subtitle cannot dominate the masthead-to-stack rhythm.
 
-**Stats**: iter-16 verified by Playwright on the live preview: 1 featured + 5 minis + 5 short posts render in the Substack-quiet layout, all required testids resolve (`landing-page`, `landing-headline`, `landing-eyebrow`, `landing-signin-btn`, `landing-about-link`, `landing-featured-*`, `landing-mini-*`, `landing-post-*`, `footer-signin-btn`), `NextReleaseTimer` confirmed hidden on `/` and visible on `/about`. No regressions on iter-14/15 contracts.
+## Phase 12 - Make writing evident + new headline (2026-05-13)
+- **Landing headline + tagline updated**: "A daily magazine for the real estate industry." with sub "Written by people who close deals. Released twice a day, at 8:30am and 5:30pm."
+- **Write CTA promoted to a gold pill** in the global nav header (Layout.jsx) with a pen icon. For approved members the Write button is now the visually dominant action on every page, not a plain text link buried among other nav items.
+- **Composer hoisted to the top of /feed**: the new `feed-compose-block` (gold "WRITE" eyebrow + "What did you see today?" headline + "Open the desk →" link) is now the first thing a signed-in member sees, with the full Composer immediately below. The Magazine grid follows underneath.
+- **Small copy nudges**: short-post placeholder is now "Plain words. What happened on a deal today?" - more inviting than the previous generic prompt.
+- **Removed**: the in-nav "Support" link (one less item competing with Write) and the second/inner composer that used to live inside the "Short notes" section (eliminated duplication).
+
 
 
 

@@ -69,6 +69,24 @@ export default function Feed() {
 
   return (
     <div className="container-wide py-12" data-testid="magazine-feed">
+      {/* Compose first - the most important call to action when a member lands here */}
+      <section className="mb-12" data-testid="feed-compose-block">
+        <div className="flex items-end justify-between flex-wrap gap-3 mb-4">
+          <div>
+            <p className="font-sans text-[11px] uppercase tracking-[0.22em] font-semibold text-gold mb-1">Write</p>
+            <h2 className="font-display font-semibold text-2xl sm:text-3xl ink leading-tight">What did you see today?</h2>
+          </div>
+          <Link
+            to="/write"
+            data-testid="feed-open-write-link"
+            className="font-sans text-xs uppercase tracking-wider font-semibold text-gold hover:opacity-80 transition-opacity"
+          >
+            Open the desk →
+          </Link>
+        </div>
+        <Composer onPosted={() => load(scope)} />
+      </section>
+
       {/* Masthead */}
       <header className="mb-12 pb-6 border-b hairline flex items-end justify-between flex-wrap gap-4">
         <div>
@@ -144,15 +162,13 @@ export default function Feed() {
             </section>
           )}
 
-          {/* Short post composer + stream */}
+          {/* Released short notes stream (Composer now lives at the top of the page) */}
           <section className="grid lg:grid-cols-3 gap-12" data-testid="magazine-stream">
             <div className="lg:col-span-2">
               <div className="mb-8">
                 <p className="uppercase-label mb-2">The room</p>
                 <h2 className="font-display font-semibold text-2xl ink">Short notes from working operators.</h2>
               </div>
-
-              <Composer onPosted={() => load(scope)} />
 
               {myPending.length > 0 && (
                 <section className="mt-10" data-testid="my-pending-section">

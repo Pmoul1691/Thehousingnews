@@ -340,7 +340,7 @@ export default function Composer({ onPosted }) {
         <textarea
           data-testid="composer-text"
           className={`w-full bg-cream border-0 focus:outline-none font-serif text-base sm:text-lg ink leading-relaxed resize-none ${isEssay ? "min-h-[340px]" : "min-h-[110px]"}`}
-          placeholder={isEssay ? "Write the essay. Markdown is supported: **bold**, _italic_, # heading, - lists, > quotes, [link](url)." : "Plain words. What did you see today?"}
+          placeholder={isEssay ? "Write the essay. Markdown is supported: **bold**, _italic_, # heading, - lists, > quotes, [link](url)." : "Plain words. What happened on a deal today?"}
           value={text}
           maxLength={isEssay ? 50000 : 500}
           onChange={(e) => setText(e.target.value)}
