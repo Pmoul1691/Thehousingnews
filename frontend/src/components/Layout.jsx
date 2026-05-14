@@ -60,98 +60,112 @@ export default function Layout({ children }) {
                   <WriteIcon />
                   Write
                 </Link>
-                <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
-                  <SheetTrigger asChild>
-                    <button
-                      type="button"
-                      data-testid="nav-menu-trigger"
-                      aria-label="Open menu"
-                      className="inline-flex items-center justify-center w-9 h-9 rounded-sm border hairline text-ink hover:text-gold hover:border-gold transition-colors"
-                    >
-                      <MenuIcon />
-                    </button>
-                  </SheetTrigger>
-                  <SheetContent
-                    side="right"
-                    className="bg-cream border-l hairline w-[300px] sm:max-w-[320px] p-0"
-                    data-testid="nav-menu-sheet"
-                  >
-                    <SheetTitle className="sr-only">Menu</SheetTitle>
-                    <div className="px-6 pt-6 pb-3">
-                      <p className="uppercase-label">Menu</p>
-                    </div>
-                    <nav className="flex flex-col px-2 pb-6">
-                      <Link to="/essays" onClick={closeMenu} data-testid="menu-essays" className="font-display text-xl ink px-4 py-3 rounded-sm hover:bg-[#F5EDD6]/60 hover:text-gold transition-colors">
-                        Essays
-                      </Link>
-                      <Link to="/search" onClick={closeMenu} data-testid="menu-search" className="font-display text-xl ink px-4 py-3 rounded-sm hover:bg-[#F5EDD6]/60 hover:text-gold transition-colors">
-                        Search
-                      </Link>
-                      <Link to="/prompts" onClick={closeMenu} data-testid="menu-prompts" className="font-display text-xl ink px-4 py-3 rounded-sm hover:bg-[#F5EDD6]/60 hover:text-gold transition-colors">
-                        Subjects
-                      </Link>
-                      <Link to="/library" onClick={closeMenu} data-testid="menu-library" className="font-display text-xl ink px-4 py-3 rounded-sm hover:bg-[#F5EDD6]/60 hover:text-gold transition-colors">
-                        Library
-                      </Link>
-                      <Link to="/members" onClick={closeMenu} data-testid="menu-members" className="font-display text-xl ink px-4 py-3 rounded-sm hover:bg-[#F5EDD6]/60 hover:text-gold transition-colors">
-                        Members
-                      </Link>
-                      <Link to="/profile" onClick={closeMenu} data-testid="menu-profile" className="font-display text-xl ink px-4 py-3 rounded-sm hover:bg-[#F5EDD6]/60 hover:text-gold transition-colors">
-                        Profile
-                      </Link>
-                      <Link to="/settings" onClick={closeMenu} data-testid="menu-settings" className="font-display text-xl ink px-4 py-3 rounded-sm hover:bg-[#F5EDD6]/60 hover:text-gold transition-colors">
-                        Settings
-                      </Link>
-                      {user.is_admin && (
-                        <Link to="/admin" onClick={closeMenu} data-testid="menu-admin" className="font-display text-xl ink px-4 py-3 rounded-sm hover:bg-[#F5EDD6]/60 hover:text-gold transition-colors">
-                          Admin
-                        </Link>
-                      )}
-                      <Link to="/about" onClick={closeMenu} data-testid="menu-about" className="font-display text-xl ink px-4 py-3 rounded-sm hover:bg-[#F5EDD6]/60 hover:text-gold transition-colors">
-                        About
-                      </Link>
-                      <a
-                        href="/legal/terms-of-service.pdf"
-                        target="_blank"
-                        rel="noreferrer"
-                        onClick={closeMenu}
-                        data-testid="menu-terms"
-                        className="font-display text-xl ink px-4 py-3 rounded-sm hover:bg-[#F5EDD6]/60 hover:text-gold transition-colors"
-                      >
-                        Terms
-                      </a>
-                      <div className="border-t hairline mt-3 pt-3">
-                        <button
-                          onClick={() => { closeMenu(); logout(); }}
-                          data-testid="menu-logout"
-                          className="w-full text-left font-sans text-sm font-medium text-muted-ink hover:text-gold transition-colors px-4 py-2"
-                        >
-                          Sign out
-                        </button>
-                      </div>
-                    </nav>
-                  </SheetContent>
-                </Sheet>
               </>
             )}
-            {!user && !isLanding && (
-              <button
-                data-testid="nav-signin"
-                onClick={() => {
-                  // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
-                  const redirectUrl = window.location.origin + "/auth/callback";
-                  window.location.href = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(redirectUrl)}`;
-                }}
-                className="font-sans text-sm font-medium ink hover:text-gold transition-colors"
-              >
-                Sign in
-              </button>
+            {!authed && !user && (
+              <>
+                <Link
+                  to="/apply"
+                  data-testid="nav-apply"
+                  className="inline-flex items-center bg-gold text-cream font-sans font-semibold text-sm px-4 py-1.5 rounded-full hover:opacity-90 transition-opacity"
+                >
+                  Apply
+                </Link>
+                <button
+                  data-testid="nav-signin"
+                  onClick={() => {
+                    // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
+                    const redirectUrl = window.location.origin + "/auth/callback";
+                    window.location.href = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(redirectUrl)}`;
+                  }}
+                  className="hidden sm:inline font-sans text-sm font-medium ink hover:text-gold transition-colors"
+                >
+                  Sign in
+                </button>
+              </>
             )}
             {user && !authed && (
               <button onClick={logout} data-testid="nav-logout" className="font-sans text-sm font-medium text-muted-ink hover:text-gold transition-colors">
                 Sign out
               </button>
             )}
+            <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+              <SheetTrigger asChild>
+                <button
+                  type="button"
+                  data-testid="nav-menu-trigger"
+                  aria-label="Open menu"
+                  className="inline-flex items-center justify-center w-9 h-9 rounded-sm border hairline text-ink hover:text-gold hover:border-gold transition-colors"
+                >
+                  <MenuIcon />
+                </button>
+              </SheetTrigger>
+              <SheetContent
+                side="right"
+                className="bg-cream border-l hairline w-[300px] sm:max-w-[320px] p-0"
+                data-testid="nav-menu-sheet"
+              >
+                <SheetTitle className="sr-only">Menu</SheetTitle>
+                <div className="px-6 pt-6 pb-3">
+                  <p className="uppercase-label">Menu</p>
+                </div>
+                <nav className="flex flex-col px-2 pb-6">
+                  {authed && (
+                    <>
+                      <Link to="/essays" onClick={closeMenu} data-testid="menu-essays" className="font-display text-xl ink px-4 py-3 rounded-sm hover:bg-[#F5EDD6]/60 hover:text-gold transition-colors">Essays</Link>
+                      <Link to="/search" onClick={closeMenu} data-testid="menu-search" className="font-display text-xl ink px-4 py-3 rounded-sm hover:bg-[#F5EDD6]/60 hover:text-gold transition-colors">Search</Link>
+                      <Link to="/prompts" onClick={closeMenu} data-testid="menu-prompts" className="font-display text-xl ink px-4 py-3 rounded-sm hover:bg-[#F5EDD6]/60 hover:text-gold transition-colors">Subjects</Link>
+                      <Link to="/library" onClick={closeMenu} data-testid="menu-library" className="font-display text-xl ink px-4 py-3 rounded-sm hover:bg-[#F5EDD6]/60 hover:text-gold transition-colors">Library</Link>
+                      <Link to="/members" onClick={closeMenu} data-testid="menu-members" className="font-display text-xl ink px-4 py-3 rounded-sm hover:bg-[#F5EDD6]/60 hover:text-gold transition-colors">Members</Link>
+                      <Link to="/profile" onClick={closeMenu} data-testid="menu-profile" className="font-display text-xl ink px-4 py-3 rounded-sm hover:bg-[#F5EDD6]/60 hover:text-gold transition-colors">Profile</Link>
+                      <Link to="/settings" onClick={closeMenu} data-testid="menu-settings" className="font-display text-xl ink px-4 py-3 rounded-sm hover:bg-[#F5EDD6]/60 hover:text-gold transition-colors">Settings</Link>
+                      {user.is_admin && (
+                        <Link to="/admin" onClick={closeMenu} data-testid="menu-admin" className="font-display text-xl ink px-4 py-3 rounded-sm hover:bg-[#F5EDD6]/60 hover:text-gold transition-colors">Admin</Link>
+                      )}
+                    </>
+                  )}
+                  {!authed && !user && (
+                    <>
+                      <Link to="/apply" onClick={closeMenu} data-testid="menu-apply" className="font-display text-xl ink px-4 py-3 rounded-sm hover:bg-[#F5EDD6]/60 hover:text-gold transition-colors">Apply</Link>
+                      <button
+                        onClick={() => {
+                          closeMenu();
+                          const redirectUrl = window.location.origin + "/auth/callback";
+                          window.location.href = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(redirectUrl)}`;
+                        }}
+                        data-testid="menu-signin"
+                        className="text-left font-display text-xl ink px-4 py-3 rounded-sm hover:bg-[#F5EDD6]/60 hover:text-gold transition-colors"
+                      >
+                        Sign in
+                      </button>
+                    </>
+                  )}
+                  <Link to="/about" onClick={closeMenu} data-testid="menu-about" className="font-display text-xl ink px-4 py-3 rounded-sm hover:bg-[#F5EDD6]/60 hover:text-gold transition-colors">About</Link>
+                  <Link to="/pricing" onClick={closeMenu} data-testid="menu-pricing" className="font-display text-xl ink px-4 py-3 rounded-sm hover:bg-[#F5EDD6]/60 hover:text-gold transition-colors">Pricing</Link>
+                  <a
+                    href="/legal/terms-of-service.pdf"
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={closeMenu}
+                    data-testid="menu-terms"
+                    className="font-display text-xl ink px-4 py-3 rounded-sm hover:bg-[#F5EDD6]/60 hover:text-gold transition-colors"
+                  >
+                    Terms
+                  </a>
+                  {authed && (
+                    <div className="border-t hairline mt-3 pt-3">
+                      <button
+                        onClick={() => { closeMenu(); logout(); }}
+                        data-testid="menu-logout"
+                        className="w-full text-left font-sans text-sm font-medium text-muted-ink hover:text-gold transition-colors px-4 py-2"
+                      >
+                        Sign out
+                      </button>
+                    </div>
+                  )}
+                </nav>
+              </SheetContent>
+            </Sheet>
           </div>
         </div>
       </header>

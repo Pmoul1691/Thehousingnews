@@ -82,17 +82,24 @@ export default function Landing() {
           Written by people who close deals. Released twice a day, at 8:30am and 5:30pm.
         </p>
         <div className="flex items-center gap-6">
+          <Link
+            to="/apply"
+            data-testid="landing-apply-btn"
+            className="inline-flex items-center justify-center bg-gold text-cream font-sans font-semibold text-sm px-6 py-2.5 rounded-full hover:opacity-90 transition-opacity"
+          >
+            Apply for membership
+          </Link>
           <button
             onClick={signIn}
             data-testid="landing-signin-btn"
-            className="inline-flex items-center justify-center bg-gold text-cream font-sans font-semibold text-sm px-6 py-2.5 rounded-full hover:opacity-90 transition-opacity"
+            className="font-sans text-sm font-medium ink hover:text-gold transition-colors"
           >
             Sign in
           </button>
           <Link
             to="/about"
             data-testid="landing-about-link"
-            className="font-sans text-sm font-medium ink hover:text-gold transition-colors"
+            className="hidden sm:inline font-sans text-sm font-medium ink hover:text-gold transition-colors"
           >
             About
           </Link>

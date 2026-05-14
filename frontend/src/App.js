@@ -27,6 +27,7 @@ import EmailHealth from "@/pages/EmailHealth";
 import Prompts from "@/pages/Prompts";
 import PromptDetail from "@/pages/PromptDetail";
 import Search from "@/pages/Search";
+import Pricing from "@/pages/Pricing";
 
 function Router() {
   const location = useLocation();
@@ -61,6 +62,7 @@ function Router() {
         <Route path="/prompts" element={<Prompts />} />
         <Route path="/prompts/:id" element={<PromptDetail />} />
         <Route path="/search" element={<Search />} />
+        <Route path="/pricing" element={<Pricing />} />
       </Routes>
     </Layout>
   );

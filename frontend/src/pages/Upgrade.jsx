@@ -47,12 +47,12 @@ export default function Upgrade() {
       <div className="mb-10"><BloomMark size={64} /></div>
       <p className="uppercase-label mb-4">Support</p>
       <h1 className="font-display font-semibold text-3xl sm:text-4xl ink mb-6">
-        Two ways to support the newsroom.
+        Calm reading. Honest pricing.
       </h1>
       <div className="prose-serif text-base sm:text-lg leading-relaxed ink/90 space-y-4 max-w-prose mb-12">
-        <p>I run this myself. No ads. No data brokers. No engagement loops.</p>
+        <p>We run this ourselves. No ads. No data brokers. No engagement loops.</p>
         <p>Becoming a supporter pays for hosting and email, and lets us keep the membership free for new agents and producers who are starting out.</p>
-        <p>Your name shows a small Bloom mark next to it on the feed. That is it. No tiers, no perks, no leaderboards.</p>
+        <p>Existing Ultradian Partners clients and Ultradia.io subscribers are included automatically. Just sign in with the same email.</p>
       </div>
 
       {isActive ? (
@@ -69,7 +69,7 @@ export default function Upgrade() {
           <div className="border hairline rounded-sm p-7 bg-cream flex flex-col" data-testid="tier-monthly">
             <p className="uppercase-label mb-3">{monthly?.label}</p>
             <div className="flex items-baseline gap-1 mb-2">
-              <span className="font-display font-semibold text-4xl ink">${monthly?.amount?.toFixed(0)}</span>
+              <span className="font-display font-semibold text-4xl ink">${monthly?.amount?.toFixed(2)}</span>
               <span className="font-sans text-sm text-muted-ink">/month</span>
             </div>
             <p className="font-serif text-sm text-muted-ink mb-6">30 days each time. Renews when you say so.</p>
