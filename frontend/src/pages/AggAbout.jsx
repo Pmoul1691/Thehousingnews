@@ -1,5 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import SubmitPublicationForm from "@/components/SubmitPublicationForm";
 
 export default function AggAbout() {
   return (
@@ -56,6 +57,10 @@ export default function AggAbout() {
           (<code className="bg-slate-100 px-1.5 py-0.5 text-[13px] rounded-sm">thehousingnews-aggregator/1.0 (+https://thehousingnews.com/about)</code>),
           honor robots.txt, and cache nothing beyond what's needed to power the public river.
         </p>
+      </div>
+
+      <div className="mt-12 pt-8 border-t border-slate-200">
+        <SubmitPublicationForm />
       </div>
     </div>
   );

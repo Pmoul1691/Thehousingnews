@@ -19,17 +19,23 @@ export default function AggAdmin() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const [publishers, setPublishers] = useState([]);
+  const [suggestions, setSuggestions] = useState([]);
   const [fetching, setFetching] = useState(false);
   const [acting, setActing] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
+  const [approvingId, setApprovingId] = useState(null);
 
   const load = useCallback(async () => {
     setFetching(true);
     try {
-      const r = await api.get("/agg/admin/publishers");
-      setPublishers(r.data.items || []);
+      const [pubs, sugs] = await Promise.all([
+        api.get("/agg/admin/publishers"),
+        api.get("/agg/admin/publisher-suggestions", { params: { status: "pending" } }),
+      ]);
+      setPublishers(pubs.data.items || []);
+      setSuggestions(sugs.data.items || []);
     } catch (e) {
-      toast.error(e?.response?.data?.detail || "Could not load publishers");
+      toast.error(e?.response?.data?.detail || "Could not load");
     } finally { setFetching(false); }
   }, []);
 
@@ -39,6 +45,16 @@ export default function AggAdmin() {
     if (!user.is_admin) { navigate("/", { replace: true }); return; }
     load();
   }, [user, loading, navigate, load]);
+
+  const decline = async (sid) => {
+    try {
+      await api.post(`/agg/admin/publisher-suggestions/${sid}/decline`);
+      toast.success("Declined");
+      load();
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || "Failed");
+    }
+  };
 
   const toggleActive = async (p) => {
     setActing(p.id + "active");
@@ -79,6 +95,27 @@ export default function AggAdmin() {
       </div>
 
       {showAdd && <AddPublisherForm onDone={() => { setShowAdd(false); load(); }} />}
+
+      {/* Pending publisher suggestions from /about form */}
+      {suggestions.length > 0 && (
+        <section className="mb-8" data-testid="agg-admin-suggestions">
+          <h2 className="font-display font-semibold text-xl text-agg-navy mb-3">
+            Pending suggestions ({suggestions.length})
+          </h2>
+          <div className="space-y-3">
+            {suggestions.map((s) => (
+              <SuggestionRow
+                key={s.id}
+                suggestion={s}
+                open={approvingId === s.id}
+                onOpen={() => setApprovingId(approvingId === s.id ? null : s.id)}
+                onApproved={() => { setApprovingId(null); load(); }}
+                onDecline={() => decline(s.id)}
+              />
+            ))}
+          </div>
+        </section>
+      )}
 
       {fetching ? (
         <p className="text-slate-500 py-10 text-center">Loading.</p>
@@ -226,6 +263,126 @@ function AddPublisherForm({ onDone }) {
           ) : (
             <p className="text-red-700 text-sm">Feed test failed: {test.reason}</p>
           )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SuggestionRow({ suggestion, open, onOpen, onApproved, onDecline }) {
+  const s = suggestion;
+  // Auto-suggest a slug from the publication name
+  const defaultSlug = (s.publication_name || "")
+    .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60);
+  const [slug, setSlug] = useState(defaultSlug);
+  const [category, setCategory] = useState("industry_blog");
+  const [displayMode, setDisplayMode] = useState("headline_and_snippet");
+  const [permission, setPermission] = useState("pending");
+  const [busy, setBusy] = useState(false);
+
+  const approve = async () => {
+    if (!slug) {
+      toast.error("Slug required.");
+      return;
+    }
+    setBusy(true);
+    try {
+      await api.post(`/agg/admin/publisher-suggestions/${s.id}/approve`, {
+        slug,
+        category,
+        display_mode: displayMode,
+        permission_status: permission,
+      });
+      toast.success(`Approved. Publisher created (inactive). Test the feed, then activate.`);
+      onApproved();
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || "Approve failed");
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <div data-testid={`agg-suggestion-${s.id}`} className="border border-slate-200 rounded-sm p-4 bg-white">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="font-display font-semibold text-base text-agg-navy">{s.publication_name}</div>
+          <a href={s.feed_url} target="_blank" rel="noopener noreferrer" className="font-mono text-[12px] text-slate-600 break-all hover:text-agg-orange">
+            {s.feed_url}
+          </a>
+          {s.homepage_url && (
+            <div className="text-[12px] text-slate-500 mt-1">
+              homepage: <a href={s.homepage_url} target="_blank" rel="noopener noreferrer" className="hover:text-agg-orange">{s.homepage_url}</a>
+            </div>
+          )}
+          {s.reason && <p className="font-serif text-sm text-slate-700 mt-2">{s.reason}</p>}
+          <p className="text-[11px] text-slate-500 mt-2">from {s.email}</p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={onOpen}
+            data-testid={`agg-suggestion-approve-toggle-${s.id}`}
+            className="bg-agg-orange text-agg-navy font-sans font-semibold text-xs px-3 py-1.5 rounded-sm hover:opacity-90 transition-opacity"
+          >
+            {open ? "Cancel" : "Approve →"}
+          </button>
+          <button
+            onClick={onDecline}
+            data-testid={`agg-suggestion-decline-${s.id}`}
+            className="font-sans text-xs text-slate-500 hover:text-red-700 transition-colors"
+          >
+            Decline
+          </button>
+        </div>
+      </div>
+      {open && (
+        <div className="mt-4 pt-4 border-t border-slate-200 grid sm:grid-cols-2 gap-3" data-testid={`agg-suggestion-approve-form-${s.id}`}>
+          <input
+            data-testid={`agg-suggestion-slug-${s.id}`}
+            value={slug}
+            onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-"))}
+            placeholder="slug"
+            className="border border-slate-200 rounded-sm px-3 py-2 text-sm"
+          />
+          <select
+            data-testid={`agg-suggestion-category-${s.id}`}
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            className="border border-slate-200 rounded-sm px-3 py-2 text-sm"
+          >
+            <option value="national_trade">national_trade</option>
+            <option value="regional">regional</option>
+            <option value="industry_blog">industry_blog</option>
+            <option value="data_research">data_research</option>
+            <option value="mortgage">mortgage</option>
+            <option value="commercial_re">commercial_re</option>
+          </select>
+          <select
+            data-testid={`agg-suggestion-display-${s.id}`}
+            value={displayMode}
+            onChange={(e) => setDisplayMode(e.target.value)}
+            className="border border-slate-200 rounded-sm px-3 py-2 text-sm"
+          >
+            <option value="headline_and_snippet">headline_and_snippet</option>
+            <option value="headline_only">headline_only</option>
+          </select>
+          <select
+            data-testid={`agg-suggestion-permission-${s.id}`}
+            value={permission}
+            onChange={(e) => setPermission(e.target.value)}
+            className="border border-slate-200 rounded-sm px-3 py-2 text-sm"
+          >
+            <option value="pending">pending</option>
+            <option value="granted">granted</option>
+            <option value="declined">declined</option>
+            <option value="not_required">not_required</option>
+          </select>
+          <button
+            onClick={approve}
+            disabled={busy}
+            data-testid={`agg-suggestion-confirm-${s.id}`}
+            className="sm:col-span-2 bg-agg-orange text-agg-navy font-sans font-semibold text-sm py-2 rounded-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+          >
+            {busy ? "Creating..." : "Create publisher (inactive)"}
+          </button>
         </div>
       )}
     </div>
