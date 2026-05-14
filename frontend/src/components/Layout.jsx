@@ -110,6 +110,16 @@ export default function Layout({ children }) {
                       <Link to="/about" onClick={closeMenu} data-testid="menu-about" className="font-display text-xl ink px-4 py-3 rounded-sm hover:bg-[#F5EDD6]/60 hover:text-gold transition-colors">
                         About
                       </Link>
+                      <a
+                        href="/legal/terms-of-service.pdf"
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={closeMenu}
+                        data-testid="menu-terms"
+                        className="font-display text-xl ink px-4 py-3 rounded-sm hover:bg-[#F5EDD6]/60 hover:text-gold transition-colors"
+                      >
+                        Terms
+                      </a>
                       <div className="border-t hairline mt-3 pt-3">
                         <button
                           onClick={() => { closeMenu(); logout(); }}
@@ -162,7 +172,7 @@ export default function Layout({ children }) {
             <div className="font-serif text-xs text-muted-ink">A daily magazine for the real estate industry.</div>
           </div>
           <div className="font-sans text-xs text-muted-ink max-w-md">
-            Published by the editors. Read the <Link to="/about" className="hover:text-gold transition-colors underline underline-offset-4 decoration-gold-mid">masthead</Link>.
+            Published by the editors. Read the <Link to="/about" className="hover:text-gold transition-colors underline underline-offset-4 decoration-gold-mid">masthead</Link> or our <a href="/legal/terms-of-service.pdf" target="_blank" rel="noreferrer" data-testid="footer-terms-link" className="hover:text-gold transition-colors underline underline-offset-4 decoration-gold-mid">Terms of Service</a>.
           </div>
         </div>
       </footer>

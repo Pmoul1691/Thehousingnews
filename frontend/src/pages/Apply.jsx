@@ -14,6 +14,7 @@ export default function Apply() {
     why_joining: "",
     invite_code: "",
   });
+  const [acceptTerms, setAcceptTerms] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [inviteState, setInviteState] = useState(null); // {ok, owner_name} | {error}
   const [validating, setValidating] = useState(false);
@@ -33,7 +34,11 @@ export default function Apply() {
   const submit = async (e) => {
     e.preventDefault();
     if (form.why_joining.length < 20) {
-      toast.error("Tell me a bit more in the last question. At least 20 characters.");
+      toast.error("Tell us a bit more in the last question. At least 20 characters.");
+      return;
+    }
+    if (!acceptTerms) {
+      toast.error("Please accept the Terms of Service to continue.");
       return;
     }
     setSubmitting(true);
@@ -55,9 +60,9 @@ export default function Apply() {
   return (
     <div className="container-prose py-20 animate-fade-up">
       <p className="uppercase-label mb-4">Application</p>
-      <h1 className="font-display font-semibold text-3xl sm:text-4xl ink mb-6">Tell me about you.</h1>
+      <h1 className="font-display font-semibold text-3xl sm:text-4xl ink mb-6">Tell us about you.</h1>
       <p className="prose-serif text-base ink/80 leading-relaxed mb-10 max-w-prose">
-        I read every application personally. Keep it short. You will hear from me within 48 hours.
+        We read every application personally. Keep it short. You will hear from us within 48 hours.
       </p>
 
       <form onSubmit={submit} className="space-y-8" data-testid="application-form">
@@ -129,11 +134,36 @@ export default function Apply() {
           )}
         </div>
 
+        <div className="border-t hairline pt-6">
+          <label className="flex items-start gap-3 cursor-pointer group">
+            <input
+              type="checkbox"
+              data-testid="apply-accept-terms"
+              checked={acceptTerms}
+              onChange={(e) => setAcceptTerms(e.target.checked)}
+              className="mt-1 h-4 w-4 accent-gold cursor-pointer shrink-0"
+            />
+            <span className="font-serif text-sm ink/85 leading-relaxed">
+              I have read and agree to The Housing News{" "}
+              <a
+                href="/legal/terms-of-service.pdf"
+                target="_blank"
+                rel="noreferrer"
+                data-testid="apply-terms-link"
+                className="text-gold underline underline-offset-4 decoration-gold-mid hover:opacity-80 transition-opacity"
+              >
+                Terms of Service
+              </a>
+              .
+            </span>
+          </label>
+        </div>
+
         <button
           type="submit"
-          disabled={submitting}
+          disabled={submitting || !acceptTerms}
           data-testid="apply-submit"
-          className="inline-flex items-center justify-center bg-gold text-cream font-sans font-semibold text-sm px-6 py-3 rounded-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+          className="inline-flex items-center justify-center bg-gold text-cream font-sans font-semibold text-sm px-6 py-3 rounded-sm hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {submitting ? "Submitting..." : "Send application"}
         </button>
