@@ -8,6 +8,7 @@ Routes:
 - POST /api/agg/newsletter/signup                capture email locally + push to provider
 """
 import logging
+import os
 import re
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -17,6 +18,9 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
 from services.agg_seed import CATEGORIES
+from services.brevo import add_to_list as brevo_add_to_list
+
+NEWSLETTER_LIST_NAME = os.environ.get("AGG_NEWSLETTER_LIST_NAME", "The Housing News Daily")
 
 logger = logging.getLogger(__name__)
 
@@ -135,12 +139,18 @@ def setup(db):
                 "source_page": (payload.source_page or "")[:200],
                 "ip": request.client.host if request.client else None,
                 "created_at": _now_iso(),
+                "brevo_status": None,
             }},
             upsert=True,
         )
-        # The Beehiiv / ConvertKit POST will be wired in a follow-up turn once
-        # the API key is provided. We always confirm to the user that we saved
-        # their email locally so the UX is the same.
+        # Push to Brevo. Failure to push does NOT fail the request — we always
+        # have the email captured locally so we can re-sync later if needed.
+        brevo_result = brevo_add_to_list(email, NEWSLETTER_LIST_NAME, attributes={"SOURCE": payload.source_page or "thehousingnews.com"})
+        # Stamp result so admins can spot un-synced rows.
+        await db.agg_newsletter_signups.update_one(
+            {"email": email},
+            {"$set": {"brevo_status": brevo_result, "brevo_synced_at": _now_iso()}},
+        )
         return {"ok": True, "email": email}
 
     return router

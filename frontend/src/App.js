@@ -3,7 +3,13 @@ import "@/App.css";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { Toaster } from "sonner";
 import { AuthProvider } from "@/context/AuthContext";
+
+// Members-product layout (cream + gold)
 import Layout from "@/components/Layout";
+// Aggregator layout (Techmeme navy + orange)
+import AggLayout from "@/components/AggLayout";
+
+// Members product pages
 import Landing from "@/pages/Landing";
 import About from "@/pages/About";
 import AuthCallback from "@/pages/AuthCallback";
@@ -29,17 +35,45 @@ import PromptDetail from "@/pages/PromptDetail";
 import Search from "@/pages/Search";
 import Pricing from "@/pages/Pricing";
 
+// Aggregator pages
+import AggHome from "@/pages/AggHome";
+import AggPublisher from "@/pages/AggPublisher";
+import AggCategory from "@/pages/AggCategory";
+import AggAbout from "@/pages/AggAbout";
+import AggNewsletter from "@/pages/AggNewsletter";
+import AggAdmin from "@/pages/AggAdmin";
+
+// Paths owned by the aggregator. Everything else falls back to the members
+// product layout. Keep this list in sync with the routes below.
+const AGG_PATHS = [/^\/$/, /^\/source\//, /^\/category\//, /^\/about$/, /^\/newsletter$/, /^\/admin\/aggregator$/];
+
+function isAggregatorPath(pathname) {
+  return AGG_PATHS.some((re) => re.test(pathname));
+}
+
 function Router() {
   const location = useLocation();
   // Handle session_id during render to avoid race with AuthProvider
   if (location.hash?.includes("session_id=")) {
     return <AuthCallback />;
   }
+
+  const ChromeLayout = isAggregatorPath(location.pathname) ? AggLayout : Layout;
+
   return (
-    <Layout>
+    <ChromeLayout>
       <Routes>
-        <Route path="/" element={<Landing />} />
-        <Route path="/about" element={<About />} />
+        {/* === Aggregator routes (public, no auth) === */}
+        <Route path="/" element={<AggHome />} />
+        <Route path="/source/:slug" element={<AggPublisher />} />
+        <Route path="/category/:category" element={<AggCategory />} />
+        <Route path="/about" element={<AggAbout />} />
+        <Route path="/newsletter" element={<AggNewsletter />} />
+        <Route path="/admin/aggregator" element={<AggAdmin />} />
+
+        {/* === Members product routes (existing) === */}
+        <Route path="/welcome" element={<Landing />} />
+        <Route path="/welcome/about" element={<About />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/apply" element={<Apply />} />
         <Route path="/pending" element={<PendingReview />} />
@@ -64,7 +98,7 @@ function Router() {
         <Route path="/search" element={<Search />} />
         <Route path="/pricing" element={<Pricing />} />
       </Routes>
-    </Layout>
+    </ChromeLayout>
   );
 }
 

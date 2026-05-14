@@ -59,6 +59,11 @@ module.exports = {
                 ink: '#2C2410',
                 cream: '#FDFAF4',
                 deepred: '#A4161A',
+                // Aggregator (Techmeme-style) tokens
+                'agg-navy': '#0F1A2E',
+                'agg-navy-deep': '#1B2840',
+                'agg-orange': '#E27430',
+                'agg-cream': '#F5F0E8',
             },
             keyframes: {
                 'accordion-down': {

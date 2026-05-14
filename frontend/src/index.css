@@ -160,3 +160,8 @@
     height: auto;
     margin: 1.6rem 0;
 }
+
+/* === Aggregator (thehousingnews.com public RSS aggregator) === */
+.agg-bg { background: #FFFFFF; color: #0F1A2E; }
+.agg-link { color: #0F1A2E; }
+.agg-link:hover { color: #E27430; }
