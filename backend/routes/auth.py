@@ -58,7 +58,11 @@ def setup(db):
         auto_grant = bridge.get("network_grant") == "auto"
         partner_name = bridge.get("name") if bridge.get("exists") else None
 
-        # Upsert user
+        # Upsert user. Defensive: if no user record exists for this email but a
+        # stale profile does (e.g. previous user row was deleted out of band by
+        # test cleanup or a database migration), reuse the profile's user_id so
+        # the member is stitched back to their existing profile instead of
+        # being sent through onboarding again.
         existing = await db.users.find_one({"email": email}, {"_id": 0})
         now_iso = datetime.now(timezone.utc).isoformat()
         if existing:
@@ -72,12 +76,15 @@ def setup(db):
             await db.users.update_one({"user_id": user_id}, {"$set": update})
             user = await db.users.find_one({"user_id": user_id}, {"_id": 0})
         else:
-            user_id = f"user_{uuid.uuid4().hex[:12]}"
+            existing_profile = await db.profiles.find_one({"email": email}, {"_id": 0})
+            user_id = existing_profile["user_id"] if existing_profile else f"user_{uuid.uuid4().hex[:12]}"
             admin = is_admin_email(email)
             # Status: admin -> approved, auto_grant -> approved, otherwise -> needs_application
             if admin:
                 status = "approved"
-            elif auto_grant:
+            elif auto_grant or existing_profile:
+                # If we are restoring from an existing profile the user was previously
+                # approved (profiles require approval to create), so respect that.
                 status = "approved"
             else:
                 status = "needs_application"
@@ -88,7 +95,10 @@ def setup(db):
                 "picture": picture,
                 "is_admin": admin,
                 "status": status,  # needs_application | pending | approved | declined
-                "source": "partners_auto_grant" if auto_grant else "google",
+                "source": (
+                    "partners_auto_grant" if auto_grant
+                    else ("profile_recovery" if existing_profile else "google")
+                ),
                 "partner_tier": bridge.get("subscription_tier"),
                 "created_at": now_iso,
                 "last_login_at": now_iso,

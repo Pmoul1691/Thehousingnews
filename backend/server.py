@@ -88,6 +88,9 @@ async def on_startup():
     await db.applications.create_index("user_id")
     await db.applications.create_index("status")
     await db.profiles.create_index("user_id", unique=True)
+    # Used by the /auth/session profile-recovery path to reattach a returning
+    # member to their existing profile when the user row was wiped out of band.
+    await db.profiles.create_index("email", sparse=True)
     await db.posts.create_index("post_id", unique=True)
     await db.posts.create_index([("release_at", -1)])
     await db.posts.create_index([("user_id", 1), ("created_at", -1)])
