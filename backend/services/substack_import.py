@@ -15,6 +15,8 @@ from typing import Optional
 import feedparser
 from markdownify import markdownify
 
+from services.release_window import next_window
+
 logger = logging.getLogger(__name__)
 
 ADMIN_FALLBACK_EMAILS = ("peter@1691inc.com", "peter@ultradianpartners.com")
@@ -106,6 +108,9 @@ async def import_substack_feed(db, feed_url: Optional[str] = None) -> dict:
     imported = []
     skipped = 0
     now_iso = datetime.now(timezone.utc).isoformat()
+    # New Substack imports release at the next batched window so they join the
+    # Network's calm-by-design rhythm instead of appearing immediately.
+    release_iso = next_window().astimezone(timezone.utc).isoformat()
 
     for entry in parsed.entries:
         source_guid = getattr(entry, "id", None) or getattr(entry, "link", None)
@@ -137,7 +142,11 @@ async def import_substack_feed(db, feed_url: Optional[str] = None) -> dict:
         if subtitle:
             subtitle = subtitle.strip() or None
 
-        released_at = _parse_published(entry)
+        # Original Substack publish date - preserved on the record for the
+        # "Originally published on Substack, {date}" footnote. The platform's
+        # `release_at` is gated to the next batched release window so the
+        # essay does not jump the calm-by-design rhythm.
+        source_published_iso = _parse_published(entry)
         post_id = f"post_{uuid.uuid4().hex[:12]}"
         doc = {
             "post_id": post_id,
@@ -149,11 +158,12 @@ async def import_substack_feed(db, feed_url: Optional[str] = None) -> dict:
             "image_path": None,
             "media": [],
             "status": "approved",
-            "release_at": released_at,
+            "release_at": release_iso,
             "created_at": now_iso,
             "source": "substack_import",
             "source_guid": source_guid,
             "source_url": source_url,
+            "source_published_at": source_published_iso,
             "imported_at": now_iso,
         }
         external_image = _first_image_src(html)

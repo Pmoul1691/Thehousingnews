@@ -117,17 +117,92 @@ function EmbedPlayer({ embed }) {
 
 function AudioPlayer({ audio }) {
   const src = `${API}/uploads/file/${audio.path}`;
+  const audioRef = useRef(null);
   const [duration, setDuration] = useState(audio.duration_s || 0);
+  const [progress, setProgress] = useState(0); // 0..1
+  const [playing, setPlaying] = useState(false);
+  const peaks = Array.isArray(audio.peaks) && audio.peaks.length ? audio.peaks : null;
+
+  const fmt = (s) => {
+    if (!Number.isFinite(s) || s <= 0) return "0:00";
+    const m = Math.floor(s / 60);
+    const ss = Math.floor(s % 60).toString().padStart(2, "0");
+    return `${m}:${ss}`;
+  };
+
+  const toggle = () => {
+    const el = audioRef.current;
+    if (!el) return;
+    if (el.paused) { el.play(); setPlaying(true); }
+    else { el.pause(); setPlaying(false); }
+  };
+
+  const onTime = () => {
+    const el = audioRef.current;
+    if (!el || !el.duration) return;
+    setProgress(el.currentTime / el.duration);
+  };
+
+  const seekTo = (e) => {
+    const el = audioRef.current;
+    if (!el || !el.duration) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    el.currentTime = ratio * el.duration;
+    setProgress(ratio);
+  };
+
   return (
-    <div className="border hairline rounded-sm bg-cream p-4 flex items-center gap-3" data-testid="media-audio">
-      <div className="font-sans text-[10px] uppercase tracking-[0.18em] font-semibold text-gold shrink-0">
-        Audio{duration ? ` . ${Math.round(duration)}s` : ""}
+    <div className="border hairline rounded-sm bg-cream p-4" data-testid="media-audio">
+      <div className="flex items-center gap-4">
+        <button
+          type="button"
+          onClick={toggle}
+          data-testid="audio-play-toggle"
+          aria-label={playing ? "Pause" : "Play"}
+          className="w-10 h-10 rounded-full bg-gold text-cream flex items-center justify-center hover:opacity-90 transition-opacity shrink-0"
+        >
+          {playing ? (
+            <svg viewBox="0 0 24 24" className="w-4 h-4" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1" /><rect x="14" y="5" width="4" height="14" rx="1" /></svg>
+          ) : (
+            <svg viewBox="0 0 24 24" className="w-4 h-4" fill="currentColor"><path d="M7 5v14l12-7z" /></svg>
+          )}
+        </button>
+        {peaks ? (
+          <button
+            type="button"
+            onClick={seekTo}
+            aria-label="Seek"
+            data-testid="audio-waveform"
+            className="flex-1 h-12 flex items-center gap-[2px] cursor-pointer min-w-0"
+          >
+            {peaks.map((p, i) => {
+              const ratio = i / peaks.length;
+              const past = ratio <= progress;
+              const h = Math.max(2, Math.round(p * 40));
+              return (
+                <span
+                  key={i}
+                  style={{ height: `${h}px`, width: `calc((100% - ${(peaks.length - 1) * 2}px) / ${peaks.length})` }}
+                  className={`rounded-[1px] ${past ? "bg-gold" : "bg-[#E8D4A0]"}`}
+                />
+              );
+            })}
+          </button>
+        ) : (
+          <div className="flex-1 font-sans text-[10px] uppercase tracking-[0.18em] font-semibold text-gold">
+            Audio
+          </div>
+        )}
+        <span className="font-sans text-xs text-muted-ink tabular-nums shrink-0">{fmt(duration)}</span>
       </div>
       <audio
-        controls
+        ref={audioRef}
         preload="metadata"
         onLoadedMetadata={(e) => !duration && setDuration(e.currentTarget.duration || 0)}
-        className="flex-1 min-w-0"
+        onTimeUpdate={onTime}
+        onEnded={() => { setPlaying(false); setProgress(0); }}
+        className="hidden"
       >
         <source src={src} type={audio.mime || "audio/mpeg"} />
       </audio>

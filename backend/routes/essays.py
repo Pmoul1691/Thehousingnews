@@ -177,8 +177,9 @@ def setup(db):
             body["paywall"] = False
             if post.get("source"):
                 body["source"] = post["source"]
-                if post.get("release_at"):
-                    body["source_published_at"] = post["release_at"]
+                src_pub = post.get("source_published_at") or post.get("release_at")
+                if src_pub:
+                    body["source_published_at"] = src_pub
         else:
             body["preview"] = _preview(post.get("text") or "")
             body["paywall"] = True

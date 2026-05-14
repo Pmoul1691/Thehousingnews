@@ -184,7 +184,7 @@ export default function Composer({ onPosted }) {
     if (audio) { toast.error("Only one audio per post"); return; }
     const r = await uploadFile(file, "audio");
     if (r) {
-      setMedia((arr) => [...arr, { kind: "audio", path: r.path, mime: r.content_type, duration_s: r.duration_s }]);
+      setMedia((arr) => [...arr, { kind: "audio", path: r.path, mime: r.content_type, duration_s: r.duration_s, peaks: r.peaks || [] }]);
       toast.success("Audio attached");
     }
   };

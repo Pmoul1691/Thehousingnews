@@ -9,7 +9,7 @@ from PIL import Image, ImageOps
 
 from services.auth_helpers import get_current_user
 from services.object_storage import put_object, get_object, build_path
-from services.media import probe_video, extract_thumbnail
+from services.media import probe_video, extract_thumbnail, extract_audio_peaks
 from services.embed import parse_embed
 from services.hls_transcode import transcode_video_to_hls
 
@@ -209,6 +209,14 @@ def setup(db):
             if duration > MAX_AUDIO_SECONDS + 0.5:
                 raise HTTPException(status_code=400, detail=f"Audio must be {MAX_AUDIO_SECONDS // 60} minutes or shorter")
             extra = {"media_kind": "audio", "duration_s": round(duration, 2)}
+            # Compute a static 200-bucket waveform preview - cheap to ship and
+            # avoids client-side Web Audio decoding for every viewer.
+            try:
+                peaks = extract_audio_peaks(data, buckets=200)
+                if peaks:
+                    extra["peaks"] = peaks
+            except Exception as _e:
+                logger.warning("audio peaks failed: %s", _e)
             return await _persist(user["user_id"], "posts", content_type, data, extra, file.filename or "")
 
         raise HTTPException(status_code=400, detail="Unsupported file type")

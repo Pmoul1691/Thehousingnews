@@ -91,6 +91,20 @@ async def on_startup():
     # Used by the /auth/session profile-recovery path to reattach a returning
     # member to their existing profile when the user row was wiped out of band.
     await db.profiles.create_index("email", sparse=True)
+    # Partial unique index on posts.source_guid scoped to substack imports so
+    # the daily RSS cron can never duplicate an essay even if the dedupe
+    # check races. Other post kinds (manual essays, short posts) do not have
+    # a source_guid and are excluded by the partialFilterExpression.
+    try:
+        await db.posts.create_index(
+            "source_guid",
+            unique=True,
+            partialFilterExpression={"source": "substack_import"},
+        )
+    except Exception as _e:
+        # Index may have been created with different options on a prior boot;
+        # surface a warning but do not block startup.
+        logger.warning("posts.source_guid partial unique index not created: %s", _e)
     await db.posts.create_index("post_id", unique=True)
     await db.posts.create_index([("release_at", -1)])
     await db.posts.create_index([("user_id", 1), ("created_at", -1)])
