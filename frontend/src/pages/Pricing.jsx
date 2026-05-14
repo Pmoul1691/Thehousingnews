@@ -8,6 +8,109 @@ const STATIC_TIERS = [
   { id: "yearly", label: "Annual", amount: 100, period: "year", note: "365 days. Works out to $8.33 a month.", featured: true },
 ];
 
+function PartnerStatusCheck() {
+  const [email, setEmail] = useState("");
+  const [checking, setChecking] = useState(false);
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState(null);
+
+  const signIn = () => {
+    const redirectUrl = window.location.origin + "/auth/callback";
+    window.location.href = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(redirectUrl)}`;
+  };
+
+  const onSubmit = async (e) => {
+    e.preventDefault();
+    setError(null);
+    setResult(null);
+    setChecking(true);
+    try {
+      const r = await api.get("/partners/check", { params: { email: email.trim() } });
+      setResult(r.data);
+    } catch (e2) {
+      setError(e2?.response?.data?.detail || "Could not check status. Try again in a minute.");
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  return (
+    <section
+      className="border hairline rounded-sm p-6 sm:p-7 bg-cream mb-10"
+      data-testid="partner-status-check"
+    >
+      <p className="uppercase-label mb-2">Already a subscriber?</p>
+      <h2 className="font-display font-semibold text-xl ink mb-2">Check your status.</h2>
+      <p className="font-serif text-sm text-muted-ink mb-4 max-w-prose">
+        Drop your Ultradian Partners or Ultradia.io email and we&apos;ll tell you if your membership here is already comped.
+      </p>
+      <form onSubmit={onSubmit} className="flex flex-col sm:flex-row gap-3">
+        <input
+          type="email"
+          required
+          autoComplete="email"
+          data-testid="partner-check-email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="you@yourdomain.com"
+          className="flex-1 bg-cream border hairline rounded-sm px-4 py-3 font-serif text-base ink focus:outline-none focus:ring-1 focus:ring-gold"
+        />
+        <button
+          type="submit"
+          disabled={checking || !email.trim()}
+          data-testid="partner-check-submit"
+          className="bg-gold text-cream font-sans font-semibold text-sm px-6 py-3 rounded-sm hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          {checking ? "Checking." : "Check status"}
+        </button>
+      </form>
+
+      {error && (
+        <div data-testid="partner-check-error" className="mt-4 font-serif text-sm text-deepred">
+          {error}
+        </div>
+      )}
+
+      {result && result.comped && (
+        <div
+          data-testid="partner-check-result-comped"
+          className="mt-5 border-l-2 border-gold pl-4 py-2 bg-[#FBF6E8]/50"
+        >
+          <p className="font-display font-semibold text-base ink mb-1">
+            Good news{result.name ? `, ${result.name}` : ""}. You are already in.
+          </p>
+          <p className="font-serif text-sm ink/80">
+            Your {result.tier ? `${result.tier} ` : ""}subscription comps your membership at The Housing News.
+          </p>
+          <button
+            onClick={signIn}
+            data-testid="partner-check-signin"
+            className="mt-3 inline-flex items-center gap-1.5 font-sans text-sm font-semibold text-gold hover:opacity-80 transition-opacity"
+          >
+            Sign in to read <span aria-hidden>→</span>
+          </button>
+        </div>
+      )}
+
+      {result && !result.comped && (
+        <div
+          data-testid="partner-check-result-none"
+          className="mt-5 border-l-2 border-muted-ink/40 pl-4 py-2"
+        >
+          <p className="font-serif text-sm ink/80 mb-2">
+            We do not see a current Ultradian Partners or Ultradia.io subscription for{" "}
+            <span className="font-mono text-xs ink">{result.email}</span>.
+          </p>
+          <p className="font-serif text-sm text-muted-ink">
+            You can still <Link to="/apply" className="text-gold underline underline-offset-4 decoration-gold-mid hover:opacity-80 transition-opacity">apply for membership</Link>{" "}
+            or pick a tier below.
+          </p>
+        </div>
+      )}
+    </section>
+  );
+}
+
 export default function Pricing() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
@@ -37,7 +140,6 @@ export default function Pricing() {
 
   const checkout = async (tier) => {
     if (!user) {
-      // Not signed in — send to auth flow
       const redirectUrl = window.location.origin + "/auth/callback";
       window.location.href = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(redirectUrl)}`;
       return;
@@ -68,7 +170,7 @@ export default function Pricing() {
         <p>The Housing News is members-only. We keep it small, calm, and free of ads, trackers, and engagement loops.</p>
         <p>
           <strong className="font-display font-semibold">Free for existing Ultradian Partners clients and Ultradia.io subscribers.</strong>{" "}
-          Just sign in with the same email — your membership is automatically granted.
+          Just sign in with the same email &mdash; your membership is automatically granted.
         </p>
       </div>
 
@@ -84,6 +186,8 @@ export default function Pricing() {
           </p>
         </div>
       )}
+
+      {!user && <PartnerStatusCheck />}
 
       {isSupporter && !partnerComped && (
         <div className="border hairline rounded-sm p-5 bg-cream mb-10" data-testid="pricing-supporter-banner">

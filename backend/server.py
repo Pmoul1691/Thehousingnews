@@ -35,6 +35,7 @@ from routes.email_health import setup as setup_email_health
 from routes.prompts import setup as setup_prompts
 from routes.admin_rss import setup as setup_admin_rss
 from routes.admin_orphans import setup as setup_admin_orphans
+from routes.partners import setup as setup_partners
 from services.object_storage import init_storage
 from services.release_window import next_window, now_chicago
 from services.scheduler import start_scheduler, release_batch
@@ -241,3 +242,4 @@ app.include_router(prompts_pub_r)
 app.include_router(prompts_admin_r)
 app.include_router(setup_admin_rss(db))
 app.include_router(setup_admin_orphans(db))
+app.include_router(setup_partners(db))
