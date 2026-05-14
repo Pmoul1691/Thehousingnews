@@ -1,20 +1,10 @@
 import React from "react";
 
-// Lotus mark from the brand image. Used as a small square icon (e.g. footer,
-// landing hero, about hero, PendingReview). The header uses the full wordmark
-// directly (see Layout.jsx), not BloomMark.
-const MARK_URL = "/brand/logo-mark.png";
-
-export default function BloomMark({ size = 28, className = "", alt = "The Housing News" }) {
-  return (
-    <img
-      src={MARK_URL}
-      alt={alt}
-      width={size}
-      height={size}
-      style={{ width: size, height: size, objectFit: "contain" }}
-      className={className}
-      draggable={false}
-    />
-  );
+// Brand identity is now a text-only wordmark in the header/footer. This
+// component used to render a decorative lotus icon on hero pages
+// (About / PendingReview / Declined / Upgrade / UpgradeSuccess). The lotus was
+// retired from the brand, so this component intentionally renders nothing.
+// Callers can stay in place — the surrounding spacing keeps the layout calm.
+export default function BloomMark() {
+  return null;
 }
