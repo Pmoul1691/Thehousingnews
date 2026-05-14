@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import BloomMark from "@/components/BloomMark";
 import NextReleaseTimer from "@/components/NextReleaseTimer";
+import FloatingWriteButton from "@/components/FloatingWriteButton";
 import { useAuth } from "@/context/AuthContext";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 
@@ -140,6 +141,8 @@ export default function Layout({ children }) {
       </header>
 
       <main className="flex-1">{children}</main>
+
+      <FloatingWriteButton />
 
       <footer className="border-t hairline mt-24">
         <div className="container-wide py-12 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">

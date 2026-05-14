@@ -99,7 +99,7 @@ export default function Essays() {
         <p className="uppercase-label mb-2">Library</p>
         <h1 className="font-display font-semibold text-4xl ink leading-tight">Essays from the newsroom.</h1>
         <p className="font-serif text-base text-muted-ink mt-3 max-w-2xl">
-          Long-form writing from working real estate operators. Calm, slow, unhurried. Search by topic or filter by market.
+          Long-form writing from the real estate industry. Calm, slow, unhurried. Search by topic or filter by market.
         </p>
       </div>
 

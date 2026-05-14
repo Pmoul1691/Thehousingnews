@@ -263,18 +263,34 @@ of teams.
 - Component file `PetePicksSection.jsx` kept (internal name only); user-facing label
   is now "Staff picks".
 
+## Phase 22 — Floating Write pill + admin orphan reconnect + "producers" voice (2026-02-14)
+- **Floating Write pill** (`components/FloatingWriteButton.jsx`): persistent
+  bottom-right gold pill rendered by `Layout` for every approved member on every
+  page except `/write` itself. Polls `GET /api/drafts/mine` on mount/route change.
+  When the response contains text/title/subtitle/media content, a small deep-red
+  dot (`data-testid="floating-write-draft-dot"`) appears on the icon as a quiet
+  unfinished-draft indicator.
+- **Admin "Orphans" tab** in `/admin`: new section that lists every profile whose
+  `user_id` no longer maps to a live user. For each orphan, the candidate live
+  user (matched by email) is shown alongside post-count attached to the orphan
+  user_id. A gold "Reconnect to live user" button re-stitches the profile and
+  reassigns all posts + replies to the live user_id in a single request.
+  Disabled with a hint ("Waiting for the member to sign in again.") when no
+  candidate user exists.
+  - Backend: new `routes/admin_orphans.py` mounted at `/api/admin/orphan-profiles`
+    with `GET ""` and `POST /reconnect` (admin-only).
+- **"Operators" -> "producers" / "the real estate industry"** across all
+  user-facing copy: `About.jsx`, `EssayDetail.jsx`, `Essays.jsx`, `Upgrade.jsx`.
+
 ## Backlog
 - P0: confirm Brevo sender email is verified in Brevo dashboard.
 - P0 (user action): DNS configuration for thehousingnews.com.
 - P1: rate-limit application submissions per email.
-- P1: floating Write pill on every authenticated page (bottom-right).
 - P1: image resize at upload time (compress > 1MB).
-- P2: draft indicator dot on Write pill when auto-saved draft exists.
-- P2: `/admin` "Reconnect orphan profile to user" button.
 - P2: search posts.
 
 ## Next Actions
 1. Verify DNS + production domain (user).
-2. Build floating Write pill on authed pages.
-3. Add draft-indicator dot.
+2. End-to-end QA of the floating pill + draft dot on real member content.
+3. Consider draft-dot fade-in animation if it feels too abrupt.
 

@@ -39,6 +39,7 @@ export default function Admin() {
   const [flagsTab, setFlagsTab] = useState("open");
   const [apps, setApps] = useState([]);
   const [flags, setFlags] = useState([]);
+  const [orphans, setOrphans] = useState([]);
   const [fetching, setFetching] = useState(false);
   const [actingId, setActingId] = useState(null);
 
@@ -58,14 +59,25 @@ export default function Admin() {
     } finally { setFetching(false); }
   }, []);
 
+  const loadOrphans = useCallback(async () => {
+    setFetching(true);
+    try {
+      const r = await api.get("/admin/orphan-profiles");
+      setOrphans(r.data.items || []);
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || "Could not load orphans");
+    } finally { setFetching(false); }
+  }, []);
+
   useEffect(() => {
     if (loading) return;
     if (!user) { navigate("/", { replace: true }); return; }
     if (!user.is_admin) { navigate("/feed", { replace: true }); return; }
     if (section === "apps") loadApps(appsTab);
     else if (section === "mod") loadFlags(flagsTab);
+    else if (section === "orphans") loadOrphans();
     // 'stats' loads inside AdminAnalyticsPanel
-  }, [user, loading, navigate, section, appsTab, flagsTab, loadApps, loadFlags]);
+  }, [user, loading, navigate, section, appsTab, flagsTab, loadApps, loadFlags, loadOrphans]);
 
   const actApp = async (app_id, kind) => {
     setActingId(app_id + kind);
@@ -115,6 +127,18 @@ export default function Admin() {
     } finally { setActingId(null); }
   };
 
+  const reconnectOrphan = async (email) => {
+    setActingId("orphan-" + email);
+    try {
+      const r = await api.post("/admin/orphan-profiles/reconnect", { profile_email: email });
+      const { posts_reassigned = 0, replies_reassigned = 0 } = r.data || {};
+      toast.success(`Reconnected. ${posts_reassigned} posts, ${replies_reassigned} replies re-attributed.`);
+      loadOrphans();
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || "Could not reconnect");
+    } finally { setActingId(null); }
+  };
+
   return (
     <div className="container-wide py-12">
       <div className="flex items-end justify-between flex-wrap gap-4 mb-8">
@@ -136,6 +160,7 @@ export default function Admin() {
           { k: "mod", l: "Moderation" },
           { k: "subjects", l: "Subjects" },
           { k: "stats", l: "Analytics" },
+          { k: "orphans", l: "Orphans" },
         ].map((t) => (
           <button
             key={t.k}
@@ -152,6 +177,81 @@ export default function Admin() {
         <AdminAnalyticsPanel />
       ) : section === "subjects" ? (
         <AdminPromptsPanel />
+      ) : section === "orphans" ? (
+        <>
+          <p className="prose-serif text-sm text-muted-ink mb-6 max-w-prose">
+            Profiles whose original user record was deleted. If a live user exists at the same email,
+            you can re-stitch the profile (and any orphaned posts/replies) with one click.
+          </p>
+          {fetching ? (
+            <div className="font-serif text-base text-muted-ink py-12 text-center">Loading.</div>
+          ) : orphans.length === 0 ? (
+            <div className="border hairline rounded-sm py-16 text-center" data-testid="admin-orphans-empty">
+              <p className="font-serif text-base ink/80">No orphan profiles. Clean.</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {orphans.map((o) => {
+                const cand = o.candidate_user;
+                const acting = actingId === "orphan-" + o.email;
+                return (
+                  <article
+                    key={o.profile_user_id}
+                    data-testid={`admin-orphan-${o.profile_user_id}`}
+                    className="border hairline rounded-sm p-5 bg-cream"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-4 mb-3">
+                      <div className="min-w-0">
+                        <h3 className="font-display font-semibold text-base ink truncate">
+                          {o.name || "Unnamed"}
+                        </h3>
+                        <div className="font-sans text-xs text-muted-ink truncate">{o.email}</div>
+                        {o.market && (
+                          <div className="font-sans text-xs text-muted-ink mt-1">{o.market}</div>
+                        )}
+                      </div>
+                      <div className="font-sans text-xs text-muted-ink">
+                        {o.post_count} {o.post_count === 1 ? "post" : "posts"} attached
+                      </div>
+                    </div>
+                    <div className="grid sm:grid-cols-2 gap-3 mb-4 font-sans text-xs">
+                      <div>
+                        <div className="uppercase-label mb-1">Orphan user_id</div>
+                        <code className="font-mono text-[11px] ink/80 break-all">{o.profile_user_id}</code>
+                      </div>
+                      <div>
+                        <div className="uppercase-label mb-1">Live user (by email)</div>
+                        {cand ? (
+                          <div className="font-sans text-xs ink">
+                            <code className="font-mono text-[11px] ink/80 break-all">{cand.user_id}</code>
+                            <span className="ml-2 text-muted-ink">{cand.status}</span>
+                          </div>
+                        ) : (
+                          <div className="font-sans text-xs text-deepred italic">No live user with this email yet.</div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 pt-3 border-t hairline">
+                      <button
+                        data-testid={`orphan-reconnect-${o.profile_user_id}`}
+                        onClick={() => reconnectOrphan(o.email)}
+                        disabled={!cand || acting}
+                        className="bg-gold text-cream font-sans font-semibold text-sm px-5 py-2 rounded-sm hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        {acting ? "Reconnecting." : "Reconnect to live user"}
+                      </button>
+                      {!cand && (
+                        <span className="font-sans text-xs text-muted-ink italic">
+                          Waiting for the member to sign in again.
+                        </span>
+                      )}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </>
       ) : section === "apps" ? (
         <>
           <div className="flex items-center gap-4 mb-10 border-b hairline">

@@ -20,11 +20,11 @@ export default function About() {
         <div className="mt-10 prose-serif text-lg leading-relaxed text-[#2C2410] max-w-prose space-y-5">
           <p>The Housing News was built because we got tired of LinkedIn.</p>
           <p>
-            We are working real estate operators. Decades of experience between us. Thousands of agents trained. Billions in client sales volume.
+            We are real estate producers. Decades of experience between us. Thousands of agents trained. Billions in client sales volume.
             No deal was ever made because a stranger left a fire emoji on a post.
           </p>
           <p>
-            The Housing News is a daily magazine of working real estate operators. You write when you have something to say. The
+            The Housing News is a daily magazine for the real estate industry. You write when you have something to say. The
             magazine releases twice a day, at 8:30am and 5:30pm Chicago time. That is it.
           </p>
           <p>No follower counts. No trending tab. No outrage. No selling courses to each other.</p>

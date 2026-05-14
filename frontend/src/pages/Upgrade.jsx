@@ -51,7 +51,7 @@ export default function Upgrade() {
       </h1>
       <div className="prose-serif text-base sm:text-lg leading-relaxed ink/90 space-y-4 max-w-prose mb-12">
         <p>I run this myself. No ads. No data brokers. No engagement loops.</p>
-        <p>Becoming a supporter pays for hosting and email, and lets me keep the membership free for new agents and operators who are starting out.</p>
+        <p>Becoming a supporter pays for hosting and email, and lets us keep the membership free for new agents and producers who are starting out.</p>
         <p>Your name shows a small Bloom mark next to it on the feed. That is it. No tiers, no perks, no leaderboards.</p>
       </div>
 
