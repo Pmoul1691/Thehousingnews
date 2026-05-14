@@ -303,9 +303,60 @@ of teams.
 - **"Staff picks"** label propagated to every previously-missed surface
   (`PostItem`, `EssayCards`, `EssayDetail`, `Essays`, `Write` page).
 
+## Phase 24 — Public RSS aggregator backend (Phase 1 of 3) (2026-02-14)
+
+Major product pivot: in addition to the members-only batched social network,
+`thehousingnews.com` now hosts a public RSS aggregator modeled on Techmeme /
+Memeorandum. Members product stays in the codebase (will move under `/members`
+in Phase 2 frontend work).
+
+- **Collections** (Mongo, prefixed `agg_*`): `agg_publishers`, `agg_articles`,
+  `agg_newsletter_signups`. Compound unique index `(publisher_id, guid)`
+  guarantees dedupe.
+- **Seed**: 28 residential real estate publishers (Inman, The Real Deal,
+  HousingWire, RISMedia, Realtor.com, 6 TRD regional editions, Brownstoner,
+  Curbed, 8 industry blogs, 5 data/research, 2 mortgage). Idempotent at boot.
+- **Ingest service** (`services/rss_ingest.py`): pulls feeds with the
+  declared User-Agent `thehousingnews-aggregator/1.0 (+...)`, honors
+  robots.txt, strips HTML server-side, caps snippet at 280 chars OR 2 sentences,
+  extracts thumbnails only as publisher-hosted URLs (never rehosts).
+- **Cron** (APScheduler): every **15 minutes** ingest all active publishers
+  whose `refresh_minutes` window has elapsed. Daily `03:15 UTC` prune: hide
+  items >90d, hard-delete >120d.
+- **Public read endpoints** (`/api/agg/*`):
+  - `GET /articles?category=&publisher_slug=&hours=&offset=&limit=` (river)
+  - `GET /publishers`, `GET /publishers/{slug}`, `GET /categories`
+  - `POST /newsletter/signup` (local capture; Beehiiv/ConvertKit push deferred to follow-up)
+- **Admin endpoints** (`/api/agg/admin/*`, admin-only via existing allowlist):
+  - List / create / update / soft-delete publishers
+  - `POST /test-feed` returns first 3 parsed items (preview before activation)
+  - `POST /publishers/{id}/refresh` for manual one-off pull
+  - Search / hide / hard-delete articles
+- **Tests**: 9 unit tests covering snippet cap, dedupe behaviour, headline-only
+  mode, thumbnail extraction, malformed RSS handling. All passing.
+- **Smoke test**: ran manual ingest — **27/28 feeds OK, 533 articles inserted**.
+  Only Inman returned HTTP 403 (Cloudflare-style bot block); admin can disable
+  or fall back to an alternate URL through the admin UI.
+- **Compliance rules baked in**:
+  - Snippet truncation is server-side (not CSS).
+  - `original_url` on every article points to the publisher's domain.
+  - No `read more` internal route. No full-article view. No paywall on aggregator.
+  - 90/120-day expiry enforced by `prune_expired` cron.
+
 ## Backlog
-- P0: confirm Brevo sender email is verified in Brevo dashboard.
-- P0 (user action): DNS configuration for thehousingnews.com.
+- P0 (user action): DNS for thehousingnews.com.
+- P0 (next): Newsletter provider choice (Beehiiv vs ConvertKit) + API key.
+- P0 (next): Analytics provider choice (Plausible vs Fathom) + domain key.
+- P1 (Phase 2): React frontend pages for the aggregator at `/`,
+  `/source/[slug]`, `/category/[category]`, `/about`, `/newsletter`,
+  `/admin/aggregator`. Move members product under `/members/*`.
+- P2 (Phase 3): Next.js + TypeScript migration of the entire frontend per the
+  brief's stack requirement.
+
+## Next Actions
+1. Get newsletter + analytics provider choices from user; collect API keys.
+2. Build Phase 2 — React frontend pages for the aggregator.
+3. Move members-only pages under `/members/*` so aggregator owns `/`.
 
 ## Next Actions
 1. Verify DNS + production domain (user).

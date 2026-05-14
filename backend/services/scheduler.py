@@ -9,6 +9,7 @@ from services.brevo import send_digest_email
 from services.essay_dispatch import dispatch_essay_to_followers
 from services.admin_digest import send_admin_digest
 from services.substack_import import import_substack_feed
+from services.rss_ingest import ingest_all_active as agg_ingest_all_active, prune_expired as agg_prune_expired
 from routes.prompts import advance_weekly_prompt
 
 logger = logging.getLogger(__name__)
@@ -236,6 +237,27 @@ def start_scheduler(db) -> AsyncIOScheduler:
         replace_existing=True,
         misfire_grace_time=600,
     )
+    # Public aggregator: pull every active publisher every 15 minutes.
+    scheduler.add_job(
+        agg_ingest_all_active,
+        trigger="interval",
+        minutes=15,
+        args=[db],
+        id="agg_rss_ingest",
+        replace_existing=True,
+        misfire_grace_time=300,
+    )
+    # Daily prune: hide >90d items, hard-delete >120d items.
+    scheduler.add_job(
+        agg_prune_expired,
+        trigger="cron",
+        hour=3,
+        minute=15,
+        args=[db],
+        id="agg_prune_expired",
+        replace_existing=True,
+        misfire_grace_time=600,
+    )
     scheduler.start()
-    logger.info("Release scheduler started (8:30 AM and 5:30 PM America/Chicago + per-minute scheduled-essays sweep + 7:00 AM daily Substack import)")
+    logger.info("Release scheduler started (8:30 AM and 5:30 PM America/Chicago + per-minute scheduled-essays sweep + 7:00 AM daily Substack import + 15-min aggregator ingest)")
     return scheduler

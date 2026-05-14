@@ -36,6 +36,8 @@ from routes.prompts import setup as setup_prompts
 from routes.admin_rss import setup as setup_admin_rss
 from routes.admin_orphans import setup as setup_admin_orphans
 from routes.partners import setup as setup_partners
+from routes.aggregator import setup as setup_aggregator
+from routes.aggregator_admin import setup as setup_aggregator_admin
 from services.object_storage import init_storage
 from services.release_window import next_window, now_chicago
 from services.scheduler import start_scheduler, release_batch
@@ -138,6 +140,43 @@ async def on_startup():
     await db.drafts.create_index("user_id", unique=True)
     await db.bookmarks.create_index([("user_id", 1), ("post_id", 1)], unique=True)
     await db.bookmarks.create_index([("user_id", 1), ("created_at", -1)])
+
+    # === Aggregator (thehousingnews.com) collections ===
+    try:
+        await db.agg_publishers.create_index("id", unique=True)
+        await db.agg_publishers.create_index("slug", unique=True)
+        await db.agg_publishers.create_index("category")
+        await db.agg_articles.create_index("id", unique=True)
+        await db.agg_articles.create_index([("publisher_id", 1), ("guid", 1)], unique=True)
+        await db.agg_articles.create_index([("published_at", -1)])
+        await db.agg_articles.create_index("hidden")
+        await db.agg_newsletter_signups.create_index("email", unique=True)
+    except Exception as _e:
+        logger.warning("aggregator indexes not created: %s", _e)
+
+    # Seed publishers (idempotent — only inserts missing slugs).
+    try:
+        from services.agg_seed import SEED_PUBLISHERS
+        from datetime import datetime as _dt
+        import uuid as _uuid
+        _now = _dt.utcnow().isoformat()
+        for name, slug, category, feed_url, homepage_url, display_mode, perm in SEED_PUBLISHERS:
+            await db.agg_publishers.update_one(
+                {"slug": slug},
+                {"$setOnInsert": {
+                    "id": str(_uuid.uuid4()),
+                    "name": name, "slug": slug, "category": category,
+                    "feed_url": feed_url, "homepage_url": homepage_url,
+                    "logo_url": None, "display_mode": display_mode,
+                    "refresh_minutes": 30, "active": True,
+                    "permission_status": perm,
+                    "last_fetched_at": None, "last_fetch_status": None,
+                    "created_at": _now, "updated_at": _now,
+                }},
+                upsert=True,
+            )
+    except Exception as _e:
+        logger.warning("aggregator seed failed: %s", _e)
     await db.reads.create_index([("user_id", 1), ("post_id", 1)], unique=True)
     await db.email_dispatches.create_index("dispatch_id", unique=True)
     await db.email_dispatches.create_index("created_at")
@@ -243,3 +282,5 @@ app.include_router(prompts_admin_r)
 app.include_router(setup_admin_rss(db))
 app.include_router(setup_admin_orphans(db))
 app.include_router(setup_partners(db))
+app.include_router(setup_aggregator(db))
+app.include_router(setup_aggregator_admin(db))
