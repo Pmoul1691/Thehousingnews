@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import BloomMark from "@/components/BloomMark";
 import NextReleaseTimer from "@/components/NextReleaseTimer";
 import FloatingWriteButton from "@/components/FloatingWriteButton";
 import { useAuth } from "@/context/AuthContext";
@@ -40,9 +39,13 @@ export default function Layout({ children }) {
     <div className="min-h-screen flex flex-col bg-cream ink">
       <header className="sticky top-0 z-30 backdrop-blur-md bg-cream/85 border-b hairline">
         <div className="container-wide flex items-center justify-between py-4">
-          <Link to="/" data-testid="nav-home" className="flex items-center gap-3">
-            <BloomMark size={28} />
-            <span className="font-display font-semibold tracking-tight text-[15px] ink">The Housing News</span>
+          <Link to="/" data-testid="nav-home" className="flex items-center">
+            <img
+              src="/brand/logo-wordmark.png"
+              alt="The Housing News"
+              className="h-8 sm:h-9 w-auto select-none"
+              draggable={false}
+            />
           </Link>
           <div className="flex items-center gap-5">
             {!hideHeaderTimer && <div className="hidden sm:block"><NextReleaseTimer /></div>}
@@ -149,12 +152,14 @@ export default function Layout({ children }) {
 
       <footer className="border-t hairline mt-24">
         <div className="container-wide py-12 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-          <div className="flex items-center gap-3">
-            <BloomMark size={32} />
-            <div>
-              <div className="font-display font-semibold text-sm ink">The Housing News</div>
-              <div className="font-serif text-xs text-muted-ink">A daily magazine for the real estate industry.</div>
-            </div>
+          <div className="flex items-center gap-4">
+            <img
+              src="/brand/logo-wordmark.png"
+              alt="The Housing News"
+              className="h-10 w-auto select-none"
+              draggable={false}
+            />
+            <div className="font-serif text-xs text-muted-ink">A daily magazine for the real estate industry.</div>
           </div>
           <div className="font-sans text-xs text-muted-ink max-w-md">
             Published by the editors. Read the <Link to="/about" className="hover:text-gold transition-colors underline underline-offset-4 decoration-gold-mid">masthead</Link>.
