@@ -1,13 +1,19 @@
 """Public endpoint: let prospective members check if their Ultradian Partners /
 Ultradia.io email is already comped before they sign in. Rate-limited per IP to
-prevent the bridge being used as an email-existence oracle."""
+prevent the bridge being used as an email-existence oracle.
+
+Also exposes an authed /api/me/entitlement endpoint that surfaces the same
+comped-status info for the signed-in user, used by the Profile page badge.
+"""
 import logging
 import re
 import time
 from collections import defaultdict, deque
-from fastapi import APIRouter, HTTPException, Query, Request
+from typing import Optional
+from fastapi import APIRouter, Cookie, Depends, Header, HTTPException, Query, Request
 
 from services.cross_property import get_user_status
+from services.auth_helpers import get_current_user
 
 logger = logging.getLogger(__name__)
 
@@ -32,9 +38,15 @@ def _rate_ok(ip: str) -> bool:
 
 
 def setup(db):
-    router = APIRouter(prefix="/api/partners", tags=["partners"])
+    router = APIRouter(tags=["partners"])
 
-    @router.get("/check")
+    async def _user(
+        session_token: Optional[str] = Cookie(default=None),
+        authorization: Optional[str] = Header(default=None),
+    ):
+        return await get_current_user(db, session_token, authorization)
+
+    @router.get("/api/partners/check")
     async def check(request: Request, email: str = Query(..., min_length=3, max_length=200)):
         ip = request.client.host if request.client else "unknown"
         if not _rate_ok(ip):
@@ -63,6 +75,36 @@ def setup(db):
             "name": bridge.get("name") if exists else None,
             "renews_at": renews_at if exists else None,
             "property": bridge.get("property") or bridge.get("source"),  # e.g. "ultradianpartners" | "ultradia.io"
+        }
+
+    @router.get("/api/me/entitlement")
+    async def my_entitlement(user=Depends(_user)):
+        """Authed: return the signed-in user's comp/supporter status for the
+        Profile page badge. Combines (a) live bridge call by email for partner
+        comp info, with (b) the user's local supporter record."""
+        # Local supporter status (from Stripe / payments)
+        now_iso = __import__("datetime").datetime.utcnow().isoformat()
+        until = user.get("supporter_until")
+        is_supporter = bool(until and until > now_iso)
+
+        # Live bridge lookup
+        bridge = get_user_status(user["email"])
+        comped = bridge.get("network_grant") == "auto"
+        exists = bool(bridge.get("exists"))
+        renews_at = (
+            bridge.get("renews_at")
+            or bridge.get("current_period_end")
+            or bridge.get("next_billing_date")
+            or bridge.get("expires_at")
+        )
+        return {
+            "comped": comped,
+            "exists": exists,
+            "tier": bridge.get("subscription_tier") if exists else user.get("partner_tier"),
+            "renews_at": renews_at if exists else None,
+            "property": bridge.get("property") or bridge.get("source"),
+            "is_supporter": is_supporter,
+            "supporter_until": until,
         }
 
     return router
