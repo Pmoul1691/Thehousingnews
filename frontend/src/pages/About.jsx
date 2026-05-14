@@ -77,9 +77,9 @@ export default function About() {
           <p className="uppercase-label mb-4">The editors</p>
           <h2 className="font-display font-semibold text-2xl sm:text-3xl ink mb-6">A working newsroom.</h2>
           <div className="prose-serif text-base sm:text-lg leading-relaxed space-y-5 ink">
-            <p>We have spent decades in real estate. We have coached thousands of agents. The teams we helped lead have closed billions in new client volume across Chicago brokerages.</p>
-            <p>We read every application. If you are in, you are in because the editors read your name and said yes.</p>
-            <p>If you are an existing Ultradian Partners subscriber, you are auto granted. Just sign in.</p>
+            <p>We have spent decades in real estate. We have coached thousands of agents. The teams we helped lead have closed billions in new client volume.</p>
+            <p>We want to hear from you personally. We read every new member application. We welcome all opinions, perspectives, and factual presentations.</p>
+            <p>If you are an existing Ultradian Partners client or Ultradia.io subscriber, you are automatically granted. Just sign in.</p>
           </div>
           <div className="mt-10 flex flex-wrap items-center gap-4">
             <button
