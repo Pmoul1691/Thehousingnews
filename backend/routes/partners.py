@@ -47,12 +47,22 @@ def setup(db):
         bridge = get_user_status(email)
         comped = bridge.get("network_grant") == "auto"
         exists = bool(bridge.get("exists"))
+        # The bridge may use a few possible keys for the renewal date depending
+        # on the upstream property. Accept whichever is present, in priority order.
+        renews_at = (
+            bridge.get("renews_at")
+            or bridge.get("current_period_end")
+            or bridge.get("next_billing_date")
+            or bridge.get("expires_at")
+        )
         return {
             "email": email,
             "comped": comped,
             "exists": exists,
             "tier": bridge.get("subscription_tier") if exists else None,
             "name": bridge.get("name") if exists else None,
+            "renews_at": renews_at if exists else None,
+            "property": bridge.get("property") or bridge.get("source"),  # e.g. "ultradianpartners" | "ultradia.io"
         }
 
     return router

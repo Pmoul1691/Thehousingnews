@@ -8,6 +8,36 @@ const STATIC_TIERS = [
   { id: "yearly", label: "Annual", amount: 100, period: "year", note: "365 days. Works out to $8.33 a month.", featured: true },
 ];
 
+const PROPERTY_LABELS = {
+  ultradianpartners: "Ultradian Partners",
+  "ultradia.io": "Ultradia.io",
+  ultradia: "Ultradia.io",
+};
+
+function formatProperty(p) {
+  if (!p) return "subscriber";
+  const key = String(p).toLowerCase();
+  return PROPERTY_LABELS[key] || p;
+}
+
+function prettyTier(tier) {
+  if (!tier) return "";
+  const t = String(tier).trim();
+  // Capitalise first letter of each word
+  return t.replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function formatRenewal(iso) {
+  if (!iso) return "";
+  try {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return iso;
+    return new Intl.DateTimeFormat("en-US", { day: "numeric", month: "short", year: "numeric" }).format(d);
+  } catch {
+    return iso;
+  }
+}
+
 function PartnerStatusCheck() {
   const [email, setEmail] = useState("");
   const [checking, setChecking] = useState(false);
@@ -74,13 +104,25 @@ function PartnerStatusCheck() {
       {result && result.comped && (
         <div
           data-testid="partner-check-result-comped"
-          className="mt-5 border-l-2 border-gold pl-4 py-2 bg-[#FBF6E8]/50"
+          className="mt-5 border-l-2 border-gold pl-5 py-3 bg-[#FBF6E8]/50"
         >
-          <p className="font-display font-semibold text-base ink mb-1">
+          <p className="font-display font-semibold text-base ink mb-2">
             Good news{result.name ? `, ${result.name}` : ""}. You are already in.
           </p>
+          <div className="flex flex-wrap items-center gap-2 mb-3" data-testid="partner-check-badge">
+            <span className="inline-flex items-center gap-1.5 bg-gold/15 border border-gold/40 text-ink font-sans text-[11px] uppercase tracking-[0.14em] font-semibold px-2.5 py-1 rounded-full">
+              <span className="w-1.5 h-1.5 rounded-full bg-gold" aria-hidden />
+              Verified {formatProperty(result.property)}
+              {result.tier ? ` · ${prettyTier(result.tier)}` : ""}
+            </span>
+            {result.renews_at && (
+              <span className="font-sans text-xs text-muted-ink" data-testid="partner-check-renews">
+                Auto-renews {formatRenewal(result.renews_at)}
+              </span>
+            )}
+          </div>
           <p className="font-serif text-sm ink/80">
-            Your {result.tier ? `${result.tier} ` : ""}subscription comps your membership at The Housing News.
+            Your subscription comps your membership at The Housing News.
           </p>
           <button
             onClick={signIn}
