@@ -1,0 +1,30 @@
+{
+  "summary": "Iteration 19 - tested the iter19 batch: posts search, orphan profiles GET+reconnect, application rate-limit, image resize on upload, weekly admin digest, plus frontend hamburger/Search/Floating Write pill/Admin orphans tab/Staff pick label. 9/9 backend tests pass; all frontend smoke checks pass.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter19_search_orphans_ratelimit_resize.py",
+    "/app/test_reports/pytest/pytest_iter19.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "services/admin_digest.render_admin_digest_html: top_essays/top_replies use unconditional template literals 'On real estate value' style titles trimmed to 80 chars - acceptable, but the section uses '. ' as separator from a leading character that looks like a stray period in the HTML (e.g. '. 1 replies'). Cosmetic only.",
+    "routes/applications.py rate-limit branch (lines 64-70) executes before the invite-code path, so a 429 will short-circuit invite-code redemption attempts. This is by design but worth noting: a user who shares an email with a recent declined applicant will be blocked even if their invite code is otherwise valid.",
+    "routes/admin_orphans.py reconnect endpoint does not verify whether the orphan email and the live user email match the same casing/value before the .update_many on posts - relies on email regex match in profile lookup, which is fine, but the deletion of any 'existing_under_new' profile is irreversible. Consider a soft delete or audit trail.",
+    "routes/uploads.py _maybe_resize_image swallows all exceptions and stores the original - good defensive behavior but no metric is logged; consider emitting a counter so silent resize failures aren't invisible."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter19_search_orphans_ratelimit_resize.py"
+  ],
+  "success_rate": {"backend": "100% (9/9)", "frontend": "100% (10/10 checks)"},
+  "test_credentials": "Seeded admin via mongosh (peter@1691inc.com) and a separate frontend admin (peter+iter19@1691inc.com with is_admin:true). All sessions cleaned up after pytest runs.",
+  "seed_data_creation": "Backend pytest seeds and cleans up: 1 admin, 1 approved member, 2 posts (short + essay) for search, 1 orphan profile + post pair, 1 prior application doc for the rate-limit branch, 3 posts + 1 reply for the digest mover calc. Frontend test left one admin user in DB with a recent draft.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iter 19 covered: GET /api/posts/search (4 sub-cases incl. 422/q/kind/market/suspended), GET+POST /api/admin/orphan-profiles, POST /api/applications rate-limit (429 via pre-seeded application row), POST /api/uploads image resize (>1MB JPEG -> resized + longest edge <=2000px), services/admin_digest build+render+subject. Frontend: hamburger sheet shows all 10 expected items, floating write pill visible on /feed with draft dot after PUT /api/drafts/mine, hidden on /write, Search page works for typed query AND URL ?q=, Admin orphans tab loads (orphan list empty in this run because FT admin email is not literally in allowlist - backend pytest verified the actual flow), and feed body contains no 'Editor pick' or 'Pete recommends' strings.",
+  "rca of the issue": "N/A - no failures."
+}

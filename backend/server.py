@@ -110,6 +110,16 @@ async def on_startup():
     await db.posts.create_index([("release_at", -1)])
     await db.posts.create_index([("user_id", 1), ("created_at", -1)])
     await db.posts.create_index("status")
+    # Full-text search across post body, title, subtitle (members-only `/posts/search`).
+    try:
+        await db.posts.create_index(
+            [("text", "text"), ("title", "text"), ("subtitle", "text")],
+            name="posts_text_search",
+            default_language="english",
+            weights={"title": 10, "subtitle": 4, "text": 1},
+        )
+    except Exception as _e:
+        logger.warning("posts text index not created: %s", _e)
     await db.replies.create_index("reply_id", unique=True)
     await db.replies.create_index([("post_id", 1), ("created_at", 1)])
     await db.replies.create_index("status")

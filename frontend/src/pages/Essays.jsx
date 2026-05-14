@@ -21,7 +21,7 @@ function EssayRow({ e }) {
         <div className="flex-1 min-w-0">
           {e.is_pete_pick && (
             <div className="flex items-center gap-2 mb-2">
-              <span className="font-sans text-[10px] uppercase tracking-[0.18em] font-semibold text-gold">Editor pick</span>
+              <span className="font-sans text-[10px] uppercase tracking-[0.18em] font-semibold text-gold">Staff pick</span>
             </div>
           )}
           <div className="flex items-center gap-3 mb-3">

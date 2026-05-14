@@ -49,8 +49,8 @@ MAX_AUDIO_SECONDS = 5 * 60
 
 # Resize images > this threshold to keep payloads reasonable
 RESIZE_TRIGGER_BYTES = 1 * 1024 * 1024  # 1 MB
-RESIZE_MAX_DIM = 1920
-RESIZE_JPEG_QUALITY = 85
+RESIZE_MAX_DIM = 2000
+RESIZE_JPEG_QUALITY = 82
 
 
 def _maybe_resize_image(data: bytes, content_type: str) -> tuple[bytes, str]:

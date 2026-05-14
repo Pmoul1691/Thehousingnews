@@ -176,7 +176,7 @@ export default function EssayDetail() {
       <article className="container-prose py-12 sm:py-16" data-testid="essay-detail">
         {essay.is_pete_pick && (
           <div className="mb-6 flex items-center gap-2" data-testid="pete-pick-banner">
-            <span className="font-sans text-[10px] uppercase tracking-[0.18em] font-semibold text-gold">Editor pick</span>
+            <span className="font-sans text-[10px] uppercase tracking-[0.18em] font-semibold text-gold">Staff pick</span>
             <span className="h-px flex-1 bg-gold-mid" />
           </div>
         )}
@@ -273,7 +273,7 @@ export default function EssayDetail() {
               <div className="flex gap-5">
                 <div className="flex-1 min-w-0">
                   {next.is_pete_pick && (
-                    <p className="font-sans text-[10px] uppercase tracking-wider font-semibold text-gold mb-2">Editor pick</p>
+                    <p className="font-sans text-[10px] uppercase tracking-wider font-semibold text-gold mb-2">Staff pick</p>
                   )}
                   <h3 className="font-display font-semibold text-xl ink group-hover:text-gold transition-colors leading-tight mb-2">{next.title}</h3>
                   {next.subtitle && (

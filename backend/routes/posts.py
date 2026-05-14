@@ -253,6 +253,49 @@ def setup(db):
             "kind": payload.kind,
         }
 
+    @router.get("/search")
+    async def search_posts(
+        q: str = Query(..., min_length=2, max_length=120),
+        kind: Optional[Literal["post", "essay"]] = None,
+        market: Optional[str] = Query(default=None, max_length=80),
+        limit: int = Query(30, le=50),
+        user=Depends(_user),
+    ):
+        """Members-only full-text search across released posts.
+        Uses the Mongo text index on (text, title, subtitle). Returns the same
+        shape as the feed (with author + reply_count attached)."""
+        if user.get("status") != "approved":
+            raise HTTPException(status_code=403, detail="Membership not approved")
+        now_iso = _now_iso()
+        suspended = await _suspended_user_ids()
+        query: dict = {
+            "$text": {"$search": q.strip()},
+            "release_at": {"$lte": now_iso},
+            "status": {"$nin": ["declined", "hidden"]},
+            "user_id": {"$nin": list(suspended)},
+        }
+        if kind:
+            query["kind"] = kind
+        if market:
+            prof_rows = await db.profiles.find(
+                {"market": {"$regex": market.strip(), "$options": "i"}},
+                {"_id": 0, "user_id": 1},
+            ).to_list(2000)
+            allowed_ids = [p["user_id"] for p in prof_rows]
+            if not allowed_ids:
+                return {"items": [], "q": q}
+            query["user_id"] = {"$in": allowed_ids, "$nin": list(suspended)}
+        cur = (
+            db.posts.find(query, {"_id": 0, "score": {"$meta": "textScore"}})
+            .sort([("score", {"$meta": "textScore"}), ("release_at", -1)])
+            .limit(limit)
+        )
+        items = await cur.to_list(limit)
+        for it in items:
+            it.pop("score", None)
+        items = await _attach_meta(items, viewer_id=user["user_id"])
+        return {"items": items, "q": q}
+
     @router.get("/public")
     async def public_feed(limit: int = Query(50, le=100)):
         now_iso = _now_iso()

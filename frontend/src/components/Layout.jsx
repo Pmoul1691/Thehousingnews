@@ -81,6 +81,9 @@ export default function Layout({ children }) {
                       <Link to="/essays" onClick={closeMenu} data-testid="menu-essays" className="font-display text-xl ink px-4 py-3 rounded-sm hover:bg-[#F5EDD6]/60 hover:text-gold transition-colors">
                         Essays
                       </Link>
+                      <Link to="/search" onClick={closeMenu} data-testid="menu-search" className="font-display text-xl ink px-4 py-3 rounded-sm hover:bg-[#F5EDD6]/60 hover:text-gold transition-colors">
+                        Search
+                      </Link>
                       <Link to="/prompts" onClick={closeMenu} data-testid="menu-prompts" className="font-display text-xl ink px-4 py-3 rounded-sm hover:bg-[#F5EDD6]/60 hover:text-gold transition-colors">
                         Subjects
                       </Link>

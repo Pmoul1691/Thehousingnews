@@ -189,6 +189,7 @@ export default function Feed() {
               <p className="font-sans text-[11px] uppercase tracking-[0.22em] font-semibold text-muted-ink mb-3">Shortcuts</p>
               <div className="flex flex-col gap-2">
                 <Link to="/essays" data-testid="rail-link-essays" className="font-sans text-sm ink hover:text-gold transition-colors">Browse all essays</Link>
+                <Link to="/search" data-testid="rail-link-search" className="font-sans text-sm ink hover:text-gold transition-colors">Search posts</Link>
                 <Link to="/members" data-testid="rail-link-members" className="font-sans text-sm ink hover:text-gold transition-colors">See members</Link>
                 <Link to="/library" data-testid="rail-link-library" className="font-sans text-sm ink hover:text-gold transition-colors">Your library</Link>
                 <Link to="/prompts" data-testid="rail-link-prompts" className="font-sans text-sm ink hover:text-gold transition-colors">Past subjects</Link>

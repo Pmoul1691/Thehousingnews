@@ -62,6 +62,66 @@ async def build_admin_digest(db) -> dict:
         top_replies = sorted([p for p in posts_7d if p.get("reply_count", 0) > 0],
                              key=lambda p: -p.get("reply_count", 0))[:3]
 
+    # Top 3 essays this week (by reply count, then recency)
+    top_essays = []
+    essay_posts = [p for p in posts_7d if p.get("kind") == "essay"]
+    if essay_posts:
+        essay_ids = [p["post_id"] for p in essay_posts]
+        agg_e = await db.replies.aggregate([
+            {"$match": {"post_id": {"$in": essay_ids}, "status": {"$nin": ["declined", "hidden"]}}},
+            {"$group": {"_id": "$post_id", "n": {"$sum": 1}}},
+        ]).to_list(len(essay_ids))
+        emap = {r["_id"]: r["n"] for r in agg_e}
+        for p in essay_posts:
+            p["reply_count"] = emap.get(p["post_id"], 0)
+        top_essays = sorted(
+            essay_posts,
+            key=lambda p: (-p.get("reply_count", 0), p.get("release_at") or ""),
+            reverse=False,
+        )
+        # Secondary sort: among ties on reply_count, prefer more-recent release_at
+        top_essays.sort(key=lambda p: p.get("release_at") or "", reverse=True)
+        top_essays.sort(key=lambda p: -p.get("reply_count", 0))
+        top_essays = top_essays[:3]
+
+    # Biggest mover: the member whose released-post count grew the most vs the
+    # prior 7-day window. Quiet, fun signal.
+    prev_cutoff = (now - timedelta(days=14)).isoformat()
+    biggest_mover = None
+    try:
+        this_week = await db.posts.aggregate([
+            {"$match": {
+                "release_at": {"$gte": cutoff, "$lte": now.isoformat()},
+                "status": {"$nin": ["declined", "hidden"]},
+            }},
+            {"$group": {"_id": "$user_id", "n": {"$sum": 1}}},
+        ]).to_list(2000)
+        prev_week = await db.posts.aggregate([
+            {"$match": {
+                "release_at": {"$gte": prev_cutoff, "$lt": cutoff},
+                "status": {"$nin": ["declined", "hidden"]},
+            }},
+            {"$group": {"_id": "$user_id", "n": {"$sum": 1}}},
+        ]).to_list(2000)
+        prev_map = {r["_id"]: r["n"] for r in prev_week}
+        deltas = [
+            (r["_id"], r["n"] - prev_map.get(r["_id"], 0), r["n"])
+            for r in this_week
+        ]
+        deltas.sort(key=lambda x: -x[1])
+        if deltas and deltas[0][1] > 0:
+            uid, delta, total = deltas[0]
+            prof = await db.profiles.find_one({"user_id": uid}, {"_id": 0, "name": 1, "market": 1}) or {}
+            biggest_mover = {
+                "user_id": uid,
+                "name": prof.get("name") or "Member",
+                "market": prof.get("market"),
+                "delta": delta,
+                "total": total,
+            }
+    except Exception as _e:
+        logger.warning("biggest mover calc failed: %s", _e)
+
     # Pete picks count
     picks_7d = await db.posts.count_documents({
         "is_pete_pick": True,
@@ -90,8 +150,9 @@ async def build_admin_digest(db) -> dict:
     return {
         "apps": {"pending": apps_pending, "approved": apps_approved, "declined": apps_declined, "total": len(apps)},
         "members": {"total_approved": total_approved, "active_7d": active_7d},
-        "posts": {"short": short_count, "essays": essay_count, "top_replies": top_replies},
+        "posts": {"short": short_count, "essays": essay_count, "top_replies": top_replies, "top_essays": top_essays},
         "picks_7d": picks_7d,
+        "biggest_mover": biggest_mover,
         "suggestions": suggestions,
         "email": {"sent": eng["sent"], "opened": eng["opened"], "clicked": eng["clicked"], "open_rate": open_rate, "click_rate": click_rate},
         "window": {"from": cutoff, "to": now.isoformat()},
@@ -124,6 +185,35 @@ def render_admin_digest_html(data: dict) -> str:
         <div style="margin-top:16px;">
           <div style="font-family:'Plus Jakarta Sans', Arial, sans-serif; font-weight:600; font-size:11px; letter-spacing:0.18em; text-transform:uppercase; color:#AD893E; margin-bottom:6px;">Top conversations</div>
           <ul style="margin:0; padding-left:18px;">{items}</ul>
+        </div>
+        """
+
+    top_essays_html = ""
+    if po.get("top_essays"):
+        items = ""
+        for p in po["top_essays"]:
+            title = p.get("title") or (p.get("text", "")[:80] + ("..." if len(p.get("text", "")) > 80 else "")) or "Untitled essay"
+            url = f"{base}/essays/{p['post_id']}" if base else "#"
+            replies_note = f' <span style="color:#5C4A1F; font-size:12px;">. {p.get("reply_count", 0)} replies</span>' if p.get("reply_count") else ""
+            items += f'<li style="margin:6px 0; font-family:Georgia, serif; color:#2C2410;"><a href="{url}" style="color:#2C2410; text-decoration:none;">{title}</a>{replies_note}</li>'
+        top_essays_html = f"""
+        <div style="margin-top:16px;">
+          <div style="font-family:'Plus Jakarta Sans', Arial, sans-serif; font-weight:600; font-size:11px; letter-spacing:0.18em; text-transform:uppercase; color:#AD893E; margin-bottom:6px;">Top essays this week</div>
+          <ul style="margin:0; padding-left:18px;">{items}</ul>
+        </div>
+        """
+
+    mover = data.get("biggest_mover")
+    mover_html = ""
+    if mover:
+        market_html = f' <span style="color:#5C4A1F; font-size:12px;">{mover["market"]}</span>' if mover.get("market") else ""
+        mover_html = f"""
+        <div style="margin-top:20px; padding:14px 18px; border-left:3px solid #AD893E; background:#FBF6E8;">
+          <div style="font-family:'Plus Jakarta Sans', Arial, sans-serif; font-weight:600; font-size:11px; letter-spacing:0.18em; text-transform:uppercase; color:#AD893E; margin-bottom:6px;">Biggest mover</div>
+          <div style="font-family:Georgia, serif; color:#2C2410; font-size:15px;">
+            <strong style="font-family:'Plus Jakarta Sans', Arial, sans-serif; font-weight:600;">{mover["name"]}</strong>{market_html}
+            <div style="margin-top:4px; color:#5C4A1F; font-size:13px;">+{mover["delta"]} more posts than the prior week ({mover["total"]} total).</div>
+          </div>
         </div>
         """
 
@@ -164,7 +254,9 @@ def render_admin_digest_html(data: dict) -> str:
           {_row("Essays released", _fmt_count(po["essays"]))}
           {_row("Staff picks added", _fmt_count(data["picks_7d"]))}
         </table>
+        {top_essays_html}
         {top_replies_html}
+        {mover_html}
 
         <table cellpadding="0" cellspacing="0" border="0" style="width:100%; border-collapse:collapse; margin-top:24px; border-top:1px solid #E8D4A0;">
           <tr><td colspan="2" style="padding:14px 0 6px 0;"><div style="font-family:'Plus Jakarta Sans', Arial, sans-serif; font-weight:600; font-size:11px; letter-spacing:0.18em; text-transform:uppercase; color:#AD893E;">Email engagement</div></td></tr>
@@ -189,6 +281,20 @@ async def send_admin_digest(db) -> dict:
     data = await build_admin_digest(db)
     html = render_admin_digest_html(data)
     admins = await db.users.find({"is_admin": True}, {"_id": 0, "email": 1, "name": 1, "user_id": 1}).to_list(50)
+    # Subject: stamp the week so admins can skim their inbox at a glance.
+    try:
+        from datetime import datetime as _dt
+        wk_end = _dt.fromisoformat(data["window"]["to"].replace("Z", "+00:00"))
+        week_label = wk_end.strftime("%b %-d")
+    except Exception:
+        week_label = "this week"
+    apps = data.get("apps") or {}
+    pending = apps.get("pending") or 0
+    if pending > 0:
+        subject = f"Sunday brief - {week_label} - {pending} application{'s' if pending != 1 else ''} pending"
+    else:
+        subject = f"Sunday brief - {week_label}"
+
     sent = 0
     for a in admins:
         if not a.get("email"):
@@ -210,7 +316,7 @@ async def send_admin_digest(db) -> dict:
         send_email(
             to_email=a["email"],
             to_name=a.get("name") or "Admin",
-            subject="Editors' Sunday brief: the last seven days",
+            subject=subject,
             html=html,
             tags=["ultradian_network", "admin_digest"],
             dispatch_id=dispatch_id,
