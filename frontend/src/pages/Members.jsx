@@ -24,7 +24,7 @@ export default function Members() {
   return (
     <div className="container-prose py-12">
       <p className="uppercase-label mb-3">Directory</p>
-      <h1 className="font-display font-semibold text-3xl ink mb-6">Members of the room.</h1>
+      <h1 className="font-display font-semibold text-3xl ink mb-6">Members of the newsroom.</h1>
       <p className="prose-serif text-base ink/80 leading-relaxed max-w-prose mb-10">
         Real people, in real markets. Search by name or city. No follower counts. Follow whoever you want to read.
       </p>

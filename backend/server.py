@@ -1,4 +1,4 @@
-"""The Ultradian Network - FastAPI server."""
+"""The Housing News - FastAPI server."""
 from fastapi import FastAPI
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -49,7 +49,7 @@ mongo_url = os.environ["MONGO_URL"]
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ["DB_NAME"]]
 
-app = FastAPI(title="The Ultradian Network")
+app = FastAPI(title="The Housing News")
 app.state.scheduler = None
 
 _cors_env = os.environ.get("CORS_ORIGINS", "*")
@@ -172,7 +172,7 @@ async def on_shutdown():
 # Health
 @app.get("/api/")
 async def root():
-    return {"name": "The Ultradian Network", "ok": True}
+    return {"name": "The Housing News", "ok": True}
 
 
 @app.get("/api/release-window")

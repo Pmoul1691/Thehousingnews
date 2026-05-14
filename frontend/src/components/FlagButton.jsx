@@ -18,7 +18,7 @@ export default function FlagButton({ targetKind, targetId, viewerFlagged, isOwne
     try {
       const url = targetKind === "post" ? `/posts/${targetId}/flag` : `/replies/${targetId}/flag`;
       await api.post(url, { reason: reason.trim() || null });
-      toast.success("Flagged. Pete will take a look.");
+      toast.success("Flagged. The editors will take a look.");
       setOpen(false);
       setReason("");
       onFlagged && onFlagged();
@@ -44,7 +44,7 @@ export default function FlagButton({ targetKind, targetId, viewerFlagged, isOwne
       </button>
       {open && (
         <div className="absolute right-0 mt-2 w-72 border hairline rounded-sm bg-cream p-3 shadow-sm z-20">
-          <p className="font-sans text-xs text-muted-ink mb-2">Tell Pete what is off, briefly. Optional.</p>
+          <p className="font-sans text-xs text-muted-ink mb-2">Tell us what is off, briefly. Optional.</p>
           <textarea
             data-testid={`flag-reason-${targetId}`}
             value={reason}

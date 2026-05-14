@@ -26,11 +26,11 @@ export default function Prompts() {
 
   const submitSuggestion = async (e) => {
     e.preventDefault();
-    if (suggestion.trim().length < 10) { toast.error("Tell me a bit more, ten characters at least"); return; }
+    if (suggestion.trim().length < 10) { toast.error("Tell us a bit more, ten characters at least"); return; }
     setSubmitting(true);
     try {
       await api.post("/prompts/suggestions", { text: suggestion.trim() });
-      toast.success("Suggestion sent to Pete");
+      toast.success("Suggestion sent to the editors");
       setSuggestion("");
     } catch (e) {
       toast.error(e?.response?.data?.detail || "Could not send");
@@ -89,7 +89,7 @@ export default function Prompts() {
                   data-testid="prompts-suggest-input"
                   value={suggestion}
                   onChange={(e) => setSuggestion(e.target.value)}
-                  placeholder="A short idea, one line. Pete reads them all."
+                  placeholder="A short idea, one line. The editors read them all."
                   maxLength={300}
                   className="flex-1 bg-cream border hairline rounded-sm p-3 font-serif text-sm ink focus:outline-none focus:ring-1 focus:ring-gold min-h-[80px]"
                 />

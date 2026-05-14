@@ -21,7 +21,7 @@ function EssayRow({ e }) {
         <div className="flex-1 min-w-0">
           {e.is_pete_pick && (
             <div className="flex items-center gap-2 mb-2">
-              <span className="font-sans text-[10px] uppercase tracking-[0.18em] font-semibold text-gold">Pete pick</span>
+              <span className="font-sans text-[10px] uppercase tracking-[0.18em] font-semibold text-gold">Editor pick</span>
             </div>
           )}
           <div className="flex items-center gap-3 mb-3">
@@ -97,7 +97,7 @@ export default function Essays() {
     <div className="container-prose py-12">
       <div className="mb-10">
         <p className="uppercase-label mb-2">Library</p>
-        <h1 className="font-display font-semibold text-4xl ink leading-tight">Essays from the room.</h1>
+        <h1 className="font-display font-semibold text-4xl ink leading-tight">Essays from the newsroom.</h1>
         <p className="font-serif text-base text-muted-ink mt-3 max-w-2xl">
           Long-form writing from working real estate operators. Calm, slow, unhurried. Search by topic or filter by market.
         </p>
@@ -126,7 +126,7 @@ export default function Essays() {
       {picks.length > 0 && !q && !market && (
         <section className="mb-12" data-testid="essays-picks">
           <div className="flex items-center gap-2 mb-5">
-            <span className="font-sans text-[10px] uppercase tracking-[0.18em] font-semibold text-gold">Pete recommends</span>
+            <span className="font-sans text-[10px] uppercase tracking-[0.18em] font-semibold text-gold">Staff picks</span>
             <span className="h-px flex-1 bg-gold-mid" />
           </div>
           <div className="grid sm:grid-cols-3 gap-6">

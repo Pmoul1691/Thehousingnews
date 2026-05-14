@@ -150,9 +150,14 @@ export default function EssayDetail() {
   const author = essay.author || {};
   const avatarUrl = author.avatar_path ? `${API}/uploads/file/${author.avatar_path}` : null;
   const mediaList = essay.media && essay.media.length ? essay.media : (essay.image_path ? [{ kind: "image", path: essay.image_path }] : []);
+  const firstVideo = mediaList.find((m) => m.kind === "video");
   const firstImage = mediaList.find((m) => m.kind === "image");
-  const coverUrl = firstImage ? `${API}/uploads/file/${firstImage.path}` : null;
-  const extraMedia = mediaList.filter((m) => m !== firstImage);
+  // Video-first essays (e.g. Substack/Mux imports) lead with the player above
+  // the byline so readers see what the piece actually is. Image-only essays
+  // keep the historic "byline above, cover below" rhythm.
+  const leadingMedia = firstVideo ? [firstVideo] : [];
+  const coverUrl = !firstVideo && firstImage ? `${API}/uploads/file/${firstImage.path}` : null;
+  const extraMedia = mediaList.filter((m) => m !== firstVideo && m !== firstImage);
   const canBookmark = user && user.status === "approved" && !essay.paywall;
 
   return (
@@ -171,7 +176,7 @@ export default function EssayDetail() {
       <article className="container-prose py-12 sm:py-16" data-testid="essay-detail">
         {essay.is_pete_pick && (
           <div className="mb-6 flex items-center gap-2" data-testid="pete-pick-banner">
-            <span className="font-sans text-[10px] uppercase tracking-[0.18em] font-semibold text-gold">Pete pick</span>
+            <span className="font-sans text-[10px] uppercase tracking-[0.18em] font-semibold text-gold">Editor pick</span>
             <span className="h-px flex-1 bg-gold-mid" />
           </div>
         )}
@@ -202,6 +207,12 @@ export default function EssayDetail() {
             </div>
           </div>
         </header>
+
+        {leadingMedia.length > 0 && (
+          <div className="mb-10" data-testid="essay-leading-media">
+            <MediaBlock media={leadingMedia} />
+          </div>
+        )}
 
         {coverUrl && (
           <div className="border hairline rounded-sm overflow-hidden mb-10">
@@ -257,12 +268,12 @@ export default function EssayDetail() {
 
         {!essay.paywall && next && (
           <div className="mt-16 pt-10 border-t hairline" data-testid="next-essay">
-            <p className="uppercase-label mb-4">{next.reason === "more_from_author" ? `More from ${next.author?.name || "this writer"}` : "Also in the room"}</p>
+            <p className="uppercase-label mb-4">{next.reason === "more_from_author" ? `More from ${next.author?.name || "this writer"}` : "Also in the newsroom"}</p>
             <Link to={`/essays/${next.post_id}`} className="block border hairline rounded-sm p-6 bg-cream hover:border-gold transition-colors group">
               <div className="flex gap-5">
                 <div className="flex-1 min-w-0">
                   {next.is_pete_pick && (
-                    <p className="font-sans text-[10px] uppercase tracking-wider font-semibold text-gold mb-2">Pete pick</p>
+                    <p className="font-sans text-[10px] uppercase tracking-wider font-semibold text-gold mb-2">Editor pick</p>
                   )}
                   <h3 className="font-display font-semibold text-xl ink group-hover:text-gold transition-colors leading-tight mb-2">{next.title}</h3>
                   {next.subtitle && (
@@ -295,7 +306,7 @@ function Paywall() {
         <p className="uppercase-label mb-3">Members only</p>
         <h3 className="font-display font-semibold text-2xl ink mb-3">The rest of this essay is for members.</h3>
         <p className="font-serif text-base ink/80 leading-relaxed max-w-prose mx-auto mb-6">
-          The Network is a small room of working real estate operators. Pete reads every application.
+          The Housing News is a small newsroom of working real estate operators. The editors read every application.
         </p>
         <div className="flex items-center justify-center gap-4 flex-wrap">
           <button

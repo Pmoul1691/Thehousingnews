@@ -69,7 +69,7 @@ export default function Landing() {
       {/* Masthead */}
       <section className="container-prose pt-20 sm:pt-28 pb-16 animate-fade-up">
         <p className="font-sans text-[11px] uppercase tracking-[0.28em] font-semibold text-gold mb-8" data-testid="landing-eyebrow">
-          The Ultradian Network
+          The Housing News
         </p>
         <h1 data-testid="landing-headline" className="font-display font-semibold tracking-tight text-5xl sm:text-6xl lg:text-7xl ink leading-[0.98] mb-8">
           A daily magazine
@@ -174,10 +174,10 @@ export default function Landing() {
       </div>
       <section className="container-prose py-20 text-center">
         <h2 className="font-display font-semibold text-2xl sm:text-3xl ink leading-tight mb-4">
-          A small room, on purpose.
+          A small newsroom, on purpose.
         </h2>
         <p className="font-serif italic text-base text-[#2C2410]/65 leading-relaxed max-w-prose mx-auto mb-8">
-          Pete reads every application.
+          The editors read every application.
         </p>
         <button
           onClick={signIn}

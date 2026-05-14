@@ -147,7 +147,7 @@ export default function Write() {
                       <span>Published {formatDate(p.release_at)}</span>
                       <span>.</span>
                       <span>{p.emails_sent || 0} emails sent</span>
-                      {p.is_pete_pick && <><span>.</span><span className="text-gold font-semibold uppercase tracking-wider">Pete pick</span></>}
+                      {p.is_pete_pick && <><span>.</span><span className="text-gold font-semibold uppercase tracking-wider">Editor pick</span></>}
                     </div>
                   </div>
                 </div>

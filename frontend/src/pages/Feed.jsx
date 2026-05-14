@@ -169,7 +169,7 @@ export default function Feed() {
 
             {picks.length > 0 && (
               <div data-testid="rail-picks">
-                <p className="font-sans text-[11px] uppercase tracking-[0.22em] font-semibold text-gold mb-3">Pete picks</p>
+                <p className="font-sans text-[11px] uppercase tracking-[0.22em] font-semibold text-gold mb-3">Staff picks</p>
                 <div className="divide-y divide-[#E8D4A0]/60">
                   {picks.slice(0, 3).map((p) => (
                     <div key={p.post_id} className="py-3 first:pt-0">

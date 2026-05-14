@@ -16,7 +16,7 @@ export default function PetePicksSection({ compact = false, max = 3 }) {
   return (
     <section className="border hairline rounded-sm p-6 sm:p-8 bg-[#F5EDD6]/40" data-testid="pete-picks-section">
       <div className="flex items-center gap-3 mb-6">
-        <span className="font-sans text-[11px] uppercase tracking-[0.18em] font-semibold text-gold">Pete recommends</span>
+        <span className="font-sans text-[11px] uppercase tracking-[0.18em] font-semibold text-gold">Staff picks</span>
         <span className="h-px flex-1 bg-gold-mid" />
       </div>
       <div className="space-y-2 divide-y divide-[#E8D4A0]">

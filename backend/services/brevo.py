@@ -125,7 +125,7 @@ def _wrap(body_html: str) -> str:
     return f"""
     <div style="font-family: Georgia, serif; color:#2C2410; background:#FDFAF4; padding:32px;">
       <div style="max-width:560px; margin:0 auto; background:#FDFAF4; border:1px solid #E8D4A0; padding:32px;">
-        <div style="font-family:'Plus Jakarta Sans', Arial, sans-serif; font-weight:600; color:#AD893E; letter-spacing:0.12em; text-transform:uppercase; font-size:12px; margin-bottom:24px;">The Ultradian Network</div>
+        <div style="font-family:'Plus Jakarta Sans', Arial, sans-serif; font-weight:600; color:#AD893E; letter-spacing:0.12em; text-transform:uppercase; font-size:12px; margin-bottom:24px;">The Housing News</div>
         {body_html}
         <div style="margin-top:32px; padding-top:24px; border-top:1px solid #E8D4A0; font-family:'Plus Jakarta Sans', Arial, sans-serif; font-size:12px; color:#2C2410;">Pete Moulton</div>
       </div>
@@ -136,9 +136,9 @@ def _wrap(body_html: str) -> str:
 def send_application_received(email: str, name: str) -> dict:
     html = _wrap(f"""
       <p>Hi {name},</p>
-      <p>I got your application to The Ultradian Network. I read every one personally.</p>
-      <p>You will hear back from me within 48 hours.</p>
-      <p>Pete</p>
+      <p>The editors received your application to The Housing News. Each one is read personally.</p>
+      <p>You will hear back from us within 48 hours.</p>
+      <p>The Editors</p>
     """)
     add_to_list(email, "Network - Applicants", {"FIRSTNAME": name})
     return send_email(email, name, "Your application is in", html, tags=["ultradian_network", "application_received"])
@@ -151,7 +151,7 @@ def send_application_accepted(email: str, name: str, app_url: str) -> dict:
       <p>Sign in here to finish your profile and write your first post:</p>
       <p><a href="{app_url}" style="display:inline-block; background:#AD893E; color:#FDFAF4; padding:12px 24px; text-decoration:none; font-family:'Plus Jakarta Sans', Arial, sans-serif; font-weight:600;">Open The Network</a></p>
       <p>Two release windows each day. 8:30am and 5:30pm America/Chicago. That is when the feed updates.</p>
-      <p>Pete</p>
+      <p>The Editors</p>
     """)
     add_to_list(email, "Network - Members", {"FIRSTNAME": name})
     return send_email(email, name, "You are in", html, tags=["ultradian_network", "application_accepted"])
@@ -190,10 +190,10 @@ def send_essay_email(
 def send_application_declined(email: str, name: str) -> dict:
     html = _wrap(f"""
       <p>Hi {name},</p>
-      <p>Thanks for applying. I am not approving your application right now.</p>
-      <p>This is a small, working community. I keep the bar high so the feed stays useful.</p>
+      <p>Thanks for applying. We are not approving your application right now.</p>
+      <p>This is a small, working community. We keep the bar high so the feed stays useful.</p>
       <p>You can apply again in six months. No hard feelings.</p>
-      <p>Pete</p>
+      <p>The Editors</p>
     """)
     add_to_list(email, "Network - Declined", {"FIRSTNAME": name})
     return send_email(email, name, "About your application", html, tags=["ultradian_network", "application_declined"])
@@ -236,7 +236,7 @@ def send_digest_email(email: str, name: str, window_label: str, kind: str, posts
         picks_items = "".join(_digest_item_html(p) for p in picks[:3])
         picks_html = f"""
         <div style="margin-top:36px; padding-top:20px; border-top:1px solid #E8D4A0;">
-          <div style="font-family:'Plus Jakarta Sans', Arial, sans-serif; font-weight:600; font-size:11px; letter-spacing:0.18em; text-transform:uppercase; color:#AD893E; margin-bottom:8px;">Pete recommends</div>
+          <div style="font-family:'Plus Jakarta Sans', Arial, sans-serif; font-weight:600; font-size:11px; letter-spacing:0.18em; text-transform:uppercase; color:#AD893E; margin-bottom:8px;">Staff picks</div>
           {picks_items}
         </div>
         """
@@ -255,7 +255,7 @@ def send_digest_email(email: str, name: str, window_label: str, kind: str, posts
 
     html = _wrap(f"""
       <p>Hi {name},</p>
-      <p>The {intro_word} release just dropped. {count} {'post' if count == 1 else 'posts'} from the room.</p>
+      <p>The {intro_word} release just dropped. {count} {'post' if count == 1 else 'posts'} from the newsroom.</p>
       {prompt_html}
       {items_html}
       {more_note}
@@ -263,7 +263,7 @@ def send_digest_email(email: str, name: str, window_label: str, kind: str, posts
       <p style="margin-top:24px;">
         <a href="{os.environ.get('APP_PUBLIC_URL', '')}/feed" style="display:inline-block; background:#AD893E; color:#FDFAF4; padding:10px 20px; text-decoration:none; font-family:'Plus Jakarta Sans', Arial, sans-serif; font-weight:600; font-size:13px;">Open the feed</a>
       </p>
-      <p style="font-family:Georgia, serif; color:#2C2410;">Pete</p>
+      <p style="font-family:Georgia, serif; color:#2C2410;">The Editors</p>
     """)
     subject = f"The {intro_word} release ({window_label})"
     return send_email(email, name, subject, html, tags=["ultradian_network", f"digest_{kind}"], dispatch_id=dispatch_id)

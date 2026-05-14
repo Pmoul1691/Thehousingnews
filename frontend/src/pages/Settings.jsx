@@ -86,7 +86,7 @@ export default function Settings() {
           <p className="uppercase-label mb-3">Invitations</p>
           <h2 className="font-display font-semibold text-2xl ink mb-2">Bring someone in.</h2>
           <p className="prose-serif text-base ink/80 leading-relaxed max-w-prose mb-6">
-            Two invite codes per quarter. Each code is one-time-use and expires after sixty days. Pete still reviews every application, but a valid code tells him you vouch for the person.
+            Two invite codes per quarter. Each code is one-time-use and expires after sixty days. We still review every application, but a valid code tells us you vouch for the person.
           </p>
 
           <div className="border hairline rounded-sm bg-cream p-5 mb-6 flex items-center justify-between gap-4 flex-wrap" data-testid="invites-quota">

@@ -13,19 +13,19 @@ export default function About() {
     <div data-testid="about-page">
       <section className="container-prose pt-20 pb-16 animate-fade-up">
         <div className="mb-8"><BloomMark size={72} /></div>
-        <p data-testid="about-eyebrow" className="uppercase-label mb-5">About the room</p>
+        <p data-testid="about-eyebrow" className="uppercase-label mb-5">The masthead</p>
         <h1 data-testid="about-headline" className="font-display font-semibold tracking-tight text-4xl sm:text-5xl ink leading-[1.05]">
           Two release windows a day. The rest is quiet.
         </h1>
         <div className="mt-10 prose-serif text-lg leading-relaxed text-[#2C2410] max-w-prose space-y-5">
-          <p>I built this because I was tired of LinkedIn.</p>
+          <p>The Housing News was built because we got tired of LinkedIn.</p>
           <p>
-            Twenty eight years selling and coaching in real estate. 1,600 agents trained. $2.8 billion in client sales volume. Five
-            brokerages in Chicago. I never once made a deal because a stranger left a fire emoji on my post.
+            We are working real estate operators. Decades of experience between us. Thousands of agents trained. Billions in client sales volume.
+            No deal was ever made because a stranger left a fire emoji on a post.
           </p>
           <p>
-            The Ultradian Network is a feed of working operators. You write when you have something to say. The feed updates twice
-            a day, at 8:30am and 5:30pm Chicago time. That is it.
+            The Housing News is a daily magazine of working real estate operators. You write when you have something to say. The
+            magazine releases twice a day, at 8:30am and 5:30pm Chicago time. That is it.
           </p>
           <p>No follower counts. No trending tab. No outrage. No selling courses to each other.</p>
         </div>
@@ -44,19 +44,19 @@ export default function About() {
               Every member states three public objectives. The things you are actually working on this quarter. You can revise them.
               The platform remembers the prior version. That is the entire game.
             </p>
-            <p>You are accountable to the room. The room is small on purpose.</p>
+            <p>You are accountable to the newsroom. The newsroom is small on purpose.</p>
           </div>
         </div>
       </section>
 
       <section className="border-t hairline bg-[#F5EDD6]/40">
         <div className="container-wide py-16">
-          <p className="uppercase-label mb-8 text-center">Three rules of the room</p>
+          <p className="uppercase-label mb-8 text-center">Three rules of the newsroom</p>
           <div className="grid sm:grid-cols-3 gap-12">
             <div data-testid="rule-card-1">
               <div className="font-display text-3xl font-semibold text-gold mb-3">01</div>
               <h3 className="font-display font-semibold text-lg ink mb-2">Write like you talk.</h3>
-              <p className="prose-serif text-base text-[#2C2410]/80 leading-relaxed">No buzzwords. No motivational copy. If your post sounds like a LinkedIn bot, I will ask you to rewrite it.</p>
+              <p className="prose-serif text-base text-[#2C2410]/80 leading-relaxed">No buzzwords. No motivational copy. If a post sounds like a LinkedIn bot, the editors will ask for a rewrite.</p>
             </div>
             <div data-testid="rule-card-2">
               <div className="font-display text-3xl font-semibold text-gold mb-3">02</div>
@@ -74,11 +74,11 @@ export default function About() {
 
       <section className="border-t hairline">
         <div className="container-prose py-16">
-          <p className="uppercase-label mb-4">Who I am</p>
-          <h2 className="font-display font-semibold text-2xl sm:text-3xl ink mb-6">Pete Moulton.</h2>
+          <p className="uppercase-label mb-4">The editors</p>
+          <h2 className="font-display font-semibold text-2xl sm:text-3xl ink mb-6">A working newsroom.</h2>
           <div className="prose-serif text-base sm:text-lg leading-relaxed space-y-5 ink">
-            <p>I have spent 28 years in this business. I coached over 1,600 agents. The teams I helped lead closed $2.8 billion in new client volume across five Chicago brokerages.</p>
-            <p>I moderate every post. I read every application. If you are in, you are in because I read your name and said yes.</p>
+            <p>We have spent decades in real estate. We have coached thousands of agents. The teams we helped lead have closed billions in new client volume across Chicago brokerages.</p>
+            <p>We read every application. If you are in, you are in because the editors read your name and said yes.</p>
             <p>If you are an existing Ultradian Partners subscriber, you are auto granted. Just sign in.</p>
           </div>
           <div className="mt-10 flex flex-wrap items-center gap-4">

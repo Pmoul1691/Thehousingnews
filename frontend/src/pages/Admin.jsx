@@ -120,7 +120,7 @@ export default function Admin() {
       <div className="flex items-end justify-between flex-wrap gap-4 mb-8">
         <div>
           <p className="uppercase-label mb-3">Admin</p>
-          <h1 className="font-display font-semibold text-3xl ink">Pete's queue</h1>
+          <h1 className="font-display font-semibold text-3xl ink">Editor queue</h1>
         </div>
         <div className="flex items-center gap-4">
           <RssImportButton />

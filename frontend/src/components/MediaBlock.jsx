@@ -62,8 +62,11 @@ function Gallery({ images, compact }) {
 
 function VideoPlayer({ video }) {
   const src = video.path ? `${API}/uploads/file/${video.path}` : null;
-  const hlsSrc = video.hls_path ? `${API}/uploads/file/${video.hls_path}` : null;
-  const poster = video.thumbnail_path ? `${API}/uploads/file/${video.thumbnail_path}` : undefined;
+  // External HLS (e.g. Mux) takes precedence; fall back to internal HLS, then mp4.
+  const externalHls = video.external_hls_url || null;
+  const hlsSrc = externalHls || (video.hls_path ? `${API}/uploads/file/${video.hls_path}` : null);
+  const poster = video.poster_url
+    || (video.thumbnail_path ? `${API}/uploads/file/${video.thumbnail_path}` : undefined);
   const videoRef = useRef(null);
 
   useEffect(() => {
@@ -80,9 +83,13 @@ function VideoPlayer({ video }) {
       hls.attachMedia(el);
       return () => { try { hls.destroy(); } catch (e) { /* ignore */ } };
     }
-    // Fallback: try setting src directly
     el.src = hlsSrc;
   }, [hlsSrc]);
+
+  // Mux verticals (1080x1920) should render at a sensible max height
+  const verticalCls = (video.width && video.height && video.height > video.width)
+    ? "max-h-[640px] mx-auto"
+    : "max-h-[520px] w-full";
 
   return (
     <div className="border hairline rounded-sm overflow-hidden bg-black" data-testid="media-video">
@@ -92,7 +99,7 @@ function VideoPlayer({ video }) {
         playsInline
         preload="metadata"
         poster={poster}
-        className="w-full max-h-[520px]"
+        className={verticalCls}
       >
         {!hlsSrc && src && <source src={src} type={video.mime || "video/mp4"} />}
       </video>

@@ -127,7 +127,7 @@ class TestCORS:
             r = requests.get(
                 f"{API}/auth/me",
                 headers={
-                    "Origin": "https://essay-collective.preview.emergentagent.com",
+                    "Origin": "https://real-estate-social.preview.emergentagent.com",
                     "Authorization": f"Bearer {token}",
                 },
                 timeout=15,

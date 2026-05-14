@@ -47,7 +47,7 @@ export default function Upgrade() {
       <div className="mb-10"><BloomMark size={64} /></div>
       <p className="uppercase-label mb-4">Support</p>
       <h1 className="font-display font-semibold text-3xl sm:text-4xl ink mb-6">
-        Two ways to support the room.
+        Two ways to support the newsroom.
       </h1>
       <div className="prose-serif text-base sm:text-lg leading-relaxed ink/90 space-y-4 max-w-prose mb-12">
         <p>I run this myself. No ads. No data brokers. No engagement loops.</p>

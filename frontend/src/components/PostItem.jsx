@@ -31,7 +31,7 @@ function EssayCard({ post, user, onChange }) {
     try {
       const url = post.is_pete_pick ? `/admin/posts/${post.post_id}/unpick` : `/admin/posts/${post.post_id}/pick`;
       await api.post(url);
-      toast.success(post.is_pete_pick ? "Removed from Pete picks" : "Added to Pete picks");
+      toast.success(post.is_pete_pick ? "Removed from editor picks" : "Added to editor picks");
       onChange && onChange();
     } catch (e) {
       toast.error(e?.response?.data?.detail || "Could not update");
@@ -42,7 +42,7 @@ function EssayCard({ post, user, onChange }) {
     <article data-testid={`post-${post.post_id}`} className="border-b hairline py-10 first:pt-0">
       {post.is_pete_pick && (
         <div className="mb-4 flex items-center gap-2" data-testid={`pete-pick-${post.post_id}`}>
-          <span className="font-sans text-[10px] uppercase tracking-[0.18em] font-semibold text-gold">Pete pick</span>
+          <span className="font-sans text-[10px] uppercase tracking-[0.18em] font-semibold text-gold">Editor pick</span>
           <span className="h-px flex-1 bg-gold-mid" />
         </div>
       )}
@@ -102,7 +102,7 @@ function EssayCard({ post, user, onChange }) {
               disabled={busy}
               className="font-sans text-xs text-gold hover:opacity-80 transition-opacity disabled:opacity-50 uppercase tracking-wide"
             >
-              {post.is_pete_pick ? "Unpick" : "Pete pick"}
+              {post.is_pete_pick ? "Unpick" : "Editor pick"}
             </button>
           )}
           {user && <FlagButton targetKind="post" targetId={post.post_id} viewerFlagged={post.viewer_flagged} isOwner={isOwner} />}
@@ -133,7 +133,7 @@ export default function PostItem({ post, showReplies = true, compact = false, on
     try {
       const url = post.is_pete_pick ? `/admin/posts/${post.post_id}/unpick` : `/admin/posts/${post.post_id}/pick`;
       await api.post(url);
-      toast.success(post.is_pete_pick ? "Removed from Pete picks" : "Added to Pete picks");
+      toast.success(post.is_pete_pick ? "Removed from editor picks" : "Added to editor picks");
       onChange && onChange();
     } catch (e) {
       toast.error(e?.response?.data?.detail || "Could not update");
@@ -144,7 +144,7 @@ export default function PostItem({ post, showReplies = true, compact = false, on
     <article data-testid={`post-${post.post_id}`} className="border-b hairline py-10 first:pt-0">
       {post.is_pete_pick && !compact && (
         <div className="mb-4 flex items-center gap-2" data-testid={`pete-pick-${post.post_id}`}>
-          <span className="font-sans text-[10px] uppercase tracking-[0.18em] font-semibold text-gold">Pete pick</span>
+          <span className="font-sans text-[10px] uppercase tracking-[0.18em] font-semibold text-gold">Editor pick</span>
           <span className="h-px flex-1 bg-gold-mid" />
         </div>
       )}
@@ -194,7 +194,7 @@ export default function PostItem({ post, showReplies = true, compact = false, on
               disabled={busy}
               className="font-sans text-xs text-gold hover:opacity-80 transition-opacity disabled:opacity-50 uppercase tracking-wide"
             >
-              {post.is_pete_pick ? "Unpick" : "Pete pick"}
+              {post.is_pete_pick ? "Unpick" : "Editor pick"}
             </button>
           )}
           {user && (

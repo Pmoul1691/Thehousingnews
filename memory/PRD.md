@@ -243,14 +243,38 @@ of teams.
 - **Phase 3**: Follows, member directory, advanced moderation (flag, hide, suspend).
 - **Phase 4**: Paid tier with its own Stripe account, member analytics, public launch.
 
+## Phase 21 — Hamburger nav + "We"/Staff picks voice (2026-02-14)
+- **Header collapsed**: Authenticated nav now shows only Logo, Feed link, gold Write pill,
+  and a hamburger trigger (`data-testid="nav-menu-trigger"`) that opens a right-side Sheet.
+  Sheet contains: Essays, Subjects, Library, Members, Profile, Settings, Admin (if admin),
+  About, Sign out. Mobile-friendly.
+- **Voice swap**: replaced all user-facing first-person/single-person "Pete" framing with
+  plural "We" / "The Editors" / "the editors" across UI and transactional emails.
+  - `About.jsx` masthead rewritten in "we" voice (no more "Pete Moulton" single founder framing).
+  - `PendingReview.jsx`: "We will read it shortly." / sign-off "The Editors".
+  - `FlagButton.jsx`: "Tell us what is off" / "The editors will take a look".
+  - `Prompts.jsx`: "Suggestion sent to the editors".
+  - `Settings.jsx` invites: "We still review every application..."
+  - Brevo email templates (`services/brevo.py`, `services/admin_digest.py`,
+    `routes/email_health.py`): every "Pete" sign-off swapped to "The Editors".
+- **"Staff picks"** replaces "Editor picks" / "Pete recommends" across:
+  - Feed sidebar, Essays page, PetePicksSection component, AdminAnalyticsPanel,
+    Brevo digest emails, Sunday admin brief.
+- Component file `PetePicksSection.jsx` kept (internal name only); user-facing label
+  is now "Staff picks".
+
 ## Backlog
 - P0: confirm Brevo sender email is verified in Brevo dashboard.
+- P0 (user action): DNS configuration for thehousingnews.com.
 - P1: rate-limit application submissions per email.
+- P1: floating Write pill on every authenticated page (bottom-right).
 - P1: image resize at upload time (compress > 1MB).
+- P2: draft indicator dot on Write pill when auto-saved draft exists.
+- P2: `/admin` "Reconnect orphan profile to user" button.
 - P2: search posts.
-- P2: weekly admin digest email.
 
 ## Next Actions
-1. Test full end-to-end (auth, application, admin approve, post, public feed).
-2. Add Phase 2 batched scheduler with apscheduler.
-3. Add digest email job that summarises the AM and PM batches.
+1. Verify DNS + production domain (user).
+2. Build floating Write pill on authed pages.
+3. Add draft-indicator dot.
+

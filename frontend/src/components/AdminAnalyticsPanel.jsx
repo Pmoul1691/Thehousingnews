@@ -88,7 +88,7 @@ export default function AdminAnalyticsPanel() {
 
       <section className="grid sm:grid-cols-2 gap-4">
         <Stat label="Open flags" value={data.open_flags} hint="Pending moderation review" />
-        <Stat label="Pete picks (30d)" value={data.pete_picks_30d} />
+        <Stat label="Staff picks (30d)" value={data.pete_picks_30d} />
       </section>
 
       {emailData && (

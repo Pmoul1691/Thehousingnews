@@ -16,6 +16,7 @@ import feedparser
 from markdownify import markdownify
 
 from services.release_window import next_window
+from services.substack_fetch import fetch_substack_media
 
 logger = logging.getLogger(__name__)
 
@@ -147,6 +148,18 @@ async def import_substack_feed(db, feed_url: Optional[str] = None) -> dict:
         # `release_at` is gated to the next batched release window so the
         # essay does not jump the calm-by-design rhythm.
         source_published_iso = _parse_published(entry)
+
+        # Fetch the original Substack page to see if it embeds a Mux video.
+        # If yes, attach it as media[0] so the reader page renders the full
+        # video instead of just the short text caption.
+        media: list = []
+        try:
+            mux = fetch_substack_media(source_url) if source_url else None
+            if mux:
+                media.append(mux)
+        except Exception as _e:
+            logger.warning("Mux fetch failed for %s: %s", source_url, _e)
+
         post_id = f"post_{uuid.uuid4().hex[:12]}"
         doc = {
             "post_id": post_id,
@@ -156,7 +169,7 @@ async def import_substack_feed(db, feed_url: Optional[str] = None) -> dict:
             "subtitle": subtitle,
             "text": text_md,
             "image_path": None,
-            "media": [],
+            "media": media,
             "status": "approved",
             "release_at": release_iso,
             "created_at": now_iso,

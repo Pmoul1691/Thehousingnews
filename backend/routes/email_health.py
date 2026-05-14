@@ -19,7 +19,7 @@ router = APIRouter(prefix="/api/admin/email", tags=["email-health"])
 
 def _domain_from_sender() -> str:
     parts = (SENDER_EMAIL or "").split("@")
-    return parts[1] if len(parts) == 2 else "ultradiannetwork.com"
+    return parts[1] if len(parts) == 2 else "thehousingnews.com"
 
 
 def _public_domain() -> str:
@@ -121,7 +121,7 @@ def setup(db):
                     "type": "CNAME",
                     "purpose": "Web hostname (optional)",
                     "value": public_domain,
-                    "hint": "Point www to the apex so people who type www.ultradiannetwork.com still land on the network.",
+                    "hint": "Point www to the apex so people who type www.thehousingnews.com still land on the magazine.",
                 },
             ],
             "checklist": [
@@ -138,17 +138,17 @@ def setup(db):
         html = f"""
         <div style="font-family: Georgia, serif; color:#2C2410; background:#FDFAF4; padding:32px;">
           <div style="max-width:560px; margin:0 auto; background:#FDFAF4; border:1px solid #E8D4A0; padding:32px;">
-            <div style="font-family:'Plus Jakarta Sans', Arial, sans-serif; font-weight:600; color:#AD893E; letter-spacing:0.12em; text-transform:uppercase; font-size:12px; margin-bottom:24px;">The Ultradian Network</div>
+            <div style="font-family:'Plus Jakarta Sans', Arial, sans-serif; font-weight:600; color:#AD893E; letter-spacing:0.12em; text-transform:uppercase; font-size:12px; margin-bottom:24px;">The Housing News</div>
             <p>This is a deliverability test sent by {admin.get('email')}.</p>
             <p>If you can read this, the sender ({SENDER_EMAIL}) is configured correctly. Open the headers and look for `dkim=pass` and `spf=pass`.</p>
-            <p>Pete</p>
+            <p>The Editors</p>
           </div>
         </div>
         """
         result = send_email(
             to_email=payload.to_email,
             to_name="Test recipient",
-            subject="Deliverability test from The Ultradian Network",
+            subject="Deliverability test from The Housing News",
             html=html,
             tags=["ultradian_network", "deliverability_test"],
         )

@@ -142,7 +142,7 @@ def render_admin_digest_html(data: dict) -> str:
     return f"""
     <div style="font-family: Georgia, serif; color:#2C2410; background:#FDFAF4; padding:32px 0;">
       <div style="max-width:600px; margin:0 auto; background:#FDFAF4; border:1px solid #E8D4A0; padding:32px;">
-        <div style="font-family:'Plus Jakarta Sans', Arial, sans-serif; font-weight:600; color:#AD893E; letter-spacing:0.12em; text-transform:uppercase; font-size:11px; margin-bottom:8px;">Pete's Sunday brief</div>
+        <div style="font-family:'Plus Jakarta Sans', Arial, sans-serif; font-weight:600; color:#AD893E; letter-spacing:0.12em; text-transform:uppercase; font-size:11px; margin-bottom:8px;">Editors' Sunday brief</div>
         <h1 style="font-family:'Plus Jakarta Sans', Arial, sans-serif; font-weight:600; font-size:24px; color:#2C2410; margin:0 0 24px 0;">The last seven days, in numbers.</h1>
 
         <table cellpadding="0" cellspacing="0" border="0" style="width:100%; border-collapse:collapse; border-top:1px solid #E8D4A0;">
@@ -162,7 +162,7 @@ def render_admin_digest_html(data: dict) -> str:
           <tr><td colspan="2" style="padding:14px 0 6px 0;"><div style="font-family:'Plus Jakarta Sans', Arial, sans-serif; font-weight:600; font-size:11px; letter-spacing:0.18em; text-transform:uppercase; color:#AD893E;">Writing</div></td></tr>
           {_row("Short posts released", _fmt_count(po["short"]))}
           {_row("Essays released", _fmt_count(po["essays"]))}
-          {_row("Pete picks added", _fmt_count(data["picks_7d"]))}
+          {_row("Staff picks added", _fmt_count(data["picks_7d"]))}
         </table>
         {top_replies_html}
 
@@ -210,7 +210,7 @@ async def send_admin_digest(db) -> dict:
         send_email(
             to_email=a["email"],
             to_name=a.get("name") or "Admin",
-            subject="Pete's Sunday brief: the last seven days",
+            subject="Editors' Sunday brief: the last seven days",
             html=html,
             tags=["ultradian_network", "admin_digest"],
             dispatch_id=dispatch_id,

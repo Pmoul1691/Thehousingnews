@@ -23,7 +23,7 @@ export function FeaturedEssay({ essay, linkTo, cta, variant = "card", testIdPref
     const inner = (
       <>
         <p className="font-sans text-[11px] uppercase tracking-[0.22em] font-semibold text-gold mb-5">
-          {essay.is_pete_pick ? "Pete pick" : "Latest essay"}
+          {essay.is_pete_pick ? "Editor pick" : "Latest essay"}
         </p>
         <h2 className="font-display font-semibold text-3xl sm:text-4xl lg:text-5xl ink leading-[1.05] tracking-tight mb-5 group-hover:text-gold transition-colors">
           {essay.title}
@@ -64,7 +64,7 @@ export function FeaturedEssay({ essay, linkTo, cta, variant = "card", testIdPref
       <div className={`p-7 sm:p-9 ${coverUrl ? "sm:col-span-3" : "sm:col-span-5"}`}>
         <div className="flex items-center gap-2 mb-3">
           {essay.is_pete_pick && (
-            <span className="font-sans text-[10px] uppercase tracking-[0.18em] font-semibold text-gold">Pete pick</span>
+            <span className="font-sans text-[10px] uppercase tracking-[0.18em] font-semibold text-gold">Editor pick</span>
           )}
           <span className="font-sans text-[10px] uppercase tracking-[0.18em] font-semibold text-gold">. Featured essay</span>
         </div>
@@ -130,7 +130,7 @@ export function EssayMini({ essay, linkTo, variant = "card", testIdPrefix = "min
         <div className="font-sans text-xs text-muted-ink">
           {author.name}{author.market ? ` · ${author.market}` : ""}
           {(essay.release_at || essay.created_at) ? ` · ${formatDate(essay.release_at || essay.created_at)}` : ""}
-          {essay.is_pete_pick ? " · Pete pick" : ""}
+          {essay.is_pete_pick ? " · Editor pick" : ""}
         </div>
       </>
     );
@@ -147,7 +147,7 @@ export function EssayMini({ essay, linkTo, variant = "card", testIdPrefix = "min
   const body = (
     <>
       {essay.is_pete_pick && (
-        <p className="font-sans text-[10px] uppercase tracking-wider text-gold font-semibold mb-2">Pete pick</p>
+        <p className="font-sans text-[10px] uppercase tracking-wider text-gold font-semibold mb-2">Editor pick</p>
       )}
       <p className="font-sans text-[10px] uppercase tracking-wider text-muted-ink font-semibold mb-2">Essay</p>
       <h3 className="font-display font-semibold text-base ink leading-snug group-hover:text-gold transition-colors line-clamp-3 mb-3">
