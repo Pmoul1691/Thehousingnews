@@ -282,15 +282,34 @@ of teams.
 - **"Operators" -> "producers" / "the real estate industry"** across all
   user-facing copy: `About.jsx`, `EssayDetail.jsx`, `Essays.jsx`, `Upgrade.jsx`.
 
+## Phase 23 — Search posts + digest polish + tighter image compression (2026-02-14)
+- **Posts search** (`GET /api/posts/search?q=...&kind=...&market=...`): full-text
+  search across released posts using a new Mongo text index on
+  `(text, title, subtitle)` with weights `title:10, subtitle:4, text:1`. Members
+  only; suspended authors excluded. Sort: text score, then release_at desc.
+- **New `/search` page** (`pages/Search.jsx`) with URL-synced query params, kind
+  tabs (Everything / Essays / Short posts), and an optional market filter.
+  Linked from the hamburger menu and from the Feed right-rail Shortcuts.
+- **Image compression**: bumped longest-edge from 1920 -> 2000px,
+  `RESIZE_JPEG_QUALITY` 85 -> 82, EXIF strip already in place. Trigger threshold
+  unchanged at 1MB.
+- **Application rate-limit**: pre-existing `applications.py` check (one
+  submission per email per 24h) was confirmed and tested at 429.
+- **Weekly admin digest polish** (`services/admin_digest.py`):
+  - Date-stamped subject line, e.g. `Sunday brief - Feb 14 - 3 applications pending`.
+  - New "Top essays this week" section (sorted by reply count, then recency, top 3).
+  - New "Biggest mover" callout: member whose released-post count grew most vs
+    the prior 7-day window. Quiet pull-quote style block.
+- **"Staff picks"** label propagated to every previously-missed surface
+  (`PostItem`, `EssayCards`, `EssayDetail`, `Essays`, `Write` page).
+
 ## Backlog
 - P0: confirm Brevo sender email is verified in Brevo dashboard.
 - P0 (user action): DNS configuration for thehousingnews.com.
-- P1: rate-limit application submissions per email.
-- P1: image resize at upload time (compress > 1MB).
-- P2: search posts.
 
 ## Next Actions
 1. Verify DNS + production domain (user).
-2. End-to-end QA of the floating pill + draft dot on real member content.
-3. Consider draft-dot fade-in animation if it feels too abrupt.
+2. Consider adding a "g w" keyboard shortcut for the floating Write pill.
+3. Consider a soft delete / audit trail for the orphan reconnect destructive
+   step (currently deletes any placeholder profile under the new user_id).
 
