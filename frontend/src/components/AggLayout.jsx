@@ -43,9 +43,12 @@ export default function AggLayout({ children }) {
         <div className="max-w-5xl mx-auto px-4 sm:px-6">
           <div className="flex items-center justify-between py-3">
             <Link to="/news" data-testid="agg-nav-home" className="flex items-center gap-3 group">
-              <span className="font-display font-semibold tracking-tight text-lg sm:text-xl text-agg-cream">
-                The Housing News
-              </span>
+              <img
+                src="/brand/logo-full-light.png"
+                alt="The Housing News"
+                className="h-7 sm:h-8 w-auto select-none"
+                draggable={false}
+              />
               <span className="hidden sm:inline font-sans text-[10px] uppercase tracking-[0.22em] text-agg-orange/90 mt-0.5">
                 Daily aggregator
               </span>
