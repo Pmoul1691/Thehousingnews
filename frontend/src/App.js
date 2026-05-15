@@ -43,6 +43,7 @@ import AggCategory from "@/pages/AggCategory";
 import AggAbout from "@/pages/AggAbout";
 import AggNewsletter from "@/pages/AggNewsletter";
 import AggAdmin from "@/pages/AggAdmin";
+import Podcasts from "@/pages/Podcasts";
 
 // Paths owned by the aggregator. Everything else falls back to the members
 // product layout. Keep this list in sync with the routes below.
@@ -98,6 +99,7 @@ function Router() {
         <Route path="/news/category/:category" element={<AggCategory />} />
         <Route path="/news/about" element={<AggAbout />} />
         <Route path="/news/newsletter" element={<AggNewsletter />} />
+        <Route path="/news/podcasts" element={<Podcasts />} />
         <Route path="/admin/aggregator" element={<AggAdmin />} />
 
         {/* === Back-compat redirects from the previous routing === */}

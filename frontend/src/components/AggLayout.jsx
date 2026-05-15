@@ -51,6 +51,9 @@ export default function AggLayout({ children }) {
               </span>
             </Link>
             <div className="flex items-center gap-5">
+              <Link to="/news/podcasts" data-testid="agg-nav-podcasts" className="hidden sm:inline font-sans text-sm font-medium text-agg-cream hover:text-agg-orange transition-colors">
+                Podcasts
+              </Link>
               <Link to="/news/newsletter" data-testid="agg-nav-newsletter" className="hidden sm:inline font-sans text-sm font-medium text-agg-cream hover:text-agg-orange transition-colors">
                 Newsletter
               </Link>
@@ -84,6 +87,7 @@ export default function AggLayout({ children }) {
                         {c.label}
                       </Link>
                     ))}
+                    <Link to="/news/podcasts" onClick={close} className="font-display text-lg px-4 py-3 rounded-sm hover:bg-agg-navy-deep hover:text-agg-orange transition-colors">Podcasts</Link>
                     <Link to="/news/newsletter" onClick={close} className="font-display text-lg px-4 py-3 rounded-sm hover:bg-agg-navy-deep hover:text-agg-orange transition-colors">Newsletter</Link>
                     <Link to="/news/about" onClick={close} className="font-display text-lg px-4 py-3 rounded-sm hover:bg-agg-navy-deep hover:text-agg-orange transition-colors">About</Link>
                     <a href="/legal/terms-of-service.pdf" target="_blank" rel="noreferrer" onClick={close} className="font-display text-lg px-4 py-3 rounded-sm hover:bg-agg-navy-deep hover:text-agg-orange transition-colors">Terms</a>
@@ -128,6 +132,7 @@ export default function AggLayout({ children }) {
           </div>
           <div className="flex items-center gap-5">
             <Link to="/news/about" className="hover:text-agg-orange transition-colors">About</Link>
+            <Link to="/news/podcasts" className="hover:text-agg-orange transition-colors">Podcasts</Link>
             <Link to="/news/newsletter" className="hover:text-agg-orange transition-colors">Newsletter</Link>
             <a href="/legal/terms-of-service.pdf" target="_blank" rel="noreferrer" className="hover:text-agg-orange transition-colors">Terms</a>
             <Link to="/" className="hover:text-agg-orange transition-colors">Members</Link>

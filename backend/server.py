@@ -40,6 +40,7 @@ from routes.aggregator import setup as setup_aggregator
 from routes.aggregator_admin import setup as setup_aggregator_admin
 from routes.aggregator_suggestions import setup as setup_aggregator_suggestions
 from routes.admin_reset import setup as setup_admin_reset
+from routes.podcasts import setup as setup_podcasts
 from services.object_storage import init_storage
 from services.release_window import next_window, now_chicago
 from services.scheduler import start_scheduler, release_batch
@@ -289,3 +290,4 @@ app.include_router(setup_aggregator(db))
 app.include_router(setup_aggregator_admin(db))
 app.include_router(setup_aggregator_suggestions(db))
 app.include_router(setup_admin_reset(db))
+app.include_router(setup_podcasts(db))
