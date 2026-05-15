@@ -70,7 +70,7 @@ export default function AggPublisherCard({ entry }) {
         <PublisherLogo publisher={pub} size={36} />
         <div className="min-w-0">
           <Link
-            to={`/source/${pub.slug}`}
+            to={`/news/source/${pub.slug}`}
             data-testid={`agg-pub-card-name-${pub.slug}`}
             className="font-display font-semibold text-[15px] text-agg-navy hover:text-agg-orange transition-colors truncate block"
           >
@@ -104,7 +104,7 @@ export default function AggPublisherCard({ entry }) {
       )}
 
       <Link
-        to={`/source/${pub.slug}`}
+        to={`/news/source/${pub.slug}`}
         data-testid={`agg-pub-card-more-${pub.slug}`}
         className="mt-4 inline-flex items-center justify-center self-start font-sans text-[11px] uppercase tracking-[0.18em] font-semibold text-agg-orange border border-agg-orange/40 px-3 py-1.5 rounded-sm hover:bg-agg-orange hover:text-white transition-colors"
       >

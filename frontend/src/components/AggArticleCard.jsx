@@ -41,7 +41,7 @@ export function ArticleCard({ article }) {
               <img src={pub.logo_url} alt="" className="w-4 h-4 object-contain rounded-sm" />
             ) : null}
             <Link
-              to={`/source/${pub.slug}`}
+              to={`/news/source/${pub.slug}`}
               data-testid={`agg-article-publisher-${article.id}`}
               className="font-sans text-[12px] font-semibold text-agg-navy hover:text-agg-orange transition-colors"
             >

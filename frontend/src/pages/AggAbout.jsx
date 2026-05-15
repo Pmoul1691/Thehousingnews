@@ -40,8 +40,8 @@ export default function AggAbout() {
           Independently published. We have spent decades in real estate — coached thousands of
           agents, helped lead teams that closed billions in client volume. The aggregator is
           free, ad-free, and tracker-free. If you want to support the work, the{" "}
-          <Link to="/newsletter" className="text-agg-navy underline underline-offset-4 hover:text-agg-orange">daily email</Link>{" "}
-          is free; the <Link to="/welcome" className="text-agg-navy underline underline-offset-4 hover:text-agg-orange">members club</Link> is paid.
+          <Link to="/news/newsletter" className="text-agg-navy underline underline-offset-4 hover:text-agg-orange">daily email</Link>{" "}
+          is free; the <Link to="/" className="text-agg-navy underline underline-offset-4 hover:text-agg-orange">members club</Link> is paid.
         </p>
 
         <h2 className="font-display font-semibold text-xl text-agg-navy pt-4">For publishers</h2>

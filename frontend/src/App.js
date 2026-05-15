@@ -1,6 +1,6 @@
 import React from "react";
 import "@/App.css";
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation, Navigate } from "react-router-dom";
 import { Toaster } from "sonner";
 import { AuthProvider } from "@/context/AuthContext";
 
@@ -46,7 +46,7 @@ import AggAdmin from "@/pages/AggAdmin";
 
 // Paths owned by the aggregator. Everything else falls back to the members
 // product layout. Keep this list in sync with the routes below.
-const AGG_PATHS = [/^\/$/, /^\/source\//, /^\/category\//, /^\/about$/, /^\/newsletter$/, /^\/admin\/aggregator$/];
+const AGG_PATHS = [/^\/news(\/|$)/, /^\/admin\/aggregator$/];
 
 function isAggregatorPath(pathname) {
   return AGG_PATHS.some((re) => re.test(pathname));
@@ -64,17 +64,9 @@ function Router() {
   return (
     <ChromeLayout>
       <Routes>
-        {/* === Aggregator routes (public, no auth) === */}
-        <Route path="/" element={<AggHome />} />
-        <Route path="/source/:slug" element={<AggPublisher />} />
-        <Route path="/category/:category" element={<AggCategory />} />
-        <Route path="/about" element={<AggAbout />} />
-        <Route path="/newsletter" element={<AggNewsletter />} />
-        <Route path="/admin/aggregator" element={<AggAdmin />} />
-
-        {/* === Members product routes (existing) === */}
-        <Route path="/welcome" element={<Landing />} />
-        <Route path="/welcome/about" element={<About />} />
+        {/* === Members product (owns /) === */}
+        <Route path="/" element={<Landing />} />
+        <Route path="/about" element={<About />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/apply" element={<Apply />} />
         <Route path="/pending" element={<PendingReview />} />
@@ -99,9 +91,31 @@ function Router() {
         <Route path="/search" element={<Search />} />
         <Route path="/pricing" element={<Pricing />} />
         <Route path="/tag/:tag" element={<Tag />} />
+
+        {/* === Aggregator (lives under /news) === */}
+        <Route path="/news" element={<AggHome />} />
+        <Route path="/news/source/:slug" element={<AggPublisher />} />
+        <Route path="/news/category/:category" element={<AggCategory />} />
+        <Route path="/news/about" element={<AggAbout />} />
+        <Route path="/news/newsletter" element={<AggNewsletter />} />
+        <Route path="/admin/aggregator" element={<AggAdmin />} />
+
+        {/* === Back-compat redirects from the previous routing === */}
+        <Route path="/welcome" element={<Navigate to="/" replace />} />
+        <Route path="/welcome/about" element={<Navigate to="/about" replace />} />
+        <Route path="/source/:slug" element={<LegacyAggRedirect to="/news/source" />} />
+        <Route path="/category/:category" element={<LegacyAggRedirect to="/news/category" />} />
+        <Route path="/newsletter" element={<Navigate to="/news/newsletter" replace />} />
       </Routes>
     </ChromeLayout>
   );
+}
+
+// Preserves the slug/category param across the redirect.
+function LegacyAggRedirect({ to }) {
+  const { pathname, search } = useLocation();
+  const tail = pathname.split("/").slice(2).join("/");
+  return <Navigate to={`${to}/${tail}${search}`} replace />;
 }
 
 function App() {

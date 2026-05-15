@@ -56,7 +56,7 @@ export default function AggTrendingStrip() {
           {items.map((t) => (
             <li key={t.topic} data-testid={`agg-trending-${t.topic.replace(/\s+/g, "-")}`}>
               <Link
-                to={`/?topic=${encodeURIComponent(t.topic)}`}
+                to={`/news?topic=${encodeURIComponent(t.topic)}`}
                 className="inline-flex items-center gap-2 whitespace-nowrap rounded-full border border-slate-200 bg-white px-3 py-1 font-sans text-xs text-agg-navy hover:border-agg-orange hover:text-agg-orange transition-colors"
               >
                 <span className="font-medium">{t.topic}</span>

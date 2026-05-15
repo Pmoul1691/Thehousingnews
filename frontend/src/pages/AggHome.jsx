@@ -50,7 +50,7 @@ export default function AggHome() {
           <span className="font-sans text-[11px] uppercase tracking-[0.18em] text-slate-500">Filtering</span>
           <span className="inline-flex items-center gap-2 rounded-full border border-agg-orange/40 bg-agg-orange/5 px-3 py-1 font-sans text-xs text-agg-navy">
             {topic}
-            <Link to="/" className="text-agg-orange hover:opacity-75" aria-label="Clear topic filter">✕</Link>
+            <Link to="/news" className="text-agg-orange hover:opacity-75" aria-label="Clear topic filter">✕</Link>
           </span>
           <span className="text-xs text-slate-500">{withArticles.length} publisher{withArticles.length === 1 ? "" : "s"} match</span>
         </div>
@@ -66,7 +66,7 @@ export default function AggHome() {
           </p>
         </div>
         <Link
-          to="/newsletter"
+          to="/news/newsletter"
           className="hidden sm:inline-flex font-sans text-xs uppercase tracking-[0.18em] font-semibold text-agg-orange hover:opacity-80"
         >
           Get the daily digest →
@@ -98,7 +98,7 @@ export default function AggHome() {
             {withoutArticles.map((entry) => (
               <li key={entry.publisher.id}>
                 <Link
-                  to={`/source/${entry.publisher.slug}`}
+                  to={`/news/source/${entry.publisher.slug}`}
                   className="flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-sm hover:border-agg-orange/60 transition-colors"
                 >
                   <span className="font-sans text-[13px] text-agg-navy truncate">{entry.publisher.name}</span>
