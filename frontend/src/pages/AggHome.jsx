@@ -2,38 +2,10 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import api from "@/lib/api";
 import NewsletterBand from "@/components/NewsletterBand";
-import { ArticleCard, Section } from "@/components/AggArticleCard";
 import AggTrendingStrip from "@/components/AggTrendingStrip";
+import AggPublisherCard from "@/components/AggPublisherCard";
 
-const HOURS = 48;
-const PAGE_SIZE = 50;
-// When a trending topic is active we widen both the time window and the
-// page size to the same envelope the trending endpoint scans, so the chip
-// count and the in-memory filter agree.
-const TOPIC_HOURS = 168;
-const TOPIC_PAGE_SIZE = 100;
-
-function groupByHour(items) {
-  const groups = new Map();
-  for (const it of items) {
-    const dt = new Date(it.published_at);
-    const key = `${dt.getFullYear()}-${dt.getMonth() + 1}-${dt.getDate()}-${dt.getHours()}`;
-    if (!groups.has(key)) {
-      groups.set(key, { key, when: dt, items: [] });
-    }
-    groups.get(key).items.push(it);
-  }
-  return Array.from(groups.values()).sort((a, b) => b.when - a.when);
-}
-
-function formatHour(d) {
-  const now = new Date();
-  const sameDay = now.toDateString() === d.toDateString();
-  const opts = sameDay
-    ? { hour: "numeric", minute: "2-digit" }
-    : { weekday: "short", hour: "numeric", minute: "2-digit" };
-  return new Intl.DateTimeFormat("en-US", opts).format(d);
-}
+const WINDOW_HOURS = 168;
 
 export default function AggHome() {
   const [items, setItems] = useState([]);
@@ -45,38 +17,29 @@ export default function AggHome() {
   useEffect(() => {
     let alive = true;
     setLoading(true);
-    // Widen the river when a topic chip is active so the in-memory filter
-    // covers the same window the trending endpoint counted from.
-    const hrs = topic ? TOPIC_HOURS : HOURS;
-    const lim = topic ? TOPIC_PAGE_SIZE : PAGE_SIZE;
     api
-      .get("/agg/articles", { params: { hours: hrs, limit: lim } })
+      .get("/agg/publishers-latest", { params: { hours: WINDOW_HOURS } })
       .then((r) => { if (alive) setItems(r.data.items || []); })
       .catch((e) => { if (alive) setError(e?.response?.data?.detail || "Failed to load"); })
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
-  }, [topic]);
+  }, []);
 
-  // When the user clicks a trending chip we soft-filter the loaded river in-memory
-  // for that topic substring (server-side topic filter could come later).
+  // When a trending chip is active we filter the publisher cards to only
+  // those whose latest headline matches the topic substring.
   const filtered = useMemo(() => {
     if (!topic) return items;
-    const needle = topic.toLowerCase();
-    return items.filter((it) => (it.title || "").toLowerCase().includes(needle));
+    return items.filter((it) =>
+      (it.article?.title || "").toLowerCase().includes(topic)
+    );
   }, [items, topic]);
 
-  if (loading) return <p className="text-slate-500 py-12 text-center">Loading the river.</p>;
+  if (loading) return <p className="text-slate-500 py-12 text-center">Loading.</p>;
   if (error) return <p className="text-red-700 py-12 text-center" data-testid="agg-home-error">{error}</p>;
-  if (!items.length) {
-    return (
-      <div className="py-20 text-center" data-testid="agg-home-empty">
-        <p className="font-sans text-[11px] uppercase tracking-[0.18em] text-slate-500 mb-2">Nothing yet</p>
-        <p className="text-slate-700">No items in the last {HOURS} hours. The next pull runs every 15 minutes.</p>
-      </div>
-    );
-  }
 
-  const groups = groupByHour(filtered);
+  const withArticles = filtered.filter((it) => it.article);
+  const withoutArticles = filtered.filter((it) => !it.article);
+  const totalActive = items.length;
 
   return (
     <div data-testid="agg-home">
@@ -89,41 +52,66 @@ export default function AggHome() {
             {topic}
             <Link to="/" className="text-agg-orange hover:opacity-75" aria-label="Clear topic filter">✕</Link>
           </span>
-          <span className="text-xs text-slate-500">{filtered.length} of {items.length} items</span>
+          <span className="text-xs text-slate-500">{withArticles.length} publisher{withArticles.length === 1 ? "" : "s"} match</span>
         </div>
       )}
 
-      <div className="mb-6 flex items-end justify-between">
+      <header className="mb-8 flex items-end justify-between flex-wrap gap-4">
         <div>
-          <h1 className="font-display font-semibold text-2xl sm:text-3xl text-agg-navy">The river.</h1>
-          <p className="text-sm text-slate-500 mt-1">Last {HOURS} hours. Newest first. Click any headline to read at the publisher.</p>
+          <h1 className="font-display font-semibold text-2xl sm:text-3xl text-agg-navy">
+            Every publisher we follow.
+          </h1>
+          <p className="text-sm text-slate-500 mt-1">
+            {totalActive} sources. Latest headline from each. Click through to read at the publisher.
+          </p>
         </div>
-        <p className="hidden sm:block text-xs text-slate-500">{filtered.length} items</p>
-      </div>
+        <Link
+          to="/newsletter"
+          className="hidden sm:inline-flex font-sans text-xs uppercase tracking-[0.18em] font-semibold text-agg-orange hover:opacity-80"
+        >
+          Get the daily digest →
+        </Link>
+      </header>
 
-      {filtered.length === 0 && topic ? (
+      {withArticles.length === 0 && topic ? (
         <div className="py-16 text-center border-t border-slate-100" data-testid="agg-topic-empty">
           <p className="font-sans text-[11px] uppercase tracking-[0.18em] text-slate-500 mb-2">No matches</p>
-          <p className="text-slate-700">No headlines in the last {HOURS}h match "{topic}".</p>
+          <p className="text-slate-700">No publisher has a recent headline matching "{topic}".</p>
         </div>
-      ) : groups.map((g, gi) => {
-        const cards = [];
-        g.items.forEach((it, ii) => {
-          cards.push(<ArticleCard key={it.id} article={it} />);
-          // Newsletter band every 15 items, global counter
-          const globalIdx = groups.slice(0, gi).reduce((acc, gg) => acc + gg.items.length, 0) + ii + 1;
-          if (globalIdx % 15 === 0 && globalIdx < filtered.length) {
-            cards.push(<NewsletterBand key={`nb-${globalIdx}`} compact />);
-          }
-        });
-        return (
-          <Section key={g.key} label={formatHour(g.when)} testid={`agg-hour-${g.key}`}>
-            {cards}
-          </Section>
-        );
-      })}
+      ) : (
+        <section
+          data-testid="agg-publisher-grid"
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
+        >
+          {withArticles.map((entry) => (
+            <AggPublisherCard key={entry.publisher.id} entry={entry} />
+          ))}
+        </section>
+      )}
 
-      <NewsletterBand />
+      {!topic && withoutArticles.length > 0 && (
+        <section className="mt-12 pt-8 border-t border-slate-200" data-testid="agg-publisher-quiet">
+          <h2 className="font-sans text-[11px] uppercase tracking-[0.22em] font-semibold text-slate-400 mb-4">
+            Quiet this week
+          </h2>
+          <ul className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            {withoutArticles.map((entry) => (
+              <li key={entry.publisher.id}>
+                <Link
+                  to={`/source/${entry.publisher.slug}`}
+                  className="flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-sm hover:border-agg-orange/60 transition-colors"
+                >
+                  <span className="font-sans text-[13px] text-agg-navy truncate">{entry.publisher.name}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <div className="mt-12">
+        <NewsletterBand />
+      </div>
     </div>
   );
 }

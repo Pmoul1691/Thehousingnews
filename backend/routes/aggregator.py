@@ -96,6 +96,63 @@ def setup(db):
         items = await cur.to_list(500)
         return {"items": items}
 
+    @router.get("/publishers-latest")
+    async def publishers_latest(hours: int = Query(default=168, ge=1, le=720)):
+        """Every active publisher with its most recent (non-hidden) article in
+        the last `hours` window. Used by the home page grid: one card per
+        publisher featuring its latest headline + a link to the publisher
+        archive. Publishers with no article in the window are still returned
+        with `article: null` so the grid stays uniform."""
+        cutoff_iso = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
+        publishers = await db.agg_publishers.find(
+            {"active": True},
+            {"_id": 0, "id": 1, "slug": 1, "name": 1, "category": 1, "logo_url": 1, "homepage_url": 1},
+        ).sort("name", 1).to_list(500)
+        if not publishers:
+            return {"items": [], "hours": hours}
+
+        pub_ids = [p["id"] for p in publishers]
+        # One aggregation pass: most recent article per publisher_id.
+        pipeline = [
+            {"$match": {
+                "publisher_id": {"$in": pub_ids},
+                "published_at": {"$gte": cutoff_iso},
+                "hidden": {"$ne": True},
+            }},
+            {"$sort": {"published_at": -1}},
+            {"$group": {
+                "_id": "$publisher_id",
+                "article": {"$first": {
+                    "id": "$id",
+                    "title": "$title",
+                    "snippet": "$snippet",
+                    "original_url": "$original_url",
+                    "published_at": "$published_at",
+                    "thumbnail_url": "$thumbnail_url",
+                }},
+            }},
+        ]
+        rows = await db.agg_articles.aggregate(pipeline).to_list(500)
+        latest_by_pub = {r["_id"]: r["article"] for r in rows}
+
+        items = []
+        for p in publishers:
+            items.append({
+                "publisher": p,
+                "article": latest_by_pub.get(p["id"]),
+            })
+        # Publishers with articles first (sorted by recency), then those without.
+        items.sort(
+            key=lambda r: (r["article"] is None, -(0 if r["article"] is None else 1), (r["article"] or {}).get("published_at", "")),
+            reverse=False,
+        )
+        # Stable: with-article rows by published_at desc, no-article rows alpha.
+        with_articles = [it for it in items if it["article"]]
+        with_articles.sort(key=lambda r: r["article"]["published_at"], reverse=True)
+        without = [it for it in items if not it["article"]]
+        without.sort(key=lambda r: r["publisher"]["name"].lower())
+        return {"items": with_articles + without, "hours": hours, "total": len(items)}
+
     @router.get("/publishers/{slug}")
     async def publisher_detail(slug: str, limit: int = Query(default=30, ge=1, le=100), offset: int = Query(default=0, ge=0)):
         pub = await db.agg_publishers.find_one({"slug": slug, "active": True}, {"_id": 0})
