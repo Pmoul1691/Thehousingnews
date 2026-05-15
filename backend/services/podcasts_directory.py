@@ -6,6 +6,8 @@
   to resolve `feedUrl` from the Apple Podcast ID.
 - Everything is cached in-process for 1 hour to keep traffic to publisher feeds
   polite and to keep the page fast.
+- Per-podcast RSS fetches are run concurrently via a thread pool so the cold
+  cache fill takes ~2s instead of ~12s.
 
 The cache is per-process — fine for a single backend pod; a Redis layer can be
 swapped in later if the deployment scales horizontally.
@@ -13,6 +15,7 @@ swapped in later if the deployment scales horizontally.
 import logging
 import re
 import time
+from concurrent.futures import ThreadPoolExecutor
 from email.utils import parsedate_to_datetime
 from typing import Optional, Tuple
 
@@ -154,6 +157,7 @@ PODCASTS = [
 _CACHE_TTL_S = 60 * 60  # 1 hour
 _FEED_URL_CACHE: dict = {}   # apple_id -> (feed_url, expires_at)
 _FEED_CACHE: dict = {}       # rss_url   -> (parsed_dict, expires_at)
+_DIR_CACHE: dict = {}        # "entry"   -> (directory_dict, expires_at)
 _USER_AGENT = "thehousingnews-podcast-directory/1.0 (+https://thehousingnews.com)"
 _HTTP_TIMEOUT = 12.0
 
@@ -283,9 +287,18 @@ def _slug(s: str) -> str:
 def get_directory() -> dict:
     """Returns the curated 10-podcast directory with live RSS data merged in.
     Per-podcast failures degrade gracefully — the card still renders with the
-    static metadata, just without the cover art / latest episode."""
-    items = []
-    for p in PODCASTS:
+    static metadata, just without the cover art / latest episode.
+
+    Per-podcast RSS fetches are parallelized via a small thread pool so the
+    cold-cache fill is ~2s rather than the 11s of a serial loop. Subsequent
+    calls are served entirely from the in-process feed cache (1h TTL).
+    """
+    now = time.time()
+    cached = _DIR_CACHE.get("entry")
+    if cached and cached[1] > now:
+        return cached[0]
+
+    def _enrich(p: dict) -> dict:
         rss_url = p["rss_url"]
         if rss_url == RSS_LOOKUP:
             rss_url = _resolve_apple_feed_url(p["apple_id"])
@@ -300,7 +313,7 @@ def get_directory() -> dict:
                 if parsed2 and parsed2.get("latest_episode"):
                     parsed = parsed2
                     rss_url = fallback
-        row = {
+        return {
             "id": p["id"],
             "title": p["title"],
             "host": p["host"],
@@ -319,5 +332,9 @@ def get_directory() -> dict:
             "cover_art": (parsed or {}).get("cover_art"),
             "latest_episode": (parsed or {}).get("latest_episode"),
         }
-        items.append(row)
-    return {"items": items, "cache_ttl_seconds": _CACHE_TTL_S}
+
+    with ThreadPoolExecutor(max_workers=10) as ex:
+        items = list(ex.map(_enrich, PODCASTS))
+    out = {"items": items, "cache_ttl_seconds": _CACHE_TTL_S}
+    _DIR_CACHE["entry"] = (out, now + _CACHE_TTL_S)
+    return out

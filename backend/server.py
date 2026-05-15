@@ -206,6 +206,15 @@ async def on_startup():
             logger.info("APP_PUBLIC_URL loaded from db: %s", row["value"])
     except Exception:
         logger.exception("loading APP_PUBLIC_URL from db failed")
+    # Warm the podcast directory cache in the background so the first user
+    # request to /news doesn't pay the 10-feed cold-start cost.
+    try:
+        import asyncio
+        from services.podcasts_directory import get_directory as _warm_podcasts
+        asyncio.get_event_loop().run_in_executor(None, _warm_podcasts)
+        logger.info("Podcast directory cache warmup scheduled")
+    except Exception as _e:
+        logger.warning("Podcast warmup failed to schedule: %s", _e)
     # Start scheduler
     try:
         app.state.scheduler = start_scheduler(db)

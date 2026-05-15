@@ -29,6 +29,10 @@ EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 DEFAULT_LIMIT = 50
 MAX_LIMIT = 100
 
+# In-process cache for /publishers-latest. Key: f"pl:{hours}" -> (result, expires_ts).
+# 5-minute TTL — RSS ingest cron runs every 15 min so freshness is fine.
+_PL_CACHE: dict = {}
+
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -102,7 +106,18 @@ def setup(db):
         the last `hours` window. Used by the home page grid: one card per
         publisher featuring its latest headline + a link to the publisher
         archive. Publishers with no article in the window are still returned
-        with `article: null` so the grid stays uniform."""
+        with `article: null` so the grid stays uniform.
+
+        Results are cached in-process for 5 minutes; the RSS ingest cron runs
+        every 15 minutes so 5 minutes is well inside the freshness budget.
+        """
+        import time as _time
+        cache_key = f"pl:{hours}"
+        cached = _PL_CACHE.get(cache_key)
+        now_ts = _time.time()
+        if cached and cached[1] > now_ts:
+            return cached[0]
+
         cutoff_iso = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
         publishers = await db.agg_publishers.find(
             {"active": True},
@@ -141,17 +156,14 @@ def setup(db):
                 "publisher": p,
                 "article": latest_by_pub.get(p["id"]),
             })
-        # Publishers with articles first (sorted by recency), then those without.
-        items.sort(
-            key=lambda r: (r["article"] is None, -(0 if r["article"] is None else 1), (r["article"] or {}).get("published_at", "")),
-            reverse=False,
-        )
         # Stable: with-article rows by published_at desc, no-article rows alpha.
         with_articles = [it for it in items if it["article"]]
         with_articles.sort(key=lambda r: r["article"]["published_at"], reverse=True)
         without = [it for it in items if not it["article"]]
         without.sort(key=lambda r: r["publisher"]["name"].lower())
-        return {"items": with_articles + without, "hours": hours, "total": len(items)}
+        result = {"items": with_articles + without, "hours": hours, "total": len(items)}
+        _PL_CACHE[cache_key] = (result, now_ts + 300)  # 5 min
+        return result
 
     @router.get("/publishers/{slug}")
     async def publisher_detail(slug: str, limit: int = Query(default=30, ge=1, le=100), offset: int = Query(default=0, ge=0)):
