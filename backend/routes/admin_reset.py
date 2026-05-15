@@ -41,7 +41,8 @@ def setup(db):
     @router.get("/preview")
     async def reset_preview(admin=Depends(_admin)):
         """Dry-run: report what a real reset would delete, no writes."""
-        enabled = os.environ.get("AGG_ALLOW_DB_RESET", "true").lower() in ("1", "true", "yes")
+        # Default OFF — operators must explicitly opt in on preview environments.
+        enabled = os.environ.get("AGG_ALLOW_DB_RESET", "false").lower() in ("1", "true", "yes")
         # Find admin user_ids that we will preserve.
         admin_users = await db.users.find(
             {"is_admin": True}, {"_id": 0, "user_id": 1, "email": 1}
@@ -86,7 +87,7 @@ def setup(db):
     async def reset_db(payload: ResetPayload, admin=Depends(_admin)):
         """Destructive. Wipes member-generated content; keeps admin + Substack
         archive + aggregator. Returns counts of rows touched per collection."""
-        if os.environ.get("AGG_ALLOW_DB_RESET", "true").lower() not in ("1", "true", "yes"):
+        if os.environ.get("AGG_ALLOW_DB_RESET", "false").lower() not in ("1", "true", "yes"):
             raise HTTPException(
                 status_code=403,
                 detail="DB reset is disabled in this environment.",

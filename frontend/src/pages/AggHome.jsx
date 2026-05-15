@@ -7,6 +7,11 @@ import AggTrendingStrip from "@/components/AggTrendingStrip";
 
 const HOURS = 48;
 const PAGE_SIZE = 50;
+// When a trending topic is active we widen both the time window and the
+// page size to the same envelope the trending endpoint scans, so the chip
+// count and the in-memory filter agree.
+const TOPIC_HOURS = 168;
+const TOPIC_PAGE_SIZE = 100;
 
 function groupByHour(items) {
   const groups = new Map();
@@ -40,13 +45,17 @@ export default function AggHome() {
   useEffect(() => {
     let alive = true;
     setLoading(true);
+    // Widen the river when a topic chip is active so the in-memory filter
+    // covers the same window the trending endpoint counted from.
+    const hrs = topic ? TOPIC_HOURS : HOURS;
+    const lim = topic ? TOPIC_PAGE_SIZE : PAGE_SIZE;
     api
-      .get("/agg/articles", { params: { hours: HOURS, limit: PAGE_SIZE } })
+      .get("/agg/articles", { params: { hours: hrs, limit: lim } })
       .then((r) => { if (alive) setItems(r.data.items || []); })
       .catch((e) => { if (alive) setError(e?.response?.data?.detail || "Failed to load"); })
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
-  }, []);
+  }, [topic]);
 
   // When the user clicks a trending chip we soft-filter the loaded river in-memory
   // for that topic substring (server-side topic filter could come later).
