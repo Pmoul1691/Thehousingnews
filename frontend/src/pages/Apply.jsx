@@ -18,6 +18,13 @@ export default function Apply() {
   const [submitting, setSubmitting] = useState(false);
   const [inviteState, setInviteState] = useState(null); // {ok, owner_name} | {error}
   const [validating, setValidating] = useState(false);
+  const [tosVersion, setTosVersion] = useState(null);
+
+  React.useEffect(() => {
+    api.get("/applications/tos-version")
+      .then((r) => setTosVersion(r.data))
+      .catch(() => {});
+  }, []);
 
   const validateInvite = async () => {
     const code = (form.invite_code || "").trim().toUpperCase();
@@ -45,6 +52,7 @@ export default function Apply() {
     try {
       const payload = { ...form };
       payload.invite_code = (form.invite_code || "").trim().toUpperCase() || null;
+      payload.tos_accepted = true;
       await api.post("/applications", payload);
       await refresh();
       navigate("/pending", { replace: true });
@@ -157,6 +165,11 @@ export default function Apply() {
               .
             </span>
           </label>
+          {tosVersion?.version_hash && tosVersion.version_hash !== "unknown" && (
+            <p className="mt-2 ml-7 font-mono text-[10px] text-muted-ink" data-testid="apply-tos-version">
+              ToS version {tosVersion.version_hash.slice(0, 12)}
+            </p>
+          )}
         </div>
 
         <button

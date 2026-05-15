@@ -13,6 +13,7 @@ from services.brevo import (
     send_application_accepted,
     send_application_declined,
 )
+from services.tos import tos_version_hash, TOS_PUBLIC_URL
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +26,7 @@ class ApplicationCreate(BaseModel):
     market: str = Field(min_length=2, max_length=120)
     years_in_real_estate: str = Field(min_length=1, max_length=40)
     invite_code: Optional[str] = Field(default=None, max_length=32)
+    tos_accepted: bool = Field(default=False)
 
 
 class ApplicationReview(BaseModel):
@@ -51,6 +53,9 @@ def setup(db):
     async def submit_application(payload: ApplicationCreate, user=Depends(_user)):
         if user.get("status") == "approved":
             return {"status": "approved", "note": "already approved"}
+        # Require Terms of Service acceptance.
+        if not payload.tos_accepted:
+            raise HTTPException(status_code=400, detail="You must accept the Terms of Service to apply.")
         # Upsert by user_id
         existing = await db.applications.find_one({"user_id": user["user_id"]}, {"_id": 0})
         now_iso = datetime.now(timezone.utc).isoformat()
@@ -95,6 +100,8 @@ def setup(db):
             invited_by_user_id = row.get("owner_user_id")
             invited_by_name = row.get("owner_name")
 
+        tos_hash = tos_version_hash()
+
         doc = {
             "application_id": app_id,
             "user_id": user["user_id"],
@@ -110,9 +117,23 @@ def setup(db):
             "created_at": now_iso,
             "reviewed_at": None,
             "reviewed_by": None,
+            # Legal compliance: record exactly which version of the ToS PDF
+            # the user clicked "I agree" on, and when.
+            "tos_accepted": True,
+            "tos_accepted_at": now_iso,
+            "tos_version_hash": tos_hash,
+            "tos_document_url": TOS_PUBLIC_URL,
         }
         await db.applications.insert_one(doc)
-        await db.users.update_one({"user_id": user["user_id"]}, {"$set": {"status": "pending", "invited_by_user_id": invited_by_user_id}})
+        await db.users.update_one(
+            {"user_id": user["user_id"]},
+            {"$set": {
+                "status": "pending",
+                "invited_by_user_id": invited_by_user_id,
+                "tos_accepted_at": now_iso,
+                "tos_version_hash": tos_hash,
+            }},
+        )
         send_application_received(user["email"], user["name"])
         return {"status": "pending", "application_id": app_id}
 
@@ -120,6 +141,15 @@ def setup(db):
     async def my_application(user=Depends(_user)):
         existing = await db.applications.find_one({"user_id": user["user_id"]}, {"_id": 0})
         return existing or {}
+
+    @router.get("/tos-version")
+    async def tos_version():
+        """Public: current ToS document hash + URL. Used by the apply form so
+        the version stamped on submission is exactly what the user saw."""
+        return {
+            "version_hash": tos_version_hash(),
+            "document_url": TOS_PUBLIC_URL,
+        }
 
     @router.get("")
     async def list_applications(status: str = "pending", admin=Depends(_admin)):

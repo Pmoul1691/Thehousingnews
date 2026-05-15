@@ -346,6 +346,9 @@ export default function Composer({ onPosted }) {
           onChange={(e) => setText(e.target.value)}
         />
       )}
+      <p className="mt-1 font-sans text-[11px] text-muted-ink/80" data-testid="composer-tag-hint">
+        Tip: type <code className="font-mono text-gold">#chicago</code> or <code className="font-mono text-gold">#pricing</code> to tag this post. Other members can browse by tag.
+      </p>
       {/* Media previews */}
       {media.length > 0 && (
         <div className="mt-4 space-y-2" data-testid="composer-media-list">

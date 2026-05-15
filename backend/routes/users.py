@@ -57,11 +57,16 @@ def setup(db):
     @router.get("/members")
     async def list_members(
         q: Optional[str] = Query(default=None),
+        filter: Optional[str] = Query(default=None, regex="^(comped|supporter|free)$"),
         limit: int = Query(default=100, le=200),
         user=Depends(_user),
     ):
         if user.get("status") != "approved":
             raise HTTPException(status_code=403, detail="Membership not approved")
+
+        # Only admins may filter by entitlement tier.
+        if filter and not is_admin_email(user["email"]):
+            raise HTTPException(status_code=403, detail="Filter is admin-only")
 
         # Find approved, non-suspended users
         match = {"status": "approved", "suspended": {"$ne": True}}
@@ -70,11 +75,18 @@ def setup(db):
         profiles = await db.profiles.find({"user_id": {"$in": user_ids}}, {"_id": 0}).to_list(2000)
         pmap = {p["user_id"]: p for p in profiles}
 
+        now_iso = _now_iso()
+        viewer_is_admin = is_admin_email(user["email"])
+
         items = []
         for u in users:
             prof = pmap.get(u["user_id"])
             if not prof:
                 continue
+            partner_tier = u.get("partner_tier")
+            supporter_until = u.get("supporter_until")
+            is_supporter = bool(supporter_until and supporter_until > now_iso)
+            is_comped = bool(partner_tier) or u.get("source") == "partners_auto_grant"
             row = {
                 "user_id": u["user_id"],
                 "name": prof.get("name") or u.get("name") or "",
@@ -82,6 +94,23 @@ def setup(db):
                 "bio": prof.get("bio") or "",
                 "avatar_path": prof.get("avatar_path"),
             }
+            # Only admins ever see the entitlement tier details.
+            if viewer_is_admin:
+                row["entitlement"] = {
+                    "tier": "comped" if is_comped else ("supporter" if is_supporter else "free"),
+                    "partner_tier": partner_tier,
+                    "is_supporter": is_supporter,
+                    "supporter_until": supporter_until,
+                    "source": u.get("source"),
+                    "email": u.get("email"),
+                }
+            # Apply admin filter (if any) after entitlement is computed.
+            if filter == "comped" and not is_comped:
+                continue
+            if filter == "supporter" and not (is_supporter and not is_comped):
+                continue
+            if filter == "free" and (is_comped or is_supporter):
+                continue
             items.append(row)
 
         if q:

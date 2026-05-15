@@ -7,6 +7,42 @@ import MediaBlock from "@/components/MediaBlock";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 
+// Match #word (2-30 alphanumeric/underscore) following start-of-string or whitespace.
+const TAG_RE = /(^|\s)(#[A-Za-z0-9_]{2,30})\b/g;
+
+/**
+ * Render plain text with #hashtags converted to <Link> elements that route to
+ * /tag/[tag]. Whitespace is preserved (whitespace-pre-wrap on the container).
+ */
+function renderTextWithTags(text) {
+  if (!text) return null;
+  const parts = [];
+  let last = 0;
+  let i = 0;
+  TAG_RE.lastIndex = 0;
+  let m;
+  while ((m = TAG_RE.exec(text)) !== null) {
+    const matchStart = m.index + m[1].length; // skip leading whitespace from group 1
+    const tagText = m[2]; // "#word"
+    const tagSlug = tagText.slice(1).toLowerCase();
+    if (matchStart > last) parts.push(<span key={`t${i++}`}>{text.slice(last, matchStart)}</span>);
+    parts.push(
+      <Link
+        key={`h${i++}`}
+        to={`/tag/${tagSlug}`}
+        data-testid={`post-hashtag-${tagSlug}`}
+        className="text-gold hover:opacity-80 transition-opacity"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {tagText}
+      </Link>
+    );
+    last = matchStart + tagText.length;
+  }
+  if (last < text.length) parts.push(<span key={`t${i++}`}>{text.slice(last)}</span>);
+  return parts;
+}
+
 function formatWhen(iso) {
   if (!iso) return "";
   try {
@@ -176,8 +212,22 @@ export default function PostItem({ post, showReplies = true, compact = false, on
           )}
         </div>
       </header>
-      <div className="prose-serif text-base sm:text-lg leading-relaxed ink whitespace-pre-wrap">{post.text}</div>
+      <div className="prose-serif text-base sm:text-lg leading-relaxed ink whitespace-pre-wrap">{renderTextWithTags(post.text)}</div>
       <MediaBlock media={post.media} imagePath={post.image_path} />
+      {post.tags && post.tags.length > 0 && (
+        <div className="mt-3 flex flex-wrap items-center gap-1.5" data-testid={`post-tags-${post.post_id}`}>
+          {post.tags.map((t) => (
+            <Link
+              key={t}
+              to={`/tag/${t}`}
+              data-testid={`post-tag-pill-${t}`}
+              className="font-sans text-[11px] uppercase tracking-wider font-semibold text-gold border border-gold-mid px-2 py-0.5 rounded-sm hover:bg-gold hover:text-cream transition-colors"
+            >
+              #{t}
+            </Link>
+          ))}
+        </div>
+      )}
       {post.prompt && (
         <Link to={`/prompts/${post.prompt.prompt_id}`} data-testid={`post-prompt-${post.post_id}`} className="mt-4 inline-flex items-center gap-1.5 font-sans text-[11px] uppercase tracking-wider font-semibold text-gold border border-gold-mid px-2 py-1 rounded-sm hover:bg-gold hover:text-cream transition-colors">
           <span className="text-[9px]">▸</span>

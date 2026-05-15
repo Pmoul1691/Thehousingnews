@@ -19,6 +19,7 @@ from pydantic import BaseModel, Field
 
 from services.agg_seed import CATEGORIES
 from services.brevo import add_to_list as brevo_add_to_list
+from services.trending import compute_trending
 
 NEWSLETTER_LIST_NAME = os.environ.get("AGG_NEWSLETTER_LIST_NAME", "The Housing News Daily")
 
@@ -124,6 +125,32 @@ def setup(db):
                 {"key": c, "count": counts.get(c, 0)} for c in CATEGORIES
             ]
         }
+
+    @router.get("/trending")
+    async def trending(
+        hours: int = Query(default=24, ge=1, le=168),
+        limit: int = Query(default=8, ge=1, le=20),
+    ):
+        """Trending topics today: top bigrams / trigrams across article titles
+        from the last `hours` window. No auth, fully public."""
+        cutoff_iso = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
+        pub_ids = [
+            p["id"]
+            async for p in db.agg_publishers.find({"active": True}, {"_id": 0, "id": 1})
+        ]
+        if not pub_ids:
+            return {"items": [], "hours": hours}
+        cur = db.agg_articles.find(
+            {
+                "publisher_id": {"$in": pub_ids},
+                "published_at": {"$gte": cutoff_iso},
+                "hidden": {"$ne": True},
+            },
+            {"_id": 0, "title": 1},
+        ).sort("published_at", -1).limit(2000)
+        titles = [a.get("title") or "" async for a in cur]
+        items = compute_trending(titles, limit=limit)
+        return {"items": items, "hours": hours, "sample_size": len(titles)}
 
     @router.post("/newsletter/signup")
     async def newsletter_signup(payload: SignupPayload, request: Request):

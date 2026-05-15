@@ -4,11 +4,38 @@ import api, { API } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
 
+const FILTER_OPTIONS = [
+  { key: "", label: "Everyone" },
+  { key: "comped", label: "Comped (Partners)" },
+  { key: "supporter", label: "Stripe supporter" },
+  { key: "free", label: "Free members" },
+];
+
+function EntitlementChip({ entitlement }) {
+  if (!entitlement) return null;
+  const map = {
+    comped: { label: "Comped", cls: "border-gold text-gold" },
+    supporter: { label: "Supporter", cls: "border-deepred text-deepred" },
+    free: { label: "Free", cls: "border-muted-ink text-muted-ink" },
+  };
+  const m = map[entitlement.tier] || map.free;
+  return (
+    <span
+      className={`inline-flex items-center gap-1 font-sans text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded-sm border ${m.cls}`}
+      data-testid={`member-tier-${entitlement.tier}`}
+      title={entitlement.partner_tier || entitlement.source || ""}
+    >
+      {m.label}
+    </span>
+  );
+}
+
 export default function Members() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const [items, setItems] = useState([]);
   const [q, setQ] = useState("");
+  const [filter, setFilter] = useState("");
   const [fetching, setFetching] = useState(true);
 
   useEffect(() => {
@@ -16,10 +43,13 @@ export default function Members() {
     if (!user) { navigate("/", { replace: true }); return; }
     if (user.status !== "approved") { navigate("/feed", { replace: true }); return; }
     setFetching(true);
-    api.get(`/members${q ? `?q=${encodeURIComponent(q)}` : ""}`)
+    const params = new URLSearchParams();
+    if (q) params.set("q", q);
+    if (filter && user.is_admin) params.set("filter", filter);
+    api.get(`/members${params.toString() ? `?${params.toString()}` : ""}`)
       .then((r) => setItems(r.data.items || []))
       .finally(() => setFetching(false));
-  }, [user, loading, navigate, q]);
+  }, [user, loading, navigate, q, filter]);
 
   return (
     <div className="container-prose py-12">
@@ -34,8 +64,31 @@ export default function Members() {
         placeholder="Search by name or market"
         value={q}
         onChange={(e) => setQ(e.target.value)}
-        className="w-full bg-cream border hairline rounded-sm p-3 font-sans text-sm ink focus:outline-none focus:ring-1 focus:ring-gold mb-10"
+        className="w-full bg-cream border hairline rounded-sm p-3 font-sans text-sm ink focus:outline-none focus:ring-1 focus:ring-gold mb-4"
       />
+
+      {user?.is_admin && (
+        <div className="mb-10 flex flex-wrap items-center gap-2" data-testid="members-admin-filter">
+          <span className="font-sans text-[10px] uppercase tracking-[0.18em] font-semibold text-gold mr-1">
+            Admin filter
+          </span>
+          {FILTER_OPTIONS.map((opt) => (
+            <button
+              key={opt.key || "all"}
+              type="button"
+              data-testid={`members-filter-${opt.key || "all"}`}
+              onClick={() => setFilter(opt.key)}
+              className={`font-sans text-xs px-3 py-1 rounded-full border transition-colors ${
+                filter === opt.key
+                  ? "bg-gold text-cream border-gold"
+                  : "hairline text-ink hover:border-gold hover:text-gold"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {fetching ? (
         <div className="font-serif text-base text-muted-ink py-12 text-center">Loading.</div>
@@ -55,8 +108,14 @@ export default function Members() {
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <Link to={`/profile/${m.user_id}`} className="font-display font-semibold text-base ink hover:text-gold transition-colors">{m.name}</Link>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Link to={`/profile/${m.user_id}`} className="font-display font-semibold text-base ink hover:text-gold transition-colors">{m.name}</Link>
+                    <EntitlementChip entitlement={m.entitlement} />
+                  </div>
                   <div className="font-sans text-xs text-muted-ink">{m.market}</div>
+                  {user?.is_admin && m.entitlement?.email && (
+                    <div className="font-mono text-[11px] text-muted-ink mt-0.5">{m.entitlement.email}</div>
+                  )}
                   {m.bio && <p className="prose-serif text-sm ink/80 leading-relaxed mt-2 line-clamp-2">{m.bio}</p>}
                 </div>
                 <Link to={`/profile/${m.user_id}`} className="font-sans text-sm font-medium text-gold hover:opacity-80 whitespace-nowrap">View</Link>

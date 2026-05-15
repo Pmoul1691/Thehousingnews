@@ -5,6 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import AdminAnalyticsPanel from "@/components/AdminAnalyticsPanel";
 import AdminPromptsPanel from "@/components/AdminPromptsPanel";
+import AdminResetDbPanel from "@/components/AdminResetDbPanel";
 
 function RssImportButton() {
   const [busy, setBusy] = useState(false);
@@ -251,6 +252,7 @@ export default function Admin() {
               })}
             </div>
           )}
+          <AdminResetDbPanel />
         </>
       ) : section === "apps" ? (
         <>

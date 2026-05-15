@@ -1,4 +1,5 @@
 """Post composer and feeds with batched release. Supports short posts AND essays."""
+import re
 import uuid
 import logging
 from datetime import datetime, timezone, timedelta
@@ -18,6 +19,30 @@ SHORT_POST_MAX = 500
 ESSAY_MAX = 50000
 ESSAY_PREVIEW_CHARS = 320
 MAX_IMAGES_PER_POST = 4
+MAX_TAGS_PER_POST = 10
+
+# Hashtag pattern: # followed by 2-30 chars of letters/digits/underscores.
+# Word-boundary leading so we don't match "#" inside URLs or code.
+TAG_RE = re.compile(r"(?:^|\s)#([A-Za-z0-9_]{2,30})\b", flags=re.UNICODE)
+
+
+def extract_tags(*texts) -> list[str]:
+    """Pull hashtags from one or more text fragments. Returns a lowercased,
+    deduplicated, length-capped list."""
+    seen: set[str] = set()
+    out: list[str] = []
+    for t in texts:
+        if not t:
+            continue
+        for m in TAG_RE.findall(t):
+            tag = m.lower()
+            if tag in seen:
+                continue
+            seen.add(tag)
+            out.append(tag)
+            if len(out) >= MAX_TAGS_PER_POST:
+                return out
+    return out
 
 
 class MediaItem(BaseModel):
@@ -225,6 +250,7 @@ def setup(db):
             "title": payload.title,
             "subtitle": payload.subtitle,
             "text": payload.text.strip(),
+            "tags": extract_tags(payload.text, payload.title, payload.subtitle),
             "image_path": payload.image_path or (media_payload[0]["path"] if media_payload and media_payload[0]["kind"] == "image" else None),
             "media": media_payload,
             "status": status,
@@ -366,5 +392,58 @@ def setup(db):
         items = await cur.to_list(50)
         items = await _attach_meta(items, viewer_id=user["user_id"])
         return {"items": items}
+
+    @router.get("/by-tag/{tag}")
+    async def by_tag(
+        tag: str,
+        limit: int = Query(30, le=50),
+        offset: int = Query(0, ge=0),
+        user=Depends(_user),
+    ):
+        """Members-only: posts tagged with #tag (case-insensitive). Same shape
+        as the public feed (author + reply_count attached)."""
+        if user.get("status") != "approved":
+            raise HTTPException(status_code=403, detail="Membership not approved")
+        tag_norm = tag.lower().lstrip("#").strip()
+        if not re.match(r"^[a-z0-9_]{2,30}$", tag_norm):
+            raise HTTPException(status_code=400, detail="Invalid tag")
+        now_iso = _now_iso()
+        suspended = await _suspended_user_ids()
+        q = {
+            "tags": tag_norm,
+            "release_at": {"$lte": now_iso},
+            "status": {"$nin": ["declined", "hidden"]},
+            "user_id": {"$nin": list(suspended)},
+        }
+        cur = (
+            db.posts.find(q, {"_id": 0})
+            .sort("release_at", -1)
+            .skip(offset)
+            .limit(limit)
+        )
+        items = await cur.to_list(limit)
+        items = await _attach_meta(items, viewer_id=user["user_id"])
+        total = await db.posts.count_documents(q)
+        return {"items": items, "tag": tag_norm, "total": total, "offset": offset, "limit": limit}
+
+    @router.get("/tags/popular")
+    async def popular_tags(days: int = Query(30, ge=1, le=180), limit: int = Query(20, le=50), user=Depends(_user)):
+        """Top tags by frequency across recently-released posts."""
+        if user.get("status") != "approved":
+            return {"items": []}
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+        pipeline = [
+            {"$match": {
+                "release_at": {"$lte": _now_iso(), "$gte": cutoff},
+                "status": {"$nin": ["declined", "hidden"]},
+                "tags": {"$exists": True, "$ne": []},
+            }},
+            {"$unwind": "$tags"},
+            {"$group": {"_id": "$tags", "count": {"$sum": 1}}},
+            {"$sort": {"count": -1, "_id": 1}},
+            {"$limit": limit},
+        ]
+        rows = await db.posts.aggregate(pipeline).to_list(limit)
+        return {"items": [{"tag": r["_id"], "count": r["count"]} for r in rows]}
 
     return router

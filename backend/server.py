@@ -39,6 +39,7 @@ from routes.partners import setup as setup_partners
 from routes.aggregator import setup as setup_aggregator
 from routes.aggregator_admin import setup as setup_aggregator_admin
 from routes.aggregator_suggestions import setup as setup_aggregator_suggestions
+from routes.admin_reset import setup as setup_admin_reset
 from services.object_storage import init_storage
 from services.release_window import next_window, now_chicago
 from services.scheduler import start_scheduler, release_batch
@@ -114,6 +115,7 @@ async def on_startup():
     await db.posts.create_index([("release_at", -1)])
     await db.posts.create_index([("user_id", 1), ("created_at", -1)])
     await db.posts.create_index("status")
+    await db.posts.create_index("tags")
     # Full-text search across post body, title, subtitle (members-only `/posts/search`).
     try:
         await db.posts.create_index(
@@ -286,3 +288,4 @@ app.include_router(setup_partners(db))
 app.include_router(setup_aggregator(db))
 app.include_router(setup_aggregator_admin(db))
 app.include_router(setup_aggregator_suggestions(db))
+app.include_router(setup_admin_reset(db))

@@ -34,6 +34,7 @@ import Prompts from "@/pages/Prompts";
 import PromptDetail from "@/pages/PromptDetail";
 import Search from "@/pages/Search";
 import Pricing from "@/pages/Pricing";
+import Tag from "@/pages/Tag";
 
 // Aggregator pages
 import AggHome from "@/pages/AggHome";
@@ -97,6 +98,7 @@ function Router() {
         <Route path="/prompts/:id" element={<PromptDetail />} />
         <Route path="/search" element={<Search />} />
         <Route path="/pricing" element={<Pricing />} />
+        <Route path="/tag/:tag" element={<Tag />} />
       </Routes>
     </ChromeLayout>
   );
