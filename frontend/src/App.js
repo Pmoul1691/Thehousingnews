@@ -39,6 +39,7 @@ import Claim from "@/pages/Claim";
 
 // Aggregator pages
 import AggHome from "@/pages/AggHome";
+import AggLatest from "@/pages/AggLatest";
 import AggPublisher from "@/pages/AggPublisher";
 import AggCategory from "@/pages/AggCategory";
 import AggAbout from "@/pages/AggAbout";
@@ -97,6 +98,7 @@ function Router() {
 
         {/* === Aggregator (lives under /news) === */}
         <Route path="/news" element={<AggHome />} />
+        <Route path="/news/latest" element={<AggLatest />} />
         <Route path="/news/source/:slug" element={<AggPublisher />} />
         <Route path="/news/category/:category" element={<AggCategory />} />
         <Route path="/news/about" element={<AggAbout />} />

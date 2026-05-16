@@ -28,7 +28,51 @@ USER_AGENT = "thehousingnews-aggregator/1.0 (+https://thehousingnews.com/about)"
 SNIPPET_MAX_CHARS = 280
 ITEM_TTL_DAYS = 90
 ITEM_HARD_DELETE_DAYS = 120
-FETCH_TIMEOUT_SECONDS = 15
+FETCH_TIMEOUT_SECONDS = 10
+
+# Tracking-param patterns stripped from canonical article URLs so the same
+# article shared with utm_* / fbclid / gclid / mc_* etc. doesn't double-store.
+_TRACKING_PARAM_PREFIXES = ("utm_", "mc_", "_hs", "hsa_", "ref_", "vero_", "pk_")
+_TRACKING_PARAM_EXACT = {
+    "fbclid", "gclid", "dclid", "msclkid", "yclid", "wbraid", "gbraid",
+    "ref", "source", "src", "share", "share_id", "feature",
+    "mc_cid", "mc_eid",
+}
+
+
+def normalize_url(url: str) -> str:
+    """Return a canonical form of `url` for dedup purposes:
+    - scheme + host lowercased
+    - host stripped of leading `www.`
+    - trailing slash removed
+    - all utm_*, fbclid, gclid, etc. query params dropped
+    - remaining query params sorted alphabetically
+    - fragment dropped
+    Returns the input unchanged if parsing fails.
+    """
+    if not url:
+        return url
+    try:
+        from urllib.parse import urlparse, urlunparse, parse_qsl, urlencode
+        p = urlparse(url.strip())
+        if not p.scheme or not p.netloc:
+            return url.strip().lower()
+        host = p.netloc.lower()
+        if host.startswith("www."):
+            host = host[4:]
+        path = (p.path or "/").rstrip("/") or "/"
+        kept = []
+        for k, v in parse_qsl(p.query, keep_blank_values=False):
+            kl = k.lower()
+            if kl in _TRACKING_PARAM_EXACT:
+                continue
+            if any(kl.startswith(pref) for pref in _TRACKING_PARAM_PREFIXES):
+                continue
+            kept.append((k, v))
+        kept.sort()
+        return urlunparse((p.scheme.lower(), host, path, "", urlencode(kept), ""))
+    except Exception:
+        return url.strip().lower()
 
 
 def _now() -> datetime:
@@ -198,7 +242,8 @@ async def ingest_publisher(db, publisher: dict) -> dict:
     if not _robots_allows(feed_url):
         await db.agg_publishers.update_one(
             {"id": pub_id},
-            {"$set": {"last_fetched_at": _now_iso(), "last_fetch_status": "robots_disallowed"}},
+            {"$set": {"last_fetched_at": _now_iso(), "last_fetch_status": "robots_disallowed"},
+             "$inc": {"error_count": 1}},
         )
         return {"publisher_id": pub_id, "ok": False, "reason": "robots_disallowed", "inserted": 0}
 
@@ -206,7 +251,8 @@ async def ingest_publisher(db, publisher: dict) -> dict:
     if err:
         await db.agg_publishers.update_one(
             {"id": pub_id},
-            {"$set": {"last_fetched_at": _now_iso(), "last_fetch_status": err}},
+            {"$set": {"last_fetched_at": _now_iso(), "last_fetch_status": err},
+             "$inc": {"error_count": 1}},
         )
         return {"publisher_id": pub_id, "ok": False, "reason": err, "inserted": 0}
 
@@ -216,7 +262,8 @@ async def ingest_publisher(db, publisher: dict) -> dict:
         logger.exception("parse failure for %s: %s", pub_id, e)
         await db.agg_publishers.update_one(
             {"id": pub_id},
-            {"$set": {"last_fetched_at": _now_iso(), "last_fetch_status": f"parse_error:{type(e).__name__}"}},
+            {"$set": {"last_fetched_at": _now_iso(), "last_fetch_status": f"parse_error:{type(e).__name__}"},
+             "$inc": {"error_count": 1}},
         )
         return {"publisher_id": pub_id, "ok": False, "reason": "parse_error", "inserted": 0}
 
@@ -226,8 +273,10 @@ async def ingest_publisher(db, publisher: dict) -> dict:
     for art in entries:
         published_at = datetime.fromisoformat(art["published_at"])
         expires_at = published_at + timedelta(days=ITEM_TTL_DAYS)
-        # Dedupe key: (publisher_id, guid). Fall back to original_url if guid is missing.
+        # Dedupe key: normalized_url (utm_*/fbclid/gclid stripped). Falls back
+        # to (publisher_id, guid) on the secondary index for legacy rows.
         guid = art["guid"] or art["original_url"]
+        norm_url = normalize_url(art["original_url"])
         doc = {
             "id": str(uuid.uuid4()),
             "publisher_id": pub_id,
@@ -236,16 +285,18 @@ async def ingest_publisher(db, publisher: dict) -> dict:
             "snippet": art["snippet"],
             "thumbnail_url": art["thumbnail_url"],
             "original_url": art["original_url"],
+            "normalized_url": norm_url,
             "published_at": art["published_at"],
             "fetched_at": fetched_at,
             "expires_at": expires_at.isoformat(),
             "hidden": False,
             "created_at": _now_iso(),
         }
-        # Try insert; if duplicate (publisher_id, guid), skip
+        # Primary dedup: normalized URL across all publishers (same story re-shared
+        # with different tracking params won't double-store).
         try:
             res = await db.agg_articles.update_one(
-                {"publisher_id": pub_id, "guid": guid},
+                {"normalized_url": norm_url},
                 {"$setOnInsert": doc},
                 upsert=True,
             )
@@ -254,11 +305,11 @@ async def ingest_publisher(db, publisher: dict) -> dict:
             else:
                 skipped += 1
         except Exception as e:
-            logger.warning("article upsert failed (pub=%s guid=%s): %s", pub_id, guid, e)
+            logger.warning("article upsert failed (pub=%s url=%s): %s", pub_id, norm_url, e)
 
     await db.agg_publishers.update_one(
         {"id": pub_id},
-        {"$set": {"last_fetched_at": fetched_at, "last_fetch_status": "ok"}},
+        {"$set": {"last_fetched_at": fetched_at, "last_fetch_status": "ok", "error_count": 0}},
     )
     return {"publisher_id": pub_id, "ok": True, "inserted": inserted, "skipped": skipped, "parsed": len(entries)}
 

@@ -42,6 +42,7 @@ from routes.aggregator_suggestions import setup as setup_aggregator_suggestions
 from routes.admin_reset import setup as setup_admin_reset
 from routes.admin_invite import setup as setup_admin_invite
 from routes.admin_briefings import setup as setup_admin_briefings
+from routes.refresh_feeds import setup as setup_refresh_feeds
 from routes.podcasts import setup as setup_podcasts
 from services.object_storage import init_storage
 from services.release_window import next_window, now_chicago
@@ -154,6 +155,7 @@ async def on_startup():
         await db.agg_publishers.create_index("category")
         await db.agg_articles.create_index("id", unique=True)
         await db.agg_articles.create_index([("publisher_id", 1), ("guid", 1)], unique=True)
+        await db.agg_articles.create_index("normalized_url", unique=True, sparse=True)
         await db.agg_articles.create_index([("published_at", -1)])
         await db.agg_articles.create_index("hidden")
         await db.agg_newsletter_signups.create_index("email", unique=True)
@@ -303,4 +305,5 @@ app.include_router(setup_aggregator_suggestions(db))
 app.include_router(setup_admin_reset(db))
 app.include_router(setup_admin_invite(db))
 app.include_router(setup_admin_briefings(db))
+app.include_router(setup_refresh_feeds(db))
 app.include_router(setup_podcasts(db))

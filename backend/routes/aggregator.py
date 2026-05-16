@@ -50,6 +50,7 @@ def setup(db):
     async def list_articles(
         category: Optional[str] = Query(default=None),
         publisher_slug: Optional[str] = Query(default=None),
+        search: Optional[str] = Query(default=None, min_length=2, max_length=120),
         hours: int = Query(default=48, ge=1, le=336),  # max 14d window
         offset: int = Query(default=0, ge=0, le=5000),
         limit: int = Query(default=DEFAULT_LIMIT, ge=1, le=MAX_LIMIT),
@@ -74,6 +75,14 @@ def setup(db):
             "published_at": {"$gte": cutoff_iso},
             "hidden": {"$ne": True},
         }
+        if search:
+            # Case-insensitive substring across title + snippet. Escape regex
+            # metacharacters so e.g. "rates+yields" doesn't crash.
+            safe = re.escape(search.strip())
+            art_q["$or"] = [
+                {"title": {"$regex": safe, "$options": "i"}},
+                {"snippet": {"$regex": safe, "$options": "i"}},
+            ]
         cur = (
             db.agg_articles.find(art_q, {"_id": 0})
             .sort("published_at", -1)
@@ -89,7 +98,7 @@ def setup(db):
                 "logo_url": p.get("logo_url"), "homepage_url": p.get("homepage_url"),
             } if p else None
         total = await db.agg_articles.count_documents(art_q)
-        return {"items": items, "total": total, "hours": hours, "offset": offset, "limit": limit}
+        return {"items": items, "total": total, "hours": hours, "offset": offset, "limit": limit, "search": search}
 
     @router.get("/publishers")
     async def list_publishers():

@@ -18,6 +18,7 @@ const CATEGORIES = [
   { key: "industry_blog", label: "Blogs" },
   { key: "data_research", label: "Data" },
   { key: "mortgage", label: "Mortgage" },
+  { key: "newsletter", label: "Newsletters" },
 ];
 
 function MenuIcon() {
@@ -54,6 +55,9 @@ export default function AggLayout({ children }) {
               </span>
             </Link>
             <div className="flex items-center gap-5">
+              <Link to="/news/latest" data-testid="agg-nav-latest" className="hidden sm:inline font-sans text-sm font-medium text-agg-cream hover:text-agg-orange transition-colors">
+                Latest
+              </Link>
               <Link to="/news/podcasts" data-testid="agg-nav-podcasts" className="hidden sm:inline font-sans text-sm font-medium text-agg-cream hover:text-agg-orange transition-colors">
                 Podcasts
               </Link>
@@ -85,6 +89,7 @@ export default function AggLayout({ children }) {
                   </div>
                   <nav className="flex flex-col px-2 pb-6">
                     <Link to="/news" onClick={close} className="font-display text-lg px-4 py-3 rounded-sm hover:bg-agg-navy-deep hover:text-agg-orange transition-colors">Home</Link>
+                    <Link to="/news/latest" onClick={close} className="font-display text-lg px-4 py-3 rounded-sm hover:bg-agg-navy-deep hover:text-agg-orange transition-colors">Latest</Link>
                     {CATEGORIES.filter(c => c.key).map(c => (
                       <Link key={c.key} to={`/news/category/${c.key}`} onClick={close} className="font-display text-lg px-4 py-3 rounded-sm hover:bg-agg-navy-deep hover:text-agg-orange transition-colors">
                         {c.label}

@@ -35,7 +35,14 @@ SEED_PUBLISHERS = [
     ("Zillow Press",            "zillow-press",     "data_research",  "https://zillow.mediaroom.com/rss-feeds",               "https://zillow.mediaroom.com",      "headline_only",         "pending"),
     ("Mortgage News Daily",     "mnd",              "mortgage",       "https://www.mortgagenewsdaily.com/rss/full",           "https://www.mortgagenewsdaily.com",  "headline_and_snippet", "not_required"),
     ("National Mortgage News",  "nmn",              "mortgage",       "https://www.nationalmortgagenews.com/feed",            "https://www.nationalmortgagenews.com","headline_only",       "pending"),
+    # ── 2026-02-16: Added per spec for the upgraded RSS aggregator ──
+    ("CNBC Real Estate",        "cnbc-realestate",  "national_trade", "https://www.cnbc.com/id/10000115/device/rss/rss.html", "https://www.cnbc.com/real-estate",   "headline_and_snippet", "pending"),
+    ("MarketWatch Real Estate", "marketwatch-re",   "national_trade", "https://feeds.content.dowjones.io/public/rss/mw_realestate", "https://www.marketwatch.com/real-estate", "headline_and_snippet", "pending"),
+    ("Commercial Observer",     "commercial-observer","national_trade","https://commercialobserver.com/feed/",                "https://commercialobserver.com",     "headline_and_snippet", "pending"),
+    ("Multi-Housing News",      "multi-housing",    "national_trade", "https://www.multihousingnews.com/feed/",               "https://www.multihousingnews.com",   "headline_and_snippet", "pending"),
+    ("Eye on Housing",          "eye-on-housing",   "industry_blog",  "https://eyeonhousing.org/feed/",                       "https://eyeonhousing.org",           "headline_and_snippet", "not_required"),
+    ("ResiClub",                "resiclub",         "newsletter",     "https://www.resiclub.com/feed",                        "https://www.resiclub.com",           "headline_and_snippet", "not_required"),
 ]
 
 
-CATEGORIES = ["national_trade", "regional", "industry_blog", "data_research", "mortgage", "commercial_re"]
+CATEGORIES = ["national_trade", "regional", "industry_blog", "data_research", "mortgage", "newsletter", "commercial_re"]

@@ -441,6 +441,47 @@ in Phase 2 frontend work).
 - **`MemberArticlePreviews`** essay cards now include an avatar + name +
   market footer band instead of the old "By Name · Market" italic line.
 
+## Phase 12 — RSS aggregator upgrade per spec (2026-02-16)
+- **5 new news + 1 newsletter publishers seeded**: CNBC Real Estate,
+  MarketWatch Real Estate, Commercial Observer, Multi-Housing News, Eye on
+  Housing, and ResiClub (Lance Lambert) under the new `newsletter` category.
+  Total active publishers: **34**.
+- **URL normalization for dedup** (`services/rss_ingest.py::normalize_url`):
+  strips `utm_*`, `mc_*`, `_hs*`, `hsa_*`, `ref_*`, `vero_*`, `pk_*`,
+  `fbclid`, `gclid`, `dclid`, `msclkid`, `yclid`, `wbraid`, `gbraid`, and
+  several other tracking params, lowercases host, drops `www.`, drops
+  trailing slash + fragment, sorts remaining query params. The result is
+  stored as `agg_articles.normalized_url` with a unique sparse Mongo index,
+  so the same story re-shared with different tracking params won't
+  double-store.
+- **Per-spec error tracking**: each failed fetch now increments
+  `agg_publishers.error_count` and writes the cause to
+  `last_fetch_status`; successes reset the count to 0. One bad feed never
+  blocks the others.
+- **`POST /api/refresh-feeds`** — token-protected external-cron trigger.
+  Token comes from `RSS_REFRESH_TOKEN` in `backend/.env`; caller passes it
+  via `?token=` or `X-Refresh-Token` header. Returns the same per-publisher
+  summary the in-process scheduler produces. The existing APScheduler job
+  every 15 minutes still runs in addition.
+- **Keyword search** on `GET /api/agg/articles?search=...` — case-insensitive
+  substring across `title` + `snippet`. Regex-escaped at the boundary.
+- **New `/news/latest` page** (`AggLatest.jsx`): per-article river of every
+  story across all sources, with thumbnail / source attribution / time /
+  excerpt. All cards open publisher URLs in new tabs (`target="_blank"
+  rel="noopener noreferrer"`). Filters: category dropdown, source dropdown
+  (grouped by category), free-text search, clear-filters button.
+  Pagination via offset/limit (20 per page, 7-day rolling window). Filter
+  state is mirrored to the URL so back/forward works. Existing per-publisher
+  `/news` grid is preserved untouched.
+- **`AggLayout`** gained a "Latest" link in the header desktop nav + mobile
+  sheet, and the `Newsletters` chip in the category filter bar.
+
+**Operator note**: `RSS_REFRESH_TOKEN` is provisioned in `backend/.env`.
+Value: `agVvGK5zSxMwxxv-Y2sI4NOeNbM3s--tq7up0UzX-_hpBeCPlqEgjw`. External
+cron can hit `POST /api/refresh-feeds` with header
+`X-Refresh-Token: <token>` (recommended hourly) or rely on the existing
+in-process APScheduler job that fires every 15 minutes.
+
 ## Backlog
 - P0 (user action): DNS for thehousingnews.com.
 - P0 (user action): Newsletter provider choice + API key.
