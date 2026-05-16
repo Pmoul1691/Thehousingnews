@@ -213,6 +213,19 @@ def setup(db):
             raise HTTPException(status_code=403, detail="Membership not approved")
         if user.get("suspended"):
             raise HTTPException(status_code=403, detail="Account suspended")
+        # Block stub profiles (Brevo-invite first-time users who haven't filled
+        # market + objectives yet) from posting. Reads are fine; writes need a
+        # real identity attached to them.
+        prof = await db.profiles.find_one({"user_id": user["user_id"]}, {"_id": 0, "is_stub": 1, "market": 1, "objectives": 1})
+        if prof and (
+            prof.get("is_stub")
+            or (not (prof.get("market") or "").strip())
+            or not [o for o in (prof.get("objectives") or []) if (o or "").strip()]
+        ):
+            raise HTTPException(
+                status_code=403,
+                detail="Finish setting up your profile (market + objectives) before posting.",
+            )
         post_id = f"post_{uuid.uuid4().hex[:12]}"
         now_iso = _now_iso()
 

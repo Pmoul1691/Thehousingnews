@@ -28,6 +28,28 @@ export default function FeedCompose({ user, profile, onPosted }) {
   const firstName = (user?.name || "").split(" ")[0] || "there";
   const avatarUrl = profile?.avatar_path ? `${API}/uploads/file/${profile.avatar_path}` : null;
 
+  // Stub-profile users (just claimed their Brevo invite) can read the feed
+  // but cannot post yet. We replace the collapsed compose UI with a quiet
+  // prompt that links to /onboarding instead of expanding into the composer.
+  if (profile?.is_stub) {
+    return (
+      <section data-testid="feed-compose-locked" className="mb-12">
+        <div className="flex items-center gap-4 py-5 border-b hairline">
+          <div className="w-11 h-11 rounded-full bg-[#F5EDD6] border hairline overflow-hidden flex items-center justify-center shrink-0">
+            <span className="font-display text-base text-gold">{(user?.name || "M")[0].toUpperCase()}</span>
+          </div>
+          <a
+            href="/onboarding"
+            data-testid="feed-compose-locked-cta"
+            className="flex-1 text-left font-serif italic text-lg text-[#2C2410]/60 hover:text-gold transition-colors"
+          >
+            Finish setup to start writing →
+          </a>
+        </div>
+      </section>
+    );
+  }
+
   if (expanded) {
     return (
       <section ref={wrapRef} data-testid="feed-compose-expanded" className="mb-12">

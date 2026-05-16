@@ -82,12 +82,46 @@ export default function Feed() {
   };
 
   const firstName = (user?.name || "").split(" ")[0] || "there";
+  const profileStub = !!profile?.is_stub;
 
   return (
     <div className="container-wide py-10" data-testid="magazine-feed">
       <div className="grid lg:grid-cols-3 gap-10">
         {/* Main column */}
         <div className="lg:col-span-2 min-w-0">
+          {/* Welcome banner for invite-claimed members whose profile is still
+              a stub. Soft prompt — they can read the feed, just can't post yet. */}
+          {profileStub && (
+            <section
+              data-testid="feed-welcome-banner"
+              className="mb-8 border border-gold/40 bg-gold/5 rounded-sm p-5 sm:p-6"
+            >
+              <p className="font-sans text-[10px] uppercase tracking-[0.22em] font-semibold text-gold mb-2">
+                Welcome
+              </p>
+              <h2 className="font-display font-semibold text-xl sm:text-2xl ink mb-2 leading-snug">
+                You're in, {firstName}.
+              </h2>
+              <p className="font-serif text-base ink/80 leading-relaxed max-w-prose mb-5">
+                Read whatever catches your eye. When you're ready to post, take two minutes to
+                tell us where you work and what you're pushing on this quarter — that's how
+                everyone else finds you.
+              </p>
+              <div className="flex items-center gap-4 flex-wrap">
+                <Link
+                  to="/onboarding"
+                  data-testid="feed-welcome-cta"
+                  className="inline-flex items-center justify-center bg-gold text-cream font-sans font-semibold text-sm px-5 py-2 rounded-sm hover:opacity-90 transition-opacity"
+                >
+                  Finish setup →
+                </Link>
+                <span className="font-sans text-xs italic text-muted-ink">
+                  Two minutes. Pick up later if you're busy.
+                </span>
+              </div>
+            </section>
+          )}
+
           {/* Greeting + scope toggle - calm header, FB-style */}
           <header className="mb-6 flex items-end justify-between flex-wrap gap-4">
             <div>

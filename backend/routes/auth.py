@@ -77,13 +77,46 @@ def setup(db):
             # The moment they sign in with Google (proving they own the inbox
             # the invite was sent to) we auto-promote them to approved so they
             # skip the application form.
-            if existing.get("status") == "invited":
+            was_invited = existing.get("status") == "invited"
+            if was_invited:
                 update["status"] = "approved"
                 update["invited_claimed_at"] = now_iso
                 update["source"] = existing.get("source") or "brevo_invite"
                 logger.info("Brevo invite claimed by %s", email)
             await db.users.update_one({"user_id": user_id}, {"$set": update})
             user = await db.users.find_one({"user_id": user_id}, {"_id": 0})
+
+            # Stub-profile bootstrap: a freshly-promoted invitee shouldn't be
+            # walled at /onboarding; we want them straight in the feed with
+            # a welcome banner. Drop a minimal profile row so `has_profile`
+            # is true. The /feed page detects "stub" (empty market+objectives)
+            # and surfaces a "Finish setup" prompt without blocking reads.
+            if was_invited and not await db.profiles.find_one(
+                {"user_id": user_id}, {"_id": 0, "user_id": 1}
+            ):
+                first_name = existing.get("first_name") or (user.get("name") or "").split(" ")[0]
+                last_name = existing.get("last_name") or ""
+                display_name = (
+                    f"{first_name} {last_name}".strip()
+                    or user.get("name")
+                    or email.split("@")[0]
+                )
+                await db.profiles.insert_one({
+                    "user_id": user_id,
+                    "email": email,
+                    "name": display_name,
+                    "market": "",
+                    "bio": "",
+                    "avatar_path": None,
+                    "objectives": [],
+                    "objectives_version": 0,
+                    "linkedin_url": None,
+                    "is_stub": True,
+                    "stub_source": "brevo_invite",
+                    "created_at": now_iso,
+                    "updated_at": now_iso,
+                })
+                logger.info("Stub profile created for invitee %s", email)
         else:
             existing_profile = await db.profiles.find_one({"email": email}, {"_id": 0})
             user_id = existing_profile["user_id"] if existing_profile else f"user_{uuid.uuid4().hex[:12]}"

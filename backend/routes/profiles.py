@@ -61,7 +61,18 @@ def setup(db):
     @router.get("")
     async def get_my_profile(user=Depends(_user)):
         prof = await db.profiles.find_one({"user_id": user["user_id"]}, {"_id": 0})
-        return prof or {}
+        if not prof:
+            return {}
+        # Tell the frontend whether this is still a stub (created during
+        # invite-claim) so it can render a "Finish setting up" banner
+        # instead of treating the empty fields as a finished profile.
+        is_stub = bool(prof.get("is_stub")) or (
+            not (prof.get("market") or "").strip()
+            and not [o for o in (prof.get("objectives") or []) if (o or "").strip()]
+        )
+        prof["is_complete"] = not is_stub
+        prof["is_stub"] = is_stub
+        return prof
 
     @router.put("")
     async def upsert_profile(payload: ProfileUpdate, user=Depends(_user)):
@@ -93,6 +104,7 @@ def setup(db):
             "objectives": payload.objectives,
             "objectives_version": objectives_version or 1,
             "linkedin_url": payload.linkedin_url,
+            "is_stub": False,  # any successful upsert clears the stub flag
             "updated_at": now_iso,
         }
         if not existing:
