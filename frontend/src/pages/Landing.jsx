@@ -112,9 +112,9 @@ function MiniDailyCard({ source, label, headline, when, badge }) {
   );
 }
 
-function TheDailyPreview() {
+function TheDailyPreview({ className = "" }) {
   return (
-    <BrowserChrome url="thehousing.news/news" data-testid="hero-daily-preview">
+    <BrowserChrome url="thehousing.news/news" className={className}>
       <div data-testid="hero-daily-preview" className="bg-[#FAF7F0] p-4">
         <div className="flex items-baseline justify-between mb-3">
           <div>
@@ -157,11 +157,11 @@ function TheDailyPreview() {
   );
 }
 
-function ComposerPreview() {
+function ComposerPreview({ className = "" }) {
   return (
     <BrowserChrome
       url="thehousing.news/feed"
-      className="-mt-3 sm:-mt-5 sm:ml-12 bg-cream"
+      className={`bg-cream ${className}`}
     >
       <div data-testid="hero-composer-preview" className="bg-cream p-5">
         <p className="font-sans text-[8.5px] uppercase tracking-[0.22em] font-semibold text-gold mb-2">Write</p>
@@ -216,17 +216,33 @@ function HeroSection() {
             data-testid="landing-headline"
             className="font-display font-semibold tracking-tight text-[44px] sm:text-[58px] lg:text-[68px] leading-[0.96] text-ink mt-6"
           >
-            The real estate
+            Where housing
             <br />
-            industry&apos;s
+            reads.
             <br />
-            twice-daily briefing.
+            <span className="text-gold">And writes.</span>
           </h1>
-          <p className="font-serif text-[18px] sm:text-[20px] leading-[1.55] text-ink/75 mt-7 max-w-[42ch]">
-            A magazine for the real estate industry. Twice-daily briefings, original
-            reporting, member essays, and the housing news everyone else is reading —
-            all in one place.
+          <p className="font-serif text-[18px] sm:text-[20px] leading-[1.55] text-ink/75 mt-7 max-w-[44ch]">
+            A publishing network for real estate professionals. Read what the
+            industry is publishing and publish what you&apos;re seeing — alongside
+            twice-daily briefings pulled from 34 housing sources.
           </p>
+
+          {/* Two co-equal pillars in the eyebrow strip */}
+          <div className="grid grid-cols-2 gap-4 mt-7 max-w-[44ch]" data-testid="landing-hero-pillars">
+            <div className="border-l-2 border-gold pl-3">
+              <p className="font-sans text-[10px] uppercase tracking-[0.22em] font-semibold text-gold">Write</p>
+              <p className="font-display font-semibold text-[15px] text-ink mt-1 leading-tight">
+                Publish essays and short notes to your peers.
+              </p>
+            </div>
+            <div className="border-l-2 border-gold/60 pl-3">
+              <p className="font-sans text-[10px] uppercase tracking-[0.22em] font-semibold text-gold">Read</p>
+              <p className="font-display font-semibold text-[15px] text-ink mt-1 leading-tight">
+                34 sources, twice-daily, in one place.
+              </p>
+            </div>
+          </div>
 
           <div className="flex items-center gap-6 flex-wrap mt-9">
             <Link
@@ -234,19 +250,26 @@ function HeroSection() {
               data-testid="landing-apply-btn"
               className="inline-flex items-center justify-center bg-ink text-cream font-sans font-semibold text-[14px] tracking-wide px-7 py-3 rounded-sm hover:bg-gold transition-colors"
             >
-              Start 45-day free trial
+              Join the network
             </Link>
             <Link
-              to="/news"
-              data-testid="landing-todays-edition-btn"
+              to="/essays"
+              data-testid="landing-essays-btn"
               className="inline-flex items-center font-sans font-semibold text-[14px] text-ink hover:text-gold transition-colors"
             >
-              Read Today&apos;s Edition →
+              Read member essays →
+            </Link>
+            <Link
+              to="/news/latest"
+              data-testid="landing-todays-edition-btn"
+              className="inline-flex items-center font-sans font-semibold text-[14px] text-ink/60 hover:text-gold transition-colors"
+            >
+              Today&apos;s headlines →
             </Link>
           </div>
 
           <p className="mt-3 font-sans text-[12px] text-ink/55" data-testid="landing-pricing-note">
-            45 days free for invited members. After that, $12.50/mo or $100/yr.
+            Free for 45 days for invited members. After that, $12.50/mo or $100/yr.
           </p>
 
           <p className="mt-8 font-sans text-[12.5px] text-ink/55 tracking-wide">
@@ -260,18 +283,18 @@ function HeroSection() {
           </div>
         </div>
 
-        {/* Right — premium previews */}
+        {/* Right — two co-equal previews. Composer (Write) on top, Daily (Read) below. */}
         <div className="relative">
-          <TheDailyPreview />
-          <ComposerPreview />
+          <ComposerPreview className="!mt-0 !ml-0" />
+          <TheDailyPreview className="mt-6 sm:mt-8 sm:ml-12" />
           {/* Floating mini cards as background depth */}
-          <div className="hidden sm:block absolute -top-6 -right-2 bg-cream-soft border border-gold/20 rounded-sm px-3 py-2 rotate-[3deg] shadow-sm">
+          <div className="hidden sm:block absolute -top-6 -left-3 bg-cream-soft border border-gold/20 rounded-sm px-3 py-2 -rotate-[3deg] shadow-sm">
+            <p className="font-sans text-[9px] uppercase tracking-[0.2em] text-gold/80 font-semibold">Write here</p>
+            <p className="font-display text-[13px] text-ink mt-0.5">Members publishing daily</p>
+          </div>
+          <div className="hidden sm:block absolute bottom-6 -right-4 bg-cream-soft border border-gold/20 rounded-sm px-3 py-2 rotate-[3deg] shadow-sm">
             <p className="font-sans text-[9px] uppercase tracking-[0.2em] text-gold/80 font-semibold">38 sources</p>
             <p className="font-display text-[13px] text-ink mt-0.5">Twice daily.</p>
-          </div>
-          <div className="hidden sm:block absolute bottom-6 -left-4 bg-cream-soft border border-gold/20 rounded-sm px-3 py-2 -rotate-[2deg] shadow-sm">
-            <p className="font-sans text-[9px] uppercase tracking-[0.2em] text-gold/80 font-semibold">Member Note</p>
-            <p className="font-display text-[13px] text-ink mt-0.5">Chicago luxury inventory</p>
           </div>
         </div>
       </div>
@@ -438,6 +461,107 @@ function TheFeedSection({ publishers, podcasts }) {
         {FEED_CATEGORIES.map((c) => (
           <FeedCategoryRow key={c.key} label={c.label} items={buckets[c.key] || []} />
         ))}
+      </div>
+    </section>
+  );
+}
+
+// ── SECTION 2B: The Network — visual roll-call of member writers ───────────
+function TheNetworkSection({ members }) {
+  if (!members || members.length < 3) return null;
+
+  // Group members by market region for the labeled rows. This mirrors
+  // TheFeedSection's category-grouped layout so the two pillars read as equals.
+  const ROW_BUCKETS = [
+    { key: "agents",     label: "Agents & Brokers",  match: /agent|broker|realtor/i },
+    { key: "investors",  label: "Investors",         match: /invest|fund|capital/i },
+    { key: "lenders",    label: "Lenders & Mortgage",match: /lender|mortgage|loan/i },
+    { key: "builders",   label: "Builders & Devs",   match: /build|developer|construction/i },
+    { key: "vendors",    label: "Vendors & Tech",    match: /vendor|tech|software|saas/i },
+  ];
+
+  // Best-effort bucketing using the `market` text. Anyone we can't classify
+  // falls into the "Members" catch-all so they always appear somewhere.
+  const buckets = { agents: [], investors: [], lenders: [], builders: [], vendors: [], members: [] };
+  members.forEach((m) => {
+    const blob = `${m.market || ""} ${m.snippet || ""}`;
+    const hit = ROW_BUCKETS.find((b) => b.match.test(blob));
+    if (hit) buckets[hit.key].push(m);
+    else buckets.members.push(m);
+  });
+
+  return (
+    <section data-testid="landing-network-section" className="container-editorial py-20">
+      <div className="flex items-end justify-between flex-wrap gap-4 mb-10">
+        <div>
+          <Eyebrow>The Network</Eyebrow>
+          <h2 className="font-display font-semibold text-[32px] sm:text-[42px] leading-[1.04] text-ink mt-5 tracking-tight">
+            Who&apos;s publishing here, every day.
+          </h2>
+          <p className="font-serif text-[17px] leading-relaxed text-ink/75 mt-5 max-w-prose">
+            Real estate professionals writing for their peers — not for an
+            algorithm, not for likes. Members publishing market notes, essays,
+            and short observations every day.
+          </p>
+        </div>
+        <Link
+          to="/essays"
+          data-testid="landing-network-explore"
+          className="font-sans font-semibold text-[14px] text-gold hover:text-ink transition-colors"
+        >
+          Read member essays →
+        </Link>
+      </div>
+
+      <div className="border-y border-gold/15" data-testid="landing-network-rows">
+        {[...ROW_BUCKETS, { key: "members", label: "Members" }].map((b) => {
+          const items = buckets[b.key] || [];
+          if (!items.length) return null;
+          return (
+            <div
+              key={b.key}
+              data-testid={`landing-network-row-${b.key}`}
+              className="grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-3 sm:gap-6 items-start py-4 border-t border-gold/15 first:border-t-0"
+            >
+              <p className="font-sans text-[11px] uppercase tracking-[0.22em] font-semibold text-gold pt-2 sm:pt-3">
+                {b.label}
+                <span className="ml-1.5 font-mono text-[10px] text-ink/40 normal-case tracking-normal">
+                  {items.length}
+                </span>
+              </p>
+              <div className="flex items-center gap-3 flex-wrap">
+                {items.map((m) => (
+                  <Link
+                    key={m.user_id}
+                    to={`/profile/${m.user_id}`}
+                    title={`${m.name}${m.market ? " · " + m.market : ""}`}
+                    data-testid={`landing-network-member-${m.user_id}`}
+                    className="group inline-flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-white border border-gold/15 hover:border-gold/60 hover:-translate-y-0.5 transition-all duration-200 shrink-0 overflow-hidden"
+                  >
+                    <MemberAvatar name={m.name} avatarPath={m.avatar_path} size={56} className="!border-0" />
+                  </Link>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Symmetric CTA pair to TheFeedSection's "Open The Daily" — but for writing */}
+      <div className="mt-10 flex items-center gap-4 flex-wrap">
+        <Link
+          to="/apply"
+          data-testid="landing-network-join"
+          className="inline-flex items-center justify-center bg-ink text-cream font-sans font-semibold text-[13px] px-6 py-2.5 rounded-sm hover:bg-gold transition-colors"
+        >
+          Start writing — Join the network
+        </Link>
+        <Link
+          to="/members"
+          className="font-sans font-semibold text-[14px] text-ink/70 hover:text-gold transition-colors"
+        >
+          Browse all members →
+        </Link>
       </div>
     </section>
   );
@@ -918,7 +1042,7 @@ export default function Landing() {
       api.get("/essays?limit=12").catch(() => ({ data: { items: [] } })),
       api.get("/agg/publishers-latest", { params: { hours: 36 } }).catch(() => ({ data: { items: [] } })),
       api.get("/agg/podcasts").catch(() => ({ data: { items: [] } })),
-      api.get("/agg/recent-members", { params: { limit: 6 } }).catch(() => ({ data: { items: [] } })),
+      api.get("/agg/recent-members", { params: { limit: 24 } }).catch(() => ({ data: { items: [] } })),
     ]).then(([eRes, pRes, podRes, mRes]) => {
       if (!alive) return;
       setEssays(eRes.data.items || []);
@@ -948,6 +1072,8 @@ export default function Landing() {
       <HeroSection />
       <SectionDivider />
       <TheFeedSection publishers={publishers} podcasts={podcasts} />
+      <SectionDivider />
+      <TheNetworkSection members={recentMembers} />
       <SectionDivider />
       <IntelligenceNetworkSection />
       <SectionDivider />

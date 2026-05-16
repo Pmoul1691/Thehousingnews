@@ -264,7 +264,7 @@ def setup(db):
         return {"ok": True}
 
     @router.get("/recent-members")
-    async def recent_members(limit: int = Query(default=8, ge=1, le=20)):
+    async def recent_members(limit: int = Query(default=8, ge=1, le=30)):
         """Public-safe list of recently-active members for the Landing page.
         Returns only name, market, avatar_path, and a short snippet from the
         member's most recent approved post. No emails, no IDs that aren't

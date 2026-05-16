@@ -482,6 +482,32 @@ cron can hit `POST /api/refresh-feeds` with header
 `X-Refresh-Token: <token>` (recommended hourly) or rely on the existing
 in-process APScheduler job that fires every 15 minutes.
 
+## Phase 13 — Rebalance: publishing network as co-equal pillar (2026-02-16)
+The user asked to make the Substack-style publishing network "as obvious as
+the newsfeed". Three changes:
+
+- **Hero rewrite**:
+  - Headline now reads **"Where housing reads. And writes."** with "And
+    writes." in gold to underline the duality.
+  - Subhead: "A publishing network for real estate professionals. Read what
+    the industry is publishing and publish what you're seeing — alongside
+    twice-daily briefings pulled from 34 housing sources."
+  - New WRITE / READ two-pillar eyebrow strip beneath the subhead.
+  - Primary CTA changed from "Start 45-day free trial" → **"Join the
+    network"**. Secondary CTAs: "Read member essays →" and "Today's
+    headlines →". 45-day trial note kept beneath.
+  - Preview cards reordered so the **Composer preview is now on top**
+    (write) and **The Daily is below** (read). Equal visual weight.
+- **New `TheNetworkSection`** mirrors `TheFeedSection` structure: same
+  category-row layout, same Open-The-X CTA, but for member writers instead
+  of news publishers. Members are best-effort bucketed into Agents &
+  Brokers / Investors / Lenders & Mortgage / Builders & Devs / Vendors &
+  Tech / Members based on their market + most-recent post text. Empty rows
+  hide. Section gracefully omits when fewer than 3 active members exist.
+- **Section order** now: Hero → TheFeed → **TheNetwork** → Intelligence →
+  WhatYouGet → MemberCommunity → ... The two pillars read as equals.
+- **`/api/agg/recent-members?limit`** cap raised from 20 → 30.
+
 ## Backlog
 - P0 (user action): DNS for thehousingnews.com.
 - P0 (user action): Newsletter provider choice + API key.
