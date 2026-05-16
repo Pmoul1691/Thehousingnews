@@ -13,6 +13,7 @@ export default function Onboarding() {
     bio: "",
     avatar_path: "",
     objectives: ["", "", ""],
+    linkedin_url: "",
   });
   const [submitting, setSubmitting] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -26,6 +27,7 @@ export default function Onboarding() {
           bio: r.data.bio || "",
           avatar_path: r.data.avatar_path || "",
           objectives: r.data.objectives && r.data.objectives.length === 3 ? r.data.objectives : ["", "", ""],
+          linkedin_url: r.data.linkedin_url || "",
         });
       }
     }).catch(() => {});
@@ -129,6 +131,34 @@ export default function Onboarding() {
               onChange={(e) => setObjective(i, e.target.value)}
             />
           ))}
+        </div>
+
+        <div>
+          <label className="block font-sans text-sm font-semibold ink mb-2">LinkedIn (optional)</label>
+          <p className="font-serif text-sm text-muted-ink mb-3">
+            Paste your profile URL or just your handle. It shows up as a small icon next to your name across the site.
+          </p>
+          <input
+            data-testid="onb-linkedin"
+            type="text"
+            inputMode="url"
+            className="w-full bg-cream border hairline rounded-sm p-3 font-sans text-sm ink focus:outline-none focus:ring-1 focus:ring-gold"
+            placeholder="https://www.linkedin.com/in/your-handle"
+            maxLength={200}
+            value={form.linkedin_url}
+            onChange={(e) => setForm({ ...form, linkedin_url: e.target.value })}
+          />
+          <details className="mt-3 group">
+            <summary className="cursor-pointer font-sans text-xs text-gold hover:opacity-80 select-none">
+              How to copy your LinkedIn URL →
+            </summary>
+            <ol className="mt-3 space-y-2 font-serif text-sm text-muted-ink leading-relaxed list-decimal pl-5">
+              <li>Open <a href="https://www.linkedin.com" target="_blank" rel="noreferrer" className="text-gold underline underline-offset-4">linkedin.com</a> and sign in.</li>
+              <li>Click your photo (top right) → <strong>View profile</strong>.</li>
+              <li>Copy the URL in your browser's address bar — it'll look like <code className="font-mono text-xs bg-gold/10 px-1.5 rounded-sm">https://www.linkedin.com/in/your-handle</code>.</li>
+              <li>Paste it above. We'll clean it up for you.</li>
+            </ol>
+          </details>
         </div>
 
         <button

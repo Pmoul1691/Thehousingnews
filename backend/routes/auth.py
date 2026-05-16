@@ -73,6 +73,15 @@ def setup(db):
                 update["picture"] = picture
             if not existing.get("name") and (partner_name or name):
                 update["name"] = partner_name or name
+            # Brevo bulk-invited users were pre-seeded with status="invited".
+            # The moment they sign in with Google (proving they own the inbox
+            # the invite was sent to) we auto-promote them to approved so they
+            # skip the application form.
+            if existing.get("status") == "invited":
+                update["status"] = "approved"
+                update["invited_claimed_at"] = now_iso
+                update["source"] = existing.get("source") or "brevo_invite"
+                logger.info("Brevo invite claimed by %s", email)
             await db.users.update_one({"user_id": user_id}, {"$set": update})
             user = await db.users.find_one({"user_id": user_id}, {"_id": 0})
         else:
@@ -177,5 +186,27 @@ def setup(db):
             await db.user_sessions.delete_one({"session_token": token})
         response.delete_cookie("session_token", path="/", samesite="none", secure=True)
         return {"ok": True}
+
+    @router.get("/invite/lookup")
+    async def invite_lookup(token: str):
+        """Public endpoint hit by the /claim page so it can greet the
+        invitee by name and confirm which inbox the invite was sent to.
+
+        Returns a tiny shape — no sensitive data, no claim side-effects.
+        The actual promotion to status="approved" happens server-side the
+        moment they sign in with Google using the matching email."""
+        if not token or len(token) > 200:
+            raise HTTPException(status_code=400, detail="Bad token")
+        invitee = await db.users.find_one(
+            {"invite_token": token, "status": "invited"},
+            {"_id": 0, "email": 1, "first_name": 1, "name": 1},
+        )
+        if not invitee:
+            raise HTTPException(status_code=404, detail="Invite not found or already claimed")
+        return {
+            "email": invitee["email"],
+            "first_name": invitee.get("first_name") or (invitee.get("name") or "").split(" ")[0],
+            "name": invitee.get("name"),
+        }
 
     return router

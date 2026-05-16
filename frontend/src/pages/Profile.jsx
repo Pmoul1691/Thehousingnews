@@ -102,7 +102,24 @@ export default function Profile() {
         </div>
         <div className="flex-1 min-w-0">
           <p className="uppercase-label mb-2">{profile.market}</p>
-          <h1 className="font-display font-semibold text-3xl ink mb-2">{profile.name}</h1>
+          <h1 className="font-display font-semibold text-3xl ink mb-2 flex items-center gap-3 flex-wrap">
+            {profile.name}
+            {profile.linkedin_url && (
+              <a
+                href={profile.linkedin_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                data-testid="profile-linkedin-link"
+                aria-label={`${profile.name} on LinkedIn`}
+                className="inline-flex items-center justify-center w-7 h-7 rounded-sm bg-[#0A66C2] text-white hover:opacity-80 transition-opacity"
+                title="View on LinkedIn"
+              >
+                <svg viewBox="0 0 24 24" className="w-4 h-4" fill="currentColor" aria-hidden="true">
+                  <path d="M20.5 2h-17A1.5 1.5 0 0 0 2 3.5v17A1.5 1.5 0 0 0 3.5 22h17a1.5 1.5 0 0 0 1.5-1.5v-17A1.5 1.5 0 0 0 20.5 2zM8 19H5v-9h3zM6.5 8.25A1.75 1.75 0 1 1 8.25 6.5 1.75 1.75 0 0 1 6.5 8.25zM19 19h-3v-4.74c0-1.42-.6-1.93-1.38-1.93A1.74 1.74 0 0 0 13 14.19a1 1 0 0 0 0 .19V19h-3v-9h2.9v1.3a3.11 3.11 0 0 1 2.7-1.4c1.55 0 3.36.86 3.36 3.66z"/>
+                </svg>
+              </a>
+            )}
+          </h1>
           {profile.bio && <p className="prose-serif text-base ink/80 leading-relaxed mb-4 max-w-prose">{profile.bio}</p>}
 
           {isSelf && <EntitlementBadge />}

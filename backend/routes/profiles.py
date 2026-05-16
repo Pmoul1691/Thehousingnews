@@ -12,12 +12,15 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/profile", tags=["profile"])
 
 
+import re
+
 class ProfileUpdate(BaseModel):
     name: str = Field(min_length=1, max_length=80)
     market: str = Field(min_length=2, max_length=120)
     bio: str = Field(max_length=280)
     avatar_path: Optional[str] = None
     objectives: List[str] = Field(min_length=3, max_length=3)
+    linkedin_url: Optional[str] = Field(default=None, max_length=200)
 
     @field_validator("objectives")
     @classmethod
@@ -29,6 +32,23 @@ class ProfileUpdate(BaseModel):
             if len(o) > 140:
                 raise ValueError("Each objective must be 140 chars or fewer")
         return cleaned
+
+    @field_validator("linkedin_url")
+    @classmethod
+    def normalize_linkedin(cls, v: Optional[str]):
+        if not v:
+            return None
+        v = v.strip()
+        # Accept a bare handle ("petermoulton") or a full URL.
+        if not v:
+            return None
+        if re.match(r"^[a-zA-Z0-9\-]{2,80}$", v):
+            return f"https://www.linkedin.com/in/{v.lower()}"
+        if not v.startswith(("http://", "https://")):
+            v = "https://" + v
+        if not re.match(r"^https?://([a-z]+\.)?linkedin\.com/(in|company)/[^/?#\s]+", v, re.IGNORECASE):
+            raise ValueError("LinkedIn URL must look like https://www.linkedin.com/in/your-handle")
+        return v
 
 
 def setup(db):
@@ -72,6 +92,7 @@ def setup(db):
             "avatar_path": payload.avatar_path or (existing or {}).get("avatar_path"),
             "objectives": payload.objectives,
             "objectives_version": objectives_version or 1,
+            "linkedin_url": payload.linkedin_url,
             "updated_at": now_iso,
         }
         if not existing:

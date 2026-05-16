@@ -35,6 +35,7 @@ import PromptDetail from "@/pages/PromptDetail";
 import Search from "@/pages/Search";
 import Pricing from "@/pages/Pricing";
 import Tag from "@/pages/Tag";
+import Claim from "@/pages/Claim";
 
 // Aggregator pages
 import AggHome from "@/pages/AggHome";
@@ -92,6 +93,7 @@ function Router() {
         <Route path="/search" element={<Search />} />
         <Route path="/pricing" element={<Pricing />} />
         <Route path="/tag/:tag" element={<Tag />} />
+        <Route path="/claim" element={<Claim />} />
 
         {/* === Aggregator (lives under /news) === */}
         <Route path="/news" element={<AggHome />} />

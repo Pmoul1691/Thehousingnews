@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import AdminAnalyticsPanel from "@/components/AdminAnalyticsPanel";
 import AdminPromptsPanel from "@/components/AdminPromptsPanel";
 import AdminResetDbPanel from "@/components/AdminResetDbPanel";
+import AdminInvitePanel from "@/components/AdminInvitePanel";
 
 function RssImportButton() {
   const [busy, setBusy] = useState(false);
@@ -161,6 +162,7 @@ export default function Admin() {
           { k: "mod", l: "Moderation" },
           { k: "subjects", l: "Subjects" },
           { k: "stats", l: "Analytics" },
+          { k: "invite", l: "Invite" },
           { k: "orphans", l: "Orphans" },
         ].map((t) => (
           <button
@@ -178,6 +180,8 @@ export default function Admin() {
         <AdminAnalyticsPanel />
       ) : section === "subjects" ? (
         <AdminPromptsPanel />
+      ) : section === "invite" ? (
+        <AdminInvitePanel />
       ) : section === "orphans" ? (
         <>
           <p className="prose-serif text-sm text-muted-ink mb-6 max-w-prose">
