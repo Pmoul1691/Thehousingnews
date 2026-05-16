@@ -6,34 +6,39 @@
 
 @layer base {
     :root {
-        /* Brand mapping into shadcn variables (HSL) */
-        --background: 38 60% 98%;   /* #FDFAF4 cream */
-        --foreground: 33 49% 12%;   /* #2C2410 ink */
+        /* Brand mapping into shadcn variables (HSL).
+         * NEW palette (Phase 1 spec):
+         *   cream    #F4F0E8  warm cream
+         *   espresso #1F140A  dark ink
+         *   gold     #B68A35  muted luxury gold
+         */
+        --background: 36 30% 93%;   /* #F4F0E8 warm cream */
+        --foreground: 31 51% 8%;    /* #1F140A dark espresso */
 
-        --card: 38 60% 98%;
-        --card-foreground: 33 49% 12%;
+        --card: 36 30% 93%;
+        --card-foreground: 31 51% 8%;
 
-        --popover: 38 60% 98%;
-        --popover-foreground: 33 49% 12%;
+        --popover: 36 30% 93%;
+        --popover-foreground: 31 51% 8%;
 
-        --primary: 36 47% 46%;      /* #AD893E gold */
-        --primary-foreground: 38 60% 98%;
+        --primary: 39 57% 46%;      /* #B68A35 muted luxury gold */
+        --primary-foreground: 36 30% 93%;
 
-        --secondary: 42 60% 90%;    /* mid gold tint */
-        --secondary-foreground: 33 49% 12%;
+        --secondary: 38 35% 86%;
+        --secondary-foreground: 31 51% 8%;
 
-        --muted: 42 60% 92%;
-        --muted-foreground: 33 16% 32%;
+        --muted: 38 30% 88%;
+        --muted-foreground: 28 18% 28%;
 
-        --accent: 42 55% 78%;       /* #E8D4A0 mid gold */
-        --accent-foreground: 33 49% 12%;
+        --accent: 42 45% 70%;       /* tinted gold */
+        --accent-foreground: 31 51% 8%;
 
-        --destructive: 358 78% 37%; /* #A4161A deep red */
-        --destructive-foreground: 38 60% 98%;
+        --destructive: 358 78% 37%;
+        --destructive-foreground: 36 30% 93%;
 
-        --border: 42 55% 78%;       /* mid gold */
-        --input: 42 55% 78%;
-        --ring: 36 47% 46%;
+        --border: 38 25% 80%;
+        --input: 38 25% 80%;
+        --ring: 39 57% 46%;
         --radius: 0.25rem;
     }
 }
@@ -43,8 +48,8 @@
         @apply border-border;
     }
     html, body {
-        background-color: #FDFAF4;
-        color: #2C2410;
+        background-color: #F4F0E8;
+        color: #1F140A;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
     }
@@ -56,41 +61,48 @@
     }
     .uppercase-label {
         font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
-        letter-spacing: 0.14em;
+        letter-spacing: 0.18em;
         text-transform: uppercase;
         font-size: 11px;
         font-weight: 600;
-        color: #AD893E;
+        color: #B68A35;
     }
     .hairline {
-        border-color: #E8D4A0;
+        border-color: #D9C28E;
     }
     .ink {
-        color: #2C2410;
+        color: #1F140A;
     }
     .text-muted-ink {
-        color: rgba(44, 36, 16, 0.65);
+        color: rgba(31, 20, 10, 0.62);
     }
     ::selection {
-        background: #E8D4A0;
-        color: #2C2410;
+        background: #D9C28E;
+        color: #1F140A;
     }
 }
 
 @layer utilities {
     .container-prose {
-        max-width: 680px;
+        max-width: 720px;
         margin-left: auto;
         margin-right: auto;
         padding-left: 1.5rem;
         padding-right: 1.5rem;
     }
     .container-wide {
-        max-width: 1120px;
+        max-width: 1200px;
         margin-left: auto;
         margin-right: auto;
         padding-left: 1.5rem;
         padding-right: 1.5rem;
+    }
+    .container-editorial {
+        max-width: 1320px;
+        margin-left: auto;
+        margin-right: auto;
+        padding-left: 1.75rem;
+        padding-right: 1.75rem;
     }
 }
 

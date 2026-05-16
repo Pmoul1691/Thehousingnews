@@ -61,7 +61,16 @@ function MarkLogo({ name, src, size = 40 }) {
  *   - { kind: "publisher", publisher: {...}, article: {...} | null }
  *   - { kind: "podcast",   podcast: {...},   episode: {...} | null }
  */
-export default function DailyCard({ entry }) {
+export default function DailyCard({ entry, badge }) {
+  const BadgeChip = badge ? (
+    <span
+      data-testid={`daily-card-badge-${badge.kind}`}
+      className={`inline-flex items-center gap-1 font-sans text-[9px] uppercase tracking-[0.18em] font-semibold px-1.5 py-0.5 rounded-sm ${badge.cls}`}
+    >
+      {badge.label}
+    </span>
+  ) : null;
+
   if (entry.kind === "podcast") {
     const pod = entry.podcast;
     const ep = entry.episode;
@@ -84,6 +93,7 @@ export default function DailyCard({ entry }) {
               Podcast
             </p>
           </div>
+          {BadgeChip && <div className="ml-auto">{BadgeChip}</div>}
         </header>
 
         {ep ? (
@@ -143,6 +153,7 @@ export default function DailyCard({ entry }) {
             {pub.category?.replace(/_/g, " ") || "Publisher"}
           </p>
         </div>
+        {BadgeChip && <div className="ml-auto">{BadgeChip}</div>}
       </header>
 
       {art ? (
