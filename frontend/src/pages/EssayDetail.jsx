@@ -317,7 +317,7 @@ function Paywall() {
             }}
             className="bg-gold text-cream font-sans font-semibold text-sm px-6 py-3 rounded-sm hover:opacity-90 transition-opacity"
           >
-            Apply for membership
+            Join now
           </button>
           <Link to="/public" className="font-sans text-sm font-medium ink hover:text-gold transition-colors underline underline-offset-4 decoration-gold-mid">
             Read the public feed

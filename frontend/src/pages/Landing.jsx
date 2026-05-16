@@ -580,7 +580,7 @@ function MemberCommunitySection() {
               to="/apply"
               className="inline-flex items-center justify-center bg-ink text-cream font-sans font-semibold text-[14px] px-6 py-2.5 rounded-sm hover:bg-gold transition-colors"
             >
-              Apply for membership
+              Join now
             </Link>
             <button
               onClick={signIn}

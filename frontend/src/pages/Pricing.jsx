@@ -144,7 +144,7 @@ function PartnerStatusCheck() {
             <span className="font-mono text-xs ink">{result.email}</span>.
           </p>
           <p className="font-serif text-sm text-muted-ink">
-            You can still <Link to="/apply" className="text-gold underline underline-offset-4 decoration-gold-mid hover:opacity-80 transition-opacity">apply for membership</Link>{" "}
+            You can still <Link to="/apply" className="text-gold underline underline-offset-4 decoration-gold-mid hover:opacity-80 transition-opacity">join now</Link>{" "}
             or pick a tier below.
           </p>
         </div>
@@ -285,7 +285,7 @@ export default function Pricing() {
       <div className="mt-12 border-t hairline pt-8 space-y-2">
         <p className="font-sans text-xs text-muted-ink">Pay once. Renews manually whenever you want.</p>
         <p className="font-sans text-xs text-muted-ink">
-          New to The Housing News? <Link to="/apply" className="text-gold hover:opacity-80 transition-opacity underline underline-offset-4 decoration-gold-mid">Apply for membership</Link>.
+          New to The Housing News? <Link to="/apply" className="text-gold hover:opacity-80 transition-opacity underline underline-offset-4 decoration-gold-mid">Join now</Link>.
         </p>
       </div>
     </div>
