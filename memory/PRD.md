@@ -414,6 +414,18 @@ in Phase 2 frontend work).
   ("28 publishers and 10 podcasts feed into The Daily.") and an "Open The
   Daily →" CTA.
 
+## Phase 10 — "The Feed" categorized layout (2026-02-16)
+- Replaced the round-robin 3-row layout with **6 category-labeled rows**:
+  National News, Regional, Mortgage, Data & Research, Blogs, Podcasts. Each
+  row shows the category label + count, followed by the favicons/cover art.
+- Smarter dedupe: when two publishers share a hostname, the entry with the
+  higher-priority category wins (national_trade > mortgage > data > regional
+  > blog), so "The Real Deal" properly anchors National News instead of being
+  collapsed into a regional TRD desk.
+- Confirmed: 32 distinct sources rendered across 6 categories. Keeping
+  Current Matters appears in **Blogs** (already ingesting at
+  `www.keepingcurrentmatters.com/feed`, 8 articles in DB).
+
 ## Backlog
 - P0 (user action): DNS for thehousingnews.com.
 - P0 (user action): Newsletter provider choice + API key.

@@ -279,12 +279,58 @@ function FeedLogo({ name, src, href, kind }) {
   );
 }
 
+// Category bucket configuration — order matters; this is the visual stack.
+const FEED_CATEGORIES = [
+  { key: "national_trade", label: "National News" },
+  { key: "regional",       label: "Regional" },
+  { key: "mortgage",       label: "Mortgage" },
+  { key: "data_research",  label: "Data & Research" },
+  { key: "industry_blog",  label: "Blogs" },
+  { key: "podcast",        label: "Podcasts" },
+];
+
+function FeedCategoryRow({ label, items }) {
+  if (!items.length) return null;
+  return (
+    <div
+      data-testid={`landing-feed-cat-${label.toLowerCase().replace(/\s+/g, "-").replace(/&/g, "and")}`}
+      className="grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-3 sm:gap-6 items-start py-4 border-t border-gold/15 first:border-t-0"
+    >
+      <p className="font-sans text-[11px] uppercase tracking-[0.22em] font-semibold text-gold pt-2 sm:pt-3">
+        {label}
+        <span className="ml-1.5 font-mono text-[10px] text-ink/40 normal-case tracking-normal">
+          {items.length}
+        </span>
+      </p>
+      <div className="flex items-center gap-3 flex-wrap">
+        {items.map((it, i) => (
+          <FeedLogo
+            key={`${it.kind}-${it.name}-${i}`}
+            name={it.name}
+            src={it.src}
+            href={it.href}
+            kind={it.kind}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function TheFeedSection({ publishers, podcasts }) {
-  const items = useMemo(() => {
+  const buckets = useMemo(() => {
     // Dedupe publishers by hostname — TRD has 6 regional editions all on
-    // therealdeal.com which produce identical Google favicons. Keep the
-    // shortest-named entry per hostname so "The Real Deal" wins over
-    // "TRD Miami" / "TRD Chicago" / etc.
+    // therealdeal.com which produce identical Google favicons. When two
+    // publishers share a host, prefer the entry in the broader category
+    // (national_trade > regional > industry_blog > mortgage > data_research)
+    // so the parent brand wins over the city-specific desk.
+    const CAT_PRIORITY = {
+      national_trade: 5,
+      mortgage: 4,
+      data_research: 3,
+      regional: 2,
+      industry_blog: 1,
+    };
     const byHost = new Map();
     (publishers || []).forEach((p) => {
       if (!p || !p.homepage_url) return;
@@ -292,38 +338,50 @@ function TheFeedSection({ publishers, podcasts }) {
       try { host = new URL(p.homepage_url).hostname.replace(/^www\./, ""); }
       catch { return; }
       const existing = byHost.get(host);
-      if (!existing || (p.name || "").length < (existing.name || "").length) {
+      if (!existing) {
+        byHost.set(host, p);
+        return;
+      }
+      const prevP = CAT_PRIORITY[existing.category] || 0;
+      const nextP = CAT_PRIORITY[p.category] || 0;
+      if (nextP > prevP) {
+        byHost.set(host, p);
+      } else if (nextP === prevP && (p.name || "").length < (existing.name || "").length) {
         byHost.set(host, p);
       }
     });
 
-    const pubs = Array.from(byHost.entries()).map(([host, p]) => {
+    const grouped = {};
+    FEED_CATEGORIES.forEach((c) => { grouped[c.key] = []; });
+
+    Array.from(byHost.entries()).forEach(([host, p]) => {
       const src = p.logo_url || `https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=64`;
-      return {
+      const cat = p.category && grouped[p.category] ? p.category : "industry_blog";
+      grouped[cat].push({
         kind: "publisher",
         name: p.name,
         src,
         href: `/news/source/${p.slug}`,
-      };
+      });
     });
-    const pods = (podcasts || []).map((p) => ({
+
+    grouped.podcast = (podcasts || []).filter((p) => p.title).map((p) => ({
       kind: "podcast",
       name: p.title,
       src: p.cover_art,
       href: `/news/podcasts`,
     }));
-    return [...pubs, ...pods].filter((i) => i.name);
+
+    // Sort each bucket alphabetically by name so the layout is stable
+    Object.values(grouped).forEach((arr) => arr.sort((a, b) => a.name.localeCompare(b.name)));
+    return grouped;
   }, [publishers, podcasts]);
 
-  if (!items.length) return null;
-
-  // Split items into three balanced rows so the marquee feels intentional
-  // rather than a single overflowing strip.
-  const rows = [[], [], []];
-  items.forEach((it, i) => rows[i % 3].push(it));
-
-  const uniqueDomainCount = items.filter((i) => i.kind === "publisher").length;
-  const totalPod = (podcasts || []).length;
+  const totalSources = useMemo(
+    () => Object.values(buckets).reduce((sum, arr) => sum + arr.length, 0),
+    [buckets],
+  );
+  if (!totalSources) return null;
 
   return (
     <section data-testid="landing-feed-section" className="container-editorial py-20">
@@ -334,8 +392,8 @@ function TheFeedSection({ publishers, podcasts }) {
             What gets syndicated, every day.
           </h2>
           <p className="font-serif text-[17px] leading-relaxed text-ink/75 mt-5 max-w-prose">
-            {uniqueDomainCount} publishers and {totalPod} podcasts feed into The Daily.
-            Tap any source to see its latest.
+            {totalSources} sources across national news, regional desks, mortgage,
+            data, blogs, and podcasts — all in one daily edition.
           </p>
         </div>
         <Link
@@ -347,23 +405,9 @@ function TheFeedSection({ publishers, podcasts }) {
         </Link>
       </div>
 
-      <div className="space-y-3" data-testid="landing-feed-rows">
-        {rows.map((row, ri) => (
-          <div
-            key={`feed-row-${ri}`}
-            data-testid={`landing-feed-row-${ri + 1}`}
-            className="flex items-center gap-3 flex-wrap"
-          >
-            {row.map((it, i) => (
-              <FeedLogo
-                key={`${it.kind}-${it.name}-${i}`}
-                name={it.name}
-                src={it.src}
-                href={it.href}
-                kind={it.kind}
-              />
-            ))}
-          </div>
+      <div className="border-y border-gold/15" data-testid="landing-feed-rows">
+        {FEED_CATEGORIES.map((c) => (
+          <FeedCategoryRow key={c.key} label={c.label} items={buckets[c.key] || []} />
         ))}
       </div>
     </section>
