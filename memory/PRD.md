@@ -374,6 +374,37 @@ in Phase 2 frontend work).
   - Removed: "performative theater", "vanity metrics", "fragmented information",
     "signals that matter", "spend less time searching".
 
+## Phase 8 — Morning + Evening Daily Briefs (2026-02-16)
+- **New service** `services/briefings.py`:
+  - `build_brief_payload(db, kind)` — pulls top 8 articles (deduped by
+    publisher) from last 14h (morning) or 8h (evening, widens to 14h if thin),
+    plus one podcast pick (morning), trending topics (evening), and the most
+    recent approved member essay.
+  - `send_brief(db, kind)` / `send_morning_brief` / `send_evening_brief` —
+    iterates `status in [approved, invited]` users with `brief_optout != true`,
+    inserts a `brief_dispatches` tracking row per recipient, sends via Brevo.
+- **New Brevo template** `send_brief_email` in `services/brevo.py` — premium
+  cream/gold/ink HTML shell with article rows, podcast pick, trending list,
+  member essay block, "Open The Daily" CTA, and a manage-prefs footer.
+  Sender override: `briefs@thehousingnews.com` / "The Housing News".
+- **APScheduler cron jobs** added in `services/scheduler.py`:
+  - `brief_morning` — daily 7:30 AM America/Chicago
+  - `brief_evening` — daily 5:30 PM America/Chicago
+- **Admin endpoints** in `routes/admin_briefings.py`:
+  - `GET  /api/admin/briefings/preview?kind=morning|evening` — dry-run dump
+  - `POST /api/admin/briefings/send?kind=morning|evening` — fire immediately
+  - `POST /api/admin/briefings/send-test?kind=...&email=...` — send a single
+    `[TEST]`-prefixed brief to one inbox, no tracking row recorded.
+- **Verified**: end-to-end test against the live Brevo API returned a real
+  `messageId` for a Morning Brief test send. Both previews return 8 deduped
+  articles with publisher attribution + a member essay; evening preview also
+  surfaces 24h trending topics.
+- **Mongo collection added**: `brief_dispatches` (dispatch_id, kind,
+  recipient_user_id, recipient_email, articles_count, first_opened_at,
+  first_clicked_at, created_at).
+- **Env**: `BRIEF_SENDER_EMAIL` (default `briefs@thehousingnews.com`),
+  `BRIEF_SENDER_NAME` (default `The Housing News`).
+
 ## Backlog
 - P0 (user action): DNS for thehousingnews.com.
 - P0 (user action): Newsletter provider choice + API key.

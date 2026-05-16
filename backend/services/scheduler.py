@@ -6,6 +6,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from services.release_window import CHICAGO, previous_window, window_kind, window_label
 from services.brevo import send_digest_email
+from services.briefings import send_morning_brief, send_evening_brief
 from services.essay_dispatch import dispatch_essay_to_followers
 from services.admin_digest import send_admin_digest
 from services.substack_import import import_substack_feed
@@ -258,6 +259,29 @@ def start_scheduler(db) -> AsyncIOScheduler:
         replace_existing=True,
         misfire_grace_time=600,
     )
+    # Daily housing-news briefings to all approved + invited members.
+    # Morning Brief: 7:30 AM America/Chicago — last 14h of publisher news + a podcast pick.
+    # Evening Brief: 5:30 PM America/Chicago — last 8h of news + 24h trending topics.
+    scheduler.add_job(
+        send_morning_brief,
+        trigger="cron",
+        hour=7,
+        minute=30,
+        args=[db],
+        id="brief_morning",
+        replace_existing=True,
+        misfire_grace_time=600,
+    )
+    scheduler.add_job(
+        send_evening_brief,
+        trigger="cron",
+        hour=17,
+        minute=30,
+        args=[db],
+        id="brief_evening",
+        replace_existing=True,
+        misfire_grace_time=600,
+    )
     scheduler.start()
-    logger.info("Release scheduler started (8:30 AM and 5:30 PM America/Chicago + per-minute scheduled-essays sweep + 7:00 AM daily Substack import + 15-min aggregator ingest)")
+    logger.info("Release scheduler started (8:30 AM and 5:30 PM America/Chicago + per-minute scheduled-essays sweep + 7:00 AM daily Substack import + 15-min aggregator ingest + 7:30 AM / 5:30 PM Daily Briefs)")
     return scheduler

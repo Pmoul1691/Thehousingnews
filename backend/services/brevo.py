@@ -27,6 +27,8 @@ def send_email(
     html: str,
     tags: Optional[list[str]] = None,
     dispatch_id: Optional[str] = None,
+    sender_email: Optional[str] = None,
+    sender_name: Optional[str] = None,
 ) -> dict:
     """Send a transactional email. Returns response dict or {'skipped': True}.
     If dispatch_id is given, the HTML is wrapped with a tracking pixel and links are rewritten."""
@@ -39,10 +41,12 @@ def send_email(
     if not BREVO_API_KEY:
         logger.warning("BREVO_API_KEY missing; skipping email to %s", to_email)
         return {"skipped": True}
+    from_email = sender_email or SENDER_EMAIL
+    from_name = sender_name or SENDER_NAME
     payload = {
-        "sender": {"email": SENDER_EMAIL, "name": SENDER_NAME},
+        "sender": {"email": from_email, "name": from_name},
         "to": [{"email": to_email, "name": to_name or to_email}],
-        "replyTo": {"email": SENDER_EMAIL, "name": SENDER_NAME},
+        "replyTo": {"email": from_email, "name": from_name},
         "subject": subject,
         "htmlContent": html,
         "tags": tags or ["ultradian_network"],
@@ -267,3 +271,159 @@ def send_digest_email(email: str, name: str, window_label: str, kind: str, posts
     """)
     subject = f"The {intro_word} release ({window_label})"
     return send_email(email, name, subject, html, tags=["ultradian_network", f"digest_{kind}"], dispatch_id=dispatch_id)
+
+
+# ---------- Daily Brief (Morning / Evening housing news digest) ----------
+
+BRIEF_SENDER_EMAIL = os.environ.get("BRIEF_SENDER_EMAIL", "briefs@thehousingnews.com")
+BRIEF_SENDER_NAME = os.environ.get("BRIEF_SENDER_NAME", "The Housing News")
+
+
+def _esc(s: str) -> str:
+    return (
+        (s or "")
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+    )
+
+
+def _brief_article_row(idx: int, art: dict) -> str:
+    pub = art.get("publisher") or {}
+    pub_name = _esc(pub.get("name") or "Publisher")
+    title = _esc(art.get("title") or "Untitled")
+    href = art.get("original_url") or "#"
+    snippet = _esc((art.get("snippet") or "")[:180])
+    snippet_html = (
+        f'<p style="font-family:Georgia, serif; font-size:14px; line-height:1.55; color:#2C2410; margin:6px 0 0 0;">{snippet}</p>'
+        if snippet else ""
+    )
+    return f"""
+    <div style="border-top:1px solid #E8D4A0; padding:18px 0;">
+      <div style="display:flex; align-items:baseline; gap:10px;">
+        <span style="font-family:'Plus Jakarta Sans', Arial, sans-serif; font-weight:600; color:#AD893E; font-size:13px;">{idx:02d}</span>
+        <span style="font-family:'Plus Jakarta Sans', Arial, sans-serif; font-size:10px; letter-spacing:0.18em; text-transform:uppercase; color:#AD893E; font-weight:600;">{pub_name}</span>
+      </div>
+      <a href="{href}" style="display:block; font-family:'Plus Jakarta Sans', Arial, sans-serif; font-size:18px; line-height:1.3; font-weight:600; color:#2C2410; text-decoration:none; margin:6px 0 0 0;">{title}</a>
+      {snippet_html}
+    </div>
+    """
+
+
+def _brief_podcast_block(pod: dict) -> str:
+    ep = pod.get("latest_episode") or {}
+    title = _esc(pod.get("title") or "Podcast")
+    ep_title = _esc(ep.get("title") or "Latest episode")
+    href = ep.get("link") or pod.get("apple_url") or "#"
+    return f"""
+    <div style="margin-top:28px; padding:18px 20px; border:1px solid #E8D4A0; background:#FBF6E8;">
+      <div style="font-family:'Plus Jakarta Sans', Arial, sans-serif; font-weight:600; font-size:10px; letter-spacing:0.22em; text-transform:uppercase; color:#AD893E;">Podcast pick</div>
+      <a href="{href}" style="font-family:'Plus Jakarta Sans', Arial, sans-serif; font-weight:600; font-size:16px; color:#2C2410; text-decoration:none; display:block; margin-top:6px;">{ep_title}</a>
+      <div style="font-family:Georgia, serif; font-style:italic; font-size:13px; color:#2C2410; margin-top:4px;">{title}</div>
+    </div>
+    """
+
+
+def _brief_trending_block(topics: list) -> str:
+    if not topics:
+        return ""
+    rows = "".join(
+        f'<li style="font-family:Georgia, serif; font-size:14px; color:#2C2410; padding:6px 0; border-bottom:1px solid #E8D4A0;">{_esc(t.get("topic", ""))}'
+        f'<span style="float:right; font-family:\'Plus Jakarta Sans\', Arial, sans-serif; font-size:12px; color:#AD893E;">{t.get("count", 0)}</span></li>'
+        for t in topics[:5]
+    )
+    return f"""
+    <div style="margin-top:28px;">
+      <div style="font-family:'Plus Jakarta Sans', Arial, sans-serif; font-weight:600; font-size:10px; letter-spacing:0.22em; text-transform:uppercase; color:#AD893E; margin-bottom:8px;">Trending across housing · 24h</div>
+      <ul style="list-style:none; padding:0; margin:0;">{rows}</ul>
+    </div>
+    """
+
+
+def _brief_essay_block(essay: dict, app_url: str) -> str:
+    if not essay:
+        return ""
+    author = (essay.get("author") or {}).get("name") or "A member"
+    market = (essay.get("author") or {}).get("market") or ""
+    market_html = f' <span style="color:#AD893E;">· {_esc(market)}</span>' if market else ""
+    title = _esc(essay.get("title") or "Untitled")
+    href = f"{app_url}/essays/{essay.get('post_id', '')}"
+    return f"""
+    <div style="margin-top:28px; padding-top:20px; border-top:2px solid #2C2410;">
+      <div style="font-family:'Plus Jakarta Sans', Arial, sans-serif; font-weight:600; font-size:10px; letter-spacing:0.22em; text-transform:uppercase; color:#AD893E; margin-bottom:8px;">From a member</div>
+      <a href="{href}" style="font-family:'Plus Jakarta Sans', Arial, sans-serif; font-weight:600; font-size:18px; color:#2C2410; text-decoration:none; line-height:1.3; display:block;">{title}</a>
+      <div style="font-family:Georgia, serif; font-style:italic; font-size:13px; color:#2C2410; margin-top:6px;">By {_esc(author)}{market_html}</div>
+    </div>
+    """
+
+
+def _brief_wrap(kind: str, body_html: str, app_url: str) -> str:
+    """Brief-specific shell. Uses cream/gold/ink palette."""
+    label = "Morning Brief" if kind == "morning" else "Evening Brief"
+    time_str = "7:30 AM CT" if kind == "morning" else "5:30 PM CT"
+    today = datetime_now_label()
+    return f"""
+    <div style="font-family: Georgia, serif; color:#2C2410; background:#FDFAF4; padding:24px 0;">
+      <div style="max-width:600px; margin:0 auto; background:#FDFAF4;">
+        <div style="text-align:center; padding-bottom:24px; border-bottom:2px solid #2C2410;">
+          <div style="font-family:'Plus Jakarta Sans', Arial, sans-serif; font-weight:600; color:#AD893E; letter-spacing:0.28em; text-transform:uppercase; font-size:11px;">The Housing News</div>
+          <div style="font-family:'Plus Jakarta Sans', Arial, sans-serif; font-weight:600; color:#2C2410; font-size:28px; margin-top:8px;">{label}</div>
+          <div style="font-family:Georgia, serif; font-style:italic; color:#AD893E; font-size:13px; margin-top:4px;">{today} · {time_str}</div>
+        </div>
+        <div style="padding:24px 0;">
+          {body_html}
+        </div>
+        <div style="margin-top:32px; padding-top:20px; border-top:1px solid #E8D4A0; text-align:center;">
+          <a href="{app_url}/news" style="display:inline-block; background:#2C2410; color:#FDFAF4; padding:12px 28px; text-decoration:none; font-family:'Plus Jakarta Sans', Arial, sans-serif; font-weight:600; font-size:13px; letter-spacing:0.05em;">Open The Daily →</a>
+        </div>
+        <div style="margin-top:24px; padding-top:16px; border-top:1px solid #E8D4A0; text-align:center; font-family:'Plus Jakarta Sans', Arial, sans-serif; font-size:11px; color:#2C2410;">
+          You receive these briefs because you are a member of The Housing News.<br/>
+          <a href="{app_url}/profile" style="color:#AD893E; text-decoration:underline;">Manage your email preferences</a>
+        </div>
+      </div>
+    </div>
+    """
+
+
+def datetime_now_label() -> str:
+    """Returns 'Mon Feb 16'-style label in America/Chicago."""
+    try:
+        from services.release_window import CHICAGO
+        from datetime import datetime as _dt
+        now = _dt.now(CHICAGO)
+        return now.strftime("%a %b %-d")
+    except Exception:
+        from datetime import datetime as _dt
+        return _dt.utcnow().strftime("%a %b %-d")
+
+
+def send_brief_email(
+    to_email: str,
+    to_name: str,
+    subject: str,
+    kind: str,
+    payload: dict,
+    dispatch_id: Optional[str] = None,
+) -> dict:
+    """Send a Morning or Evening Brief to one recipient."""
+    app_url = os.environ.get("APP_PUBLIC_URL", "")
+    articles = payload.get("articles") or []
+    items_html = "".join(_brief_article_row(i + 1, a) for i, a in enumerate(articles[:8]))
+    extras_html = ""
+    if kind == "morning" and payload.get("podcast"):
+        extras_html += _brief_podcast_block(payload["podcast"])
+    if kind == "evening" and payload.get("trending"):
+        extras_html += _brief_trending_block(payload["trending"])
+    essay_html = _brief_essay_block(payload.get("essay"), app_url)
+    body = items_html + extras_html + essay_html
+    html = _brief_wrap(kind, body, app_url)
+    return send_email(
+        to_email,
+        to_name,
+        subject,
+        html,
+        tags=["thehousingnews", f"brief_{kind}"],
+        dispatch_id=dispatch_id,
+        sender_email=BRIEF_SENDER_EMAIL,
+        sender_name=BRIEF_SENDER_NAME,
+    )
