@@ -149,16 +149,17 @@ async def import_substack_feed(db, feed_url: Optional[str] = None) -> dict:
         # essay does not jump the calm-by-design rhythm.
         source_published_iso = _parse_published(entry)
 
-        # Fetch the original Substack page to see if it embeds a Mux video.
-        # If yes, attach it as media[0] so the reader page renders the full
-        # video instead of just the short text caption.
+        # Substack videos (Mux HLS) are intentionally NOT imported — they
+        # don't play interactively in our reader and the user prefers the
+        # essay text to stand on its own. Re-enable by uncommenting and
+        # restoring the `fetch_substack_media` call below.
         media: list = []
-        try:
-            mux = fetch_substack_media(source_url) if source_url else None
-            if mux:
-                media.append(mux)
-        except Exception as _e:
-            logger.warning("Mux fetch failed for %s: %s", source_url, _e)
+        # try:
+        #     mux = fetch_substack_media(source_url) if source_url else None
+        #     if mux:
+        #         media.append(mux)
+        # except Exception as _e:
+        #     logger.warning("Mux fetch failed for %s: %s", source_url, _e)
 
         post_id = f"post_{uuid.uuid4().hex[:12]}"
         doc = {
