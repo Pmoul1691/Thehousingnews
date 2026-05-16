@@ -90,12 +90,13 @@ export default function Claim() {
         Welcome, {invitee.first_name || "there"}.
       </h1>
       <p className="font-serif text-lg ink/85 leading-relaxed max-w-prose mb-4">
-        We've held a spot for you in <em>The Housing News</em> — a daily magazine for the real estate industry.
+        We&apos;ve held a spot for you in <em>The Housing News</em> — a daily magazine for the real estate industry.
+        You&apos;re in for <strong>45 days, free</strong>.
       </p>
       <p className="font-serif text-base text-muted-ink leading-relaxed max-w-prose mb-10">
         Sign in with Google using{" "}
         <span className="font-sans font-semibold ink bg-gold/10 px-1.5 py-0.5 rounded-sm">{invitee.email}</span>{" "}
-        and you're in. No application form, no waiting.
+        and you&apos;re in. No application form, no waiting. After 45 days it&apos;s $12.50/mo or $100/yr — only if you want to stay.
       </p>
       <button
         onClick={signIn}

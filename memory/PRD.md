@@ -353,24 +353,40 @@ in Phase 2 frontend work).
   - No `read more` internal route. No full-article view. No paywall on aggregator.
   - 90/120-day expiry enforced by `prune_expired` cron.
 
+## Phase 7 — Editorial copy cleanup + new hero (2026-02-16)
+- **Landing hero**: replaced "Morning/Evening Brief" mockups with two product
+  previews styled as actual screenshots of `/news` (The Daily) and `/feed` (the
+  member Composer). New `BrowserChrome`, `TheDailyPreview`, `ComposerPreview`
+  components in `Landing.jsx`.
+- **45-day free trial for invitees**: hero CTA, pricing note, and final CTA
+  reflect $12.50/mo or $100/yr after the 45-day Brevo-invite trial. Claim page
+  also greets invitees with "45 days, free".
+- **Corporate-speak removed across the site** (Landing + AggHome):
+  - "Signal over noise" → "A magazine, not a feed."
+  - "Housing Intelligence Network" → "The Network" / "Housing News Network"
+  - "intelligence layer" → "What the housing industry is reading today."
+  - "The value is not more information…" → "Read once in the morning. Read once
+    at night. The rest of the day belongs to your clients."
+  - "Built for substance" / "elevate the industry" → "Members write. Members
+    read."
+  - "Stop searching. Start understanding." → "One place. Twice a day. Done."
+  - "Local Signal" badge → "Local"
+  - Removed: "performative theater", "vanity metrics", "fragmented information",
+    "signals that matter", "spend less time searching".
+
 ## Backlog
 - P0 (user action): DNS for thehousingnews.com.
-- P0 (next): Newsletter provider choice (Beehiiv vs ConvertKit) + API key.
-- P0 (next): Analytics provider choice (Plausible vs Fathom) + domain key.
-- P1 (Phase 2): React frontend pages for the aggregator at `/`,
-  `/source/[slug]`, `/category/[category]`, `/about`, `/newsletter`,
-  `/admin/aggregator`. Move members product under `/members/*`.
-- P2 (Phase 3): Next.js + TypeScript migration of the entire frontend per the
-  brief's stack requirement.
+- P0 (user action): Newsletter provider choice + API key.
+- P0 (user action): Analytics provider choice + domain key.
+- P1 (Phase 3): Morning + Evening briefing email templates + Brevo dispatcher
+  (8:30 AM / 5:30 PM cron).
+- P2: Add real member profile photos to Landing "From the feed" rows.
+- P2: Personal Access Tokens (PATs) for programmatic posting — user said WAIT.
+- P3: Upgrade LinkedIn URL import to Proxycurl for full work-history fetch.
+- P0 Epic (long-term): Migrate React SPA to Next.js + TS per aggregator brief.
 
 ## Next Actions
-1. Get newsletter + analytics provider choices from user; collect API keys.
-2. Build Phase 2 — React frontend pages for the aggregator.
-3. Move members-only pages under `/members/*` so aggregator owns `/`.
-
-## Next Actions
-1. Verify DNS + production domain (user).
-2. Consider adding a "g w" keyboard shortcut for the floating Write pill.
-3. Consider a soft delete / audit trail for the orphan reconnect destructive
-   step (currently deletes any placeholder profile under the new user_id).
+1. Build Phase 3 email templates + Brevo dispatcher for 8:30 AM / 5:30 PM
+   briefings (P1).
+2. Add real member photos to Landing "From the feed" rows (P2).
 

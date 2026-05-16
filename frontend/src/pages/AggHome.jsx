@@ -29,17 +29,17 @@ function AggHero() {
       className="pt-16 pb-16 sm:pt-20 sm:pb-20 border-b border-slate-200"
     >
       <p className="font-sans text-[10px] uppercase tracking-[0.28em] font-semibold text-agg-orange">
-        The Daily · Housing Intelligence Network
+        The Daily · Housing News Network
       </p>
       <h1
         data-testid="agg-hero-headline"
         className="font-display font-semibold text-[40px] sm:text-[52px] lg:text-[60px] leading-[1.04] text-agg-navy mt-5 tracking-tight max-w-4xl"
       >
-        The housing industry&apos;s intelligence layer.
+        What the housing industry is reading today.
       </h1>
       <p className="font-serif text-[17px] sm:text-[19px] leading-[1.55] text-slate-700 mt-6 max-w-3xl">
-        Curated reporting, podcasts, commentary, and market signals — organized so professionals
-        spend less time searching and more time understanding.
+        Reporting, podcasts, and member commentary from across housing — pulled
+        together in one place so you don&apos;t have to open twenty tabs to keep up.
       </p>
 
       <div className="flex items-center gap-6 flex-wrap mt-8">
@@ -85,10 +85,11 @@ function PhilosophyStrip() {
       className="py-10 border-b border-slate-200"
     >
       <p className="font-display font-semibold text-2xl sm:text-3xl text-agg-navy tracking-tight">
-        Signal over noise.
+        A magazine, not a feed.
       </p>
       <p className="font-serif text-base text-slate-600 italic mt-2 max-w-2xl">
-        No performative theater. Just informed professionals sharing meaningful ideas.
+        Real estate news from real publishers, plus commentary from members
+        actually working in housing. No algorithm.
       </p>
     </section>
   );
@@ -147,7 +148,7 @@ function MemberCommentaryCard({ essay }) {
           </p>
         </div>
         <span className="inline-flex items-center font-sans text-[9px] uppercase tracking-[0.18em] font-semibold text-white/70 border border-white/30 px-1.5 py-0.5 rounded-sm">
-          Local Signal
+          Local
         </span>
       </header>
       <Link
@@ -245,7 +246,7 @@ export default function AggHome() {
       } else if (e.kind === "podcast" && i < 12) {
         badge = { kind: "most-discussed", label: "Most Discussed", cls: "bg-emerald-50 text-emerald-700 border border-emerald-200" };
       } else if (/^trd-/.test(slug) || /brownstoner|curbed/.test(slug)) {
-        badge = { kind: "local-signal", label: "Local Signal", cls: "bg-amber-50 text-amber-800 border border-amber-200" };
+        badge = { kind: "local-signal", label: "Local", cls: "bg-amber-50 text-amber-800 border border-amber-200" };
       } else if (trendingTerms.some((tt) => title.toLowerCase().includes(tt))) {
         badge = { kind: "trending", label: "Trending", cls: "bg-emerald-50 text-emerald-700 border border-emerald-200" };
       }
@@ -355,11 +356,13 @@ export default function AggHome() {
             Why we built this
           </p>
           <h2 className="font-display font-semibold text-3xl sm:text-4xl text-agg-navy tracking-tight">
-            Stop searching. Start understanding.
+            One place. Twice a day. Done.
           </h2>
           <p className="font-serif text-[17px] leading-relaxed text-slate-700 mt-5">
-            Most professionals follow dozens of disconnected websites, newsletters, podcasts, and feeds.
-            The Housing News organizes the signal so the conversation moves forward, not in circles.
+            Most of us were following dozens of websites, newsletters, and podcasts to
+            keep up with housing. The Housing News reads them for you and puts the
+            day in one place — so you can read once in the morning, once in the
+            evening, and get back to your clients.
           </p>
         </div>
       </section>

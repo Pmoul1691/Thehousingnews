@@ -40,68 +40,136 @@ function SectionDivider() {
 }
 
 // ── SECTION 1: Hero w/ right-side product preview ─────────────────────────
-function MorningBriefPreview() {
+//
+// The two previews below are intentionally styled to mimic actual screenshots
+// of two real products on the platform:
+//   1) TheDailyPreview — mirrors the AggHome (`/news`) navy/orange aesthetic,
+//      complete with publisher cards, badges, and a feed header.
+//   2) ComposerPreview — mirrors the FeedCompose + Composer UI seen at /feed,
+//      with the cream/gold palette and a Facebook-style write box.
+//
+function BrowserChrome({ url, children, className = "" }) {
   return (
-    <div
-      data-testid="hero-morning-brief"
-      className="bg-white border border-gold/25 rounded-md shadow-[0_18px_40px_-24px_rgba(31,20,10,0.18)] p-6 relative overflow-hidden"
-    >
-      <div className="flex items-center justify-between mb-5">
-        <div>
-          <Eyebrow>Morning Brief</Eyebrow>
-          <p className="font-display font-semibold text-lg text-ink mt-1">8:30 AM</p>
-        </div>
-        <span className="font-mono text-[10px] text-gold/70 uppercase tracking-widest">Today</span>
+    <div className={`rounded-md overflow-hidden shadow-[0_22px_50px_-26px_rgba(31,20,10,0.35)] border border-ink/10 ${className}`}>
+      <div className="flex items-center gap-1.5 px-3 py-2 bg-[#EEE6D4] border-b border-ink/10">
+        <span className="w-2.5 h-2.5 rounded-full bg-[#E07A5F]/70" />
+        <span className="w-2.5 h-2.5 rounded-full bg-gold/60" />
+        <span className="w-2.5 h-2.5 rounded-full bg-emerald-600/50" />
+        <span className="ml-3 font-mono text-[10px] tracking-tight text-ink/55 truncate">{url}</span>
       </div>
-      <ul className="space-y-3 font-serif text-[13.5px] text-ink/85 leading-snug">
-        <li className="pb-3 border-b border-gold/15">
-          <span className="uppercase tracking-[0.18em] text-[10px] font-sans font-semibold text-gold/80 block mb-1">Rates</span>
-          30-year mortgage holds at 6.7% as Treasury yields settle.
-        </li>
-        <li className="pb-3 border-b border-gold/15">
-          <span className="uppercase tracking-[0.18em] text-[10px] font-sans font-semibold text-gold/80 block mb-1">Markets</span>
-          Pending sales rise in 32 metros; West softens.
-        </li>
-        <li className="pb-3 border-b border-gold/15">
-          <span className="uppercase tracking-[0.18em] text-[10px] font-sans font-semibold text-gold/80 block mb-1">Leadership</span>
-          Compass adds Mountain West team; Anywhere reshuffles franchise leadership.
-        </li>
-        <li>
-          <span className="uppercase tracking-[0.18em] text-[10px] font-sans font-semibold text-gold/80 block mb-1">Overnight</span>
-          Builder confidence ticks up on lumber pricing relief.
-        </li>
-      </ul>
+      {children}
     </div>
   );
 }
-function EveningBriefPreview() {
+
+function MiniDailyCard({ source, label, headline, when, badge }) {
   return (
-    <div
-      data-testid="hero-evening-brief"
-      className="bg-ink text-cream rounded-md shadow-[0_18px_40px_-24px_rgba(31,20,10,0.4)] p-6 -mt-4 sm:-mt-6 sm:ml-10 relative overflow-hidden"
-    >
-      <div className="flex items-center justify-between mb-5">
-        <div>
-          <p className="font-sans text-[10px] uppercase tracking-[0.28em] font-semibold text-gold/90">Evening Brief</p>
-          <p className="font-display font-semibold text-lg text-cream mt-1">5:30 PM</p>
+    <div className="bg-white border border-slate-200 rounded-sm p-3">
+      <div className="flex items-center gap-2 mb-2">
+        <div className="w-6 h-6 rounded-sm bg-[#1B2A4E] flex items-center justify-center text-white font-display text-[10px] font-semibold shrink-0">
+          {source[0]}
         </div>
-        <span className="font-mono text-[10px] text-cream/40 uppercase tracking-widest">Today</span>
+        <p className="font-display font-semibold text-[11px] text-[#1B2A4E] truncate flex-1">{source}</p>
+        {badge && (
+          <span className={`font-sans text-[8px] uppercase tracking-[0.14em] font-semibold px-1 py-[1px] rounded-sm ${badge.cls}`}>
+            {badge.label}
+          </span>
+        )}
       </div>
-      <ul className="space-y-3 font-serif text-[13.5px] text-cream/85 leading-snug">
-        <li className="pb-3 border-b border-cream/15">
-          <span className="uppercase tracking-[0.18em] text-[10px] font-sans font-semibold text-gold block mb-1">Deals</span>
-          Brokerage M&amp;A in the Sunbelt; lender consolidates servicing.
-        </li>
-        <li className="pb-3 border-b border-cream/15">
-          <span className="uppercase tracking-[0.18em] text-[10px] font-sans font-semibold text-gold block mb-1">Technology</span>
-          Two AI assistants ship for top-team workflow.
-        </li>
-        <li>
-          <span className="uppercase tracking-[0.18em] text-[10px] font-sans font-semibold text-gold block mb-1">Strategy</span>
-          Why the best teams quietly slowed lead spend this quarter.
-        </li>
-      </ul>
+      <p className="font-sans text-[8px] uppercase tracking-[0.16em] text-[#E07A2A] font-semibold mb-1">{label}</p>
+      <p className="font-display font-semibold text-[12px] leading-snug text-[#1B2A4E] line-clamp-3">{headline}</p>
+      <p className="font-sans text-[9px] text-slate-500 mt-1.5">{when}</p>
     </div>
+  );
+}
+
+function TheDailyPreview() {
+  return (
+    <BrowserChrome url="thehousing.news/news" data-testid="hero-daily-preview">
+      <div data-testid="hero-daily-preview" className="bg-[#FAF7F0] p-4">
+        <div className="flex items-baseline justify-between mb-3">
+          <div>
+            <p className="font-sans text-[8.5px] uppercase tracking-[0.22em] font-semibold text-[#E07A2A]">The Daily</p>
+            <p className="font-display font-semibold text-[15px] text-[#1B2A4E] leading-tight mt-0.5">What everyone is reading.</p>
+          </div>
+          <span className="font-mono text-[9px] text-slate-500">38 sources</span>
+        </div>
+        <div className="grid grid-cols-2 gap-2.5">
+          <MiniDailyCard
+            source="HousingWire"
+            label="National"
+            headline="Mortgage rates hold near 6.7% as Treasury yields settle."
+            when="2h ago"
+            badge={{ label: "Editor's Pick", cls: "bg-[#E07A2A]/10 text-[#E07A2A] border border-[#E07A2A]/30" }}
+          />
+          <MiniDailyCard
+            source="Inman"
+            label="National"
+            headline="Pending sales rise in 32 metros; West softens further."
+            when="3h ago"
+            badge={{ label: "Trending", cls: "bg-emerald-50 text-emerald-700 border border-emerald-200" }}
+          />
+          <MiniDailyCard
+            source="TRD Miami"
+            label="Regional"
+            headline="South Florida luxury inventory climbs for sixth straight week."
+            when="5h ago"
+            badge={{ label: "Local", cls: "bg-amber-50 text-amber-800 border border-amber-200" }}
+          />
+          <MiniDailyCard
+            source="BiggerPockets"
+            label="Podcast"
+            headline="What top brokerages quietly cut from their lead spend."
+            when="6h ago"
+          />
+        </div>
+      </div>
+    </BrowserChrome>
+  );
+}
+
+function ComposerPreview() {
+  return (
+    <BrowserChrome
+      url="thehousing.news/feed"
+      className="-mt-3 sm:-mt-5 sm:ml-12 bg-cream"
+    >
+      <div data-testid="hero-composer-preview" className="bg-cream p-5">
+        <p className="font-sans text-[8.5px] uppercase tracking-[0.22em] font-semibold text-gold mb-2">Write</p>
+        <div className="bg-white border border-gold/20 rounded-sm p-3">
+          <div className="flex items-center gap-3 pb-3 border-b border-gold/15">
+            <div className="w-8 h-8 rounded-full bg-gold/15 border border-gold/40 flex items-center justify-center font-display text-[12px] font-semibold text-gold shrink-0">
+              S
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-display font-semibold text-[12px] text-ink leading-tight">Sarah Chen</p>
+              <p className="font-sans text-[9px] text-ink/55">Chicago · Broker</p>
+            </div>
+            <span className="font-mono text-[9px] text-gold/70">Draft</span>
+          </div>
+          <p className="font-display font-semibold text-[13px] text-ink mt-3 leading-snug">
+            What I told three sellers on Lincoln Park this week.
+          </p>
+          <p className="font-serif text-[11px] text-ink/75 leading-relaxed mt-1.5 line-clamp-3">
+            Three back-to-back listings, three different price strategies. Here is what we
+            tested and what actually moved buyers off the fence.
+          </p>
+          <div className="mt-3 pt-3 border-t border-gold/10 flex items-center gap-2">
+            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-sm bg-cream-soft border border-gold/20 font-sans text-[9px] text-ink/70">
+              <svg viewBox="0 0 24 24" className="w-2.5 h-2.5" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2"/></svg>
+              Photo
+            </span>
+            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-sm bg-cream-soft border border-gold/20 font-sans text-[9px] text-ink/70">
+              <svg viewBox="0 0 24 24" className="w-2.5 h-2.5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 4h12l4 4v12H4z"/></svg>
+              Essay
+            </span>
+            <span className="ml-auto inline-flex items-center gap-1 px-2.5 py-1 rounded-sm bg-ink text-cream font-sans text-[9px] font-semibold tracking-wide">
+              Publish →
+            </span>
+          </div>
+        </div>
+      </div>
+    </BrowserChrome>
   );
 }
 
@@ -126,7 +194,9 @@ function HeroSection() {
             twice-daily briefing.
           </h1>
           <p className="font-serif text-[18px] sm:text-[20px] leading-[1.55] text-ink/75 mt-7 max-w-[42ch]">
-            Twice-daily housing intelligence, curated insights, trends, commentary, business strategy, and perspectives from across the industry.
+            A magazine for the real estate industry. Twice-daily briefings, original
+            reporting, member essays, and the housing news everyone else is reading —
+            all in one place.
           </p>
 
           <div className="flex items-center gap-6 flex-wrap mt-9">
@@ -135,7 +205,7 @@ function HeroSection() {
               data-testid="landing-apply-btn"
               className="inline-flex items-center justify-center bg-ink text-cream font-sans font-semibold text-[14px] tracking-wide px-7 py-3 rounded-sm hover:bg-gold transition-colors"
             >
-              Join Free
+              Start 45-day free trial
             </Link>
             <Link
               to="/news"
@@ -146,7 +216,11 @@ function HeroSection() {
             </Link>
           </div>
 
-          <p className="mt-10 font-sans text-[12.5px] text-ink/55 tracking-wide">
+          <p className="mt-3 font-sans text-[12px] text-ink/55" data-testid="landing-pricing-note">
+            45 days free for invited members. After that, $12.50/mo or $100/yr.
+          </p>
+
+          <p className="mt-8 font-sans text-[12.5px] text-ink/55 tracking-wide">
             Agents · Brokers · Investors · Lenders · Builders · Teams · Vendors
           </p>
 
@@ -159,12 +233,12 @@ function HeroSection() {
 
         {/* Right — premium previews */}
         <div className="relative">
-          <MorningBriefPreview />
-          <EveningBriefPreview />
+          <TheDailyPreview />
+          <ComposerPreview />
           {/* Floating mini cards as background depth */}
           <div className="hidden sm:block absolute -top-6 -right-2 bg-cream-soft border border-gold/20 rounded-sm px-3 py-2 rotate-[3deg] shadow-sm">
-            <p className="font-sans text-[9px] uppercase tracking-[0.2em] text-gold/80 font-semibold">Trending</p>
-            <p className="font-display text-[13px] text-ink mt-0.5">Mortgage rates ↑</p>
+            <p className="font-sans text-[9px] uppercase tracking-[0.2em] text-gold/80 font-semibold">38 sources</p>
+            <p className="font-display text-[13px] text-ink mt-0.5">Twice daily.</p>
           </div>
           <div className="hidden sm:block absolute bottom-6 -left-4 bg-cream-soft border border-gold/20 rounded-sm px-3 py-2 -rotate-[2deg] shadow-sm">
             <p className="font-sans text-[9px] uppercase tracking-[0.2em] text-gold/80 font-semibold">Member Note</p>
@@ -215,12 +289,14 @@ function IntelligenceNetworkSection() {
     <section data-testid="landing-network" className="container-editorial py-24">
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.1fr] gap-12 lg:gap-20 items-start">
         <div className="lg:sticky lg:top-24">
-          <Eyebrow>Housing Intelligence Network</Eyebrow>
+          <Eyebrow>The Network</Eyebrow>
           <h2 className="font-display font-semibold text-[34px] sm:text-[42px] leading-[1.04] text-ink mt-5">
             One place for the industry&apos;s most important conversations.
           </h2>
           <p className="font-serif text-[17px] leading-relaxed text-ink/75 mt-6 max-w-prose">
-            The Housing News curates and organizes information from across housing so professionals spend less time searching and more time understanding.
+            The Housing News pulls together the publishers, podcasts, and writers that
+            actually matter — so you can read what the industry is reading without
+            opening twenty tabs.
           </p>
           <ul className="mt-10 grid grid-cols-3 gap-6 max-w-md" data-testid="landing-network-stats">
             <li>
@@ -263,7 +339,7 @@ function IntelligenceNetworkSection() {
 
       <div className="mt-20 pt-14 border-t border-gold/15">
         <blockquote className="font-display font-semibold text-[28px] sm:text-[36px] leading-[1.18] text-ink max-w-3xl tracking-tight">
-          “The value is not more information. The value is better signal.”
+          “Read once in the morning. Read once at night. The rest of the day belongs to your clients.”
         </blockquote>
       </div>
     </section>
@@ -319,12 +395,14 @@ function MemberCommunitySection() {
         <div>
           <Eyebrow>The community</Eyebrow>
           <h2 className="font-display font-semibold text-[34px] sm:text-[42px] leading-[1.04] text-ink mt-5">
-            Built for contribution.
+            Members write.
             <br />
-            Built for substance.
+            Members read.
           </h2>
           <p className="font-serif text-[17px] leading-relaxed text-ink/75 mt-6 max-w-prose">
-            The Housing News is not simply a place to consume information. It is a place for professionals to contribute ideas and elevate the industry.
+            The Housing News is not just somewhere to read about real estate. It is somewhere
+            to write about it — to share what you are actually seeing in your market and
+            hear from other professionals doing the same.
           </p>
           <div className="mt-8 flex items-center gap-5 flex-wrap">
             <Link
@@ -376,26 +454,26 @@ function PhilosophySection() {
 // ── SECTION 6: Community standards ─────────────────────────────────────────
 function CommunityStandardsSection() {
   const denies = [
-    "Performative theater",
+    "Follower counts",
     "Algorithm chasing",
     "Outrage cycles",
-    "Vanity metrics",
+    "Engagement bait",
     "Endless scrolling",
     "Personal-brand pressure",
   ];
   const offers = [
-    "Thoughtful discussion",
-    "Education",
-    "Expertise",
-    "Meaningful contribution",
-    "Market intelligence",
-    "Substance",
+    "Plain writing",
+    "Real numbers",
+    "Local knowledge",
+    "Working ideas",
+    "Honest commentary",
+    "Help when you can give it",
   ];
   return (
     <section data-testid="landing-standards" className="container-editorial py-24">
-      <Eyebrow>Community standards</Eyebrow>
+      <Eyebrow>What it is, what it isn&apos;t</Eyebrow>
       <h2 className="font-display font-semibold text-[40px] sm:text-[56px] leading-[1.02] text-ink mt-5 tracking-tight">
-        Signal over noise.
+        A magazine, not a feed.
       </h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-12 lg:gap-20 mt-14">
         <div>
@@ -532,13 +610,13 @@ function WhyWeExistSection() {
         <div>
           <Eyebrow>Why The Housing News exists</Eyebrow>
           <h2 className="font-display font-semibold text-[34px] sm:text-[44px] leading-[1.04] text-ink mt-5 max-w-3xl tracking-tight">
-            The housing industry moves too fast for fragmented information.
+            We were tired of finding our industry news on LinkedIn.
           </h2>
         </div>
         <div className="font-serif text-[17px] leading-relaxed text-ink/75 max-w-prose">
-          <p>Most professionals rely on:</p>
+          <p>Most of us were getting our housing news from:</p>
           <ul className="my-5 space-y-2">
-            {["Social media noise", "Industry gossip", "Scattered newsletters", "Outdated reporting", "Algorithm-driven content"].map((s) => (
+            {["A LinkedIn feed", "Group chats", "A dozen newsletters", "Whoever yelled loudest that day", "Whatever the algorithm picked"].map((s) => (
               <li key={s} className="flex items-baseline gap-3">
                 <span className="text-gold/50 font-mono text-[11px] mt-1">—</span>
                 <span>{s}</span>
@@ -546,7 +624,7 @@ function WhyWeExistSection() {
             ))}
           </ul>
           <p className="mt-6 text-ink">
-            The Housing News delivers the signals that matter <em>twice daily</em>, in one place.
+            The Housing News puts it in one place, <em>twice a day</em>. Then it shuts up so you can work.
           </p>
         </div>
       </div>
@@ -572,7 +650,7 @@ function FinalCtaSection() {
             data-testid="landing-final-apply"
             className="inline-flex items-center justify-center bg-gold text-ink font-sans font-semibold text-[14px] px-8 py-3 rounded-sm hover:bg-cream transition-colors"
           >
-            Join Free
+            Start 45-day free trial
           </Link>
           <Link
             to="/news"
@@ -581,6 +659,9 @@ function FinalCtaSection() {
             View Sample Issue →
           </Link>
         </div>
+        <p className="mt-6 font-sans text-[12px] text-cream/50" data-testid="landing-final-pricing">
+          $12.50/mo or $100/yr after trial.
+        </p>
       </div>
     </section>
   );
