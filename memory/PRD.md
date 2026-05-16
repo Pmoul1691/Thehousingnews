@@ -405,6 +405,15 @@ in Phase 2 frontend work).
 - **Env**: `BRIEF_SENDER_EMAIL` (default `briefs@thehousingnews.com`),
   `BRIEF_SENDER_NAME` (default `The Housing News`).
 
+## Phase 9 — "The Feed" syndicated-sources strip on Landing (2026-02-16)
+- New `TheFeedSection` on `/`: 3 rows of 38 source logos — 28 publisher
+  favicons (via Google's favicon service when `logo_url` is null) + 10 podcast
+  cover arts. Each logo links to its archive (`/news/source/:slug`) or to
+  `/news/podcasts`. Replaces the older text-only `TrustSection`.
+- Title: "The Feed" / "What gets syndicated, every day." with a dynamic count
+  ("28 publishers and 10 podcasts feed into The Daily.") and an "Open The
+  Daily →" CTA.
+
 ## Backlog
 - P0 (user action): DNS for thehousingnews.com.
 - P0 (user action): Newsletter provider choice + API key.

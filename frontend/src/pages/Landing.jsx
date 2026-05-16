@@ -250,24 +250,112 @@ function HeroSection() {
   );
 }
 
-// ── SECTION 2: Trust + positioning ────────────────────────────────────────
-function TrustSection() {
+// ── SECTION 2: The Feed — visual roll-call of syndicated sources ──────────
+function FeedLogo({ name, src, href, kind }) {
   return (
-    <section data-testid="landing-trust" className="container-editorial py-20">
-      <div className="max-w-3xl">
-        <Eyebrow>Built for professionals</Eyebrow>
-        <h2 className="font-display font-semibold text-[32px] sm:text-[40px] leading-tight text-ink mt-5">
-          Built for professionals actively working in housing.
-        </h2>
-        <p className="font-serif text-[18px] leading-relaxed text-ink/75 mt-6 max-w-prose">
-          Read daily by agents, investors, lenders, brokerage leaders, builders, operators, and professionals shaping the industry.
-        </p>
+    <a
+      href={href}
+      target={kind === "publisher" ? "_self" : "_self"}
+      title={name}
+      data-testid={`feed-logo-${kind}-${(name || "").toLowerCase().replace(/\s+/g, "-")}`}
+      className="group inline-flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-sm bg-white border border-gold/15 hover:border-gold/60 hover:-translate-y-0.5 transition-all duration-200 shrink-0"
+    >
+      <img
+        src={src}
+        alt={name}
+        width={36}
+        height={36}
+        loading="lazy"
+        className="w-7 h-7 sm:w-8 sm:h-8 object-contain rounded-sm"
+        onError={(e) => {
+          const span = document.createElement("span");
+          span.className = "w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-sm bg-ink text-cream font-display text-xs font-semibold";
+          span.textContent = (name || "?")[0].toUpperCase();
+          span.title = name || "";
+          e.currentTarget.replaceWith(span);
+        }}
+      />
+    </a>
+  );
+}
+
+function TheFeedSection({ publishers, podcasts }) {
+  const items = useMemo(() => {
+    const pubs = (publishers || []).map((p) => {
+      let src = p.logo_url;
+      if (!src && p.homepage_url) {
+        try {
+          const host = new URL(p.homepage_url).hostname.replace(/^www\./, "");
+          src = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=64`;
+        } catch { /* ignore */ }
+      }
+      return {
+        kind: "publisher",
+        name: p.name,
+        src,
+        href: `/news/source/${p.slug}`,
+      };
+    });
+    const pods = (podcasts || []).map((p) => ({
+      kind: "podcast",
+      name: p.title,
+      src: p.cover_art,
+      href: `/news/podcasts`,
+    }));
+    return [...pubs, ...pods].filter((i) => i.name);
+  }, [publishers, podcasts]);
+
+  if (!items.length) return null;
+
+  // Split items into three balanced rows so the marquee feels intentional
+  // rather than a single overflowing strip.
+  const rows = [[], [], []];
+  items.forEach((it, i) => rows[i % 3].push(it));
+
+  const totalPub = (publishers || []).length;
+  const totalPod = (podcasts || []).length;
+
+  return (
+    <section data-testid="landing-feed-section" className="container-editorial py-20">
+      <div className="flex items-end justify-between flex-wrap gap-4 mb-10">
+        <div>
+          <Eyebrow>The Feed</Eyebrow>
+          <h2 className="font-display font-semibold text-[32px] sm:text-[42px] leading-[1.04] text-ink mt-5 tracking-tight">
+            What gets syndicated, every day.
+          </h2>
+          <p className="font-serif text-[17px] leading-relaxed text-ink/75 mt-5 max-w-prose">
+            {totalPub} publishers and {totalPod} podcasts feed into The Daily.
+            Tap any source to see its latest.
+          </p>
+        </div>
+        <Link
+          to="/news"
+          data-testid="landing-feed-explore"
+          className="font-sans font-semibold text-[14px] text-gold hover:text-ink transition-colors"
+        >
+          Open The Daily →
+        </Link>
       </div>
-      <ul className="mt-12 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-8 sm:gap-10 items-center">
-        {["HousingWire", "Inman", "The Real Deal", "Realtor.com", "BiggerPockets", "Mortgage News Daily", "Curbed"].map((n) => (
-          <li key={n} className="font-display text-[15px] text-ink/55 tracking-tight whitespace-nowrap">{n}</li>
+
+      <div className="space-y-3" data-testid="landing-feed-rows">
+        {rows.map((row, ri) => (
+          <div
+            key={`feed-row-${ri}`}
+            data-testid={`landing-feed-row-${ri + 1}`}
+            className="flex items-center gap-3 flex-wrap"
+          >
+            {row.map((it, i) => (
+              <FeedLogo
+                key={`${it.kind}-${it.name}-${i}`}
+                name={it.name}
+                src={it.src}
+                href={it.href}
+                kind={it.kind}
+              />
+            ))}
+          </div>
         ))}
-      </ul>
+      </div>
     </section>
   );
 }
@@ -671,6 +759,8 @@ function FinalCtaSection() {
 export default function Landing() {
   const [essays, setEssays] = useState([]);
   const [dailyEntries, setDailyEntries] = useState([]);
+  const [publishers, setPublishers] = useState([]);
+  const [podcasts, setPodcasts] = useState([]);
 
   useEffect(() => {
     let alive = true;
@@ -681,10 +771,14 @@ export default function Landing() {
     ]).then(([eRes, pRes, podRes]) => {
       if (!alive) return;
       setEssays(eRes.data.items || []);
-      const pubs = (pRes.data.items || [])
+      const pubItems = (pRes.data.items || []);
+      const podItems = (podRes.data.items || []);
+      setPublishers(pubItems.map((e) => e.publisher).filter(Boolean));
+      setPodcasts(podItems);
+      const pubs = pubItems
         .filter((e) => e.article)
         .map((e) => ({ kind: "publisher", publisher: e.publisher, article: e.article }));
-      const pods = (podRes.data.items || [])
+      const pods = podItems
         .filter((p) => p.latest_episode)
         .map((p) => ({ kind: "podcast", podcast: p, episode: p.latest_episode }));
       const merged = [...pubs, ...pods].sort((a, b) => {
@@ -701,7 +795,7 @@ export default function Landing() {
     <div data-testid="landing-page" className="bg-cream">
       <HeroSection />
       <SectionDivider />
-      <TrustSection />
+      <TheFeedSection publishers={publishers} podcasts={podcasts} />
       <SectionDivider />
       <IntelligenceNetworkSection />
       <SectionDivider />
