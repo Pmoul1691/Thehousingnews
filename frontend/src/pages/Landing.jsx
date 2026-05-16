@@ -281,14 +281,24 @@ function FeedLogo({ name, src, href, kind }) {
 
 function TheFeedSection({ publishers, podcasts }) {
   const items = useMemo(() => {
-    const pubs = (publishers || []).map((p) => {
-      let src = p.logo_url;
-      if (!src && p.homepage_url) {
-        try {
-          const host = new URL(p.homepage_url).hostname.replace(/^www\./, "");
-          src = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=64`;
-        } catch { /* ignore */ }
+    // Dedupe publishers by hostname — TRD has 6 regional editions all on
+    // therealdeal.com which produce identical Google favicons. Keep the
+    // shortest-named entry per hostname so "The Real Deal" wins over
+    // "TRD Miami" / "TRD Chicago" / etc.
+    const byHost = new Map();
+    (publishers || []).forEach((p) => {
+      if (!p || !p.homepage_url) return;
+      let host;
+      try { host = new URL(p.homepage_url).hostname.replace(/^www\./, ""); }
+      catch { return; }
+      const existing = byHost.get(host);
+      if (!existing || (p.name || "").length < (existing.name || "").length) {
+        byHost.set(host, p);
       }
+    });
+
+    const pubs = Array.from(byHost.entries()).map(([host, p]) => {
+      const src = p.logo_url || `https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=64`;
       return {
         kind: "publisher",
         name: p.name,
@@ -312,7 +322,7 @@ function TheFeedSection({ publishers, podcasts }) {
   const rows = [[], [], []];
   items.forEach((it, i) => rows[i % 3].push(it));
 
-  const totalPub = (publishers || []).length;
+  const uniqueDomainCount = items.filter((i) => i.kind === "publisher").length;
   const totalPod = (podcasts || []).length;
 
   return (
@@ -324,7 +334,7 @@ function TheFeedSection({ publishers, podcasts }) {
             What gets syndicated, every day.
           </h2>
           <p className="font-serif text-[17px] leading-relaxed text-ink/75 mt-5 max-w-prose">
-            {totalPub} publishers and {totalPod} podcasts feed into The Daily.
+            {uniqueDomainCount} publishers and {totalPod} podcasts feed into The Daily.
             Tap any source to see its latest.
           </p>
         </div>
