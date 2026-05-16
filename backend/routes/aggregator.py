@@ -249,4 +249,81 @@ def setup(db):
         )
         return {"ok": True, "email": email}
 
+    @router.get("/newsletter/signup")
+    async def newsletter_signup_get():
+        # Some browsers / link checkers do GET on this URL — return a soft no-op.
+        return {"ok": True}
+
+    @router.get("/recent-members")
+    async def recent_members(limit: int = Query(default=8, ge=1, le=20)):
+        """Public-safe list of recently-active members for the Landing page.
+        Returns only name, market, avatar_path, and a short snippet from the
+        member's most recent approved post. No emails, no IDs that aren't
+        already exposed via /profile/{user_id}.
+
+        "Recently active" = has at least one approved post within the last 30
+        days. Sorted by most-recent post timestamp, descending.
+        """
+        cutoff_iso = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+        # Pull recent approved posts, newest first; we'll group client-side by user_id.
+        pipeline = [
+            {"$match": {"status": "approved", "release_at": {"$gte": cutoff_iso}}},
+            {"$sort": {"release_at": -1}},
+            {"$group": {
+                "_id": "$user_id",
+                "last_post_at": {"$first": "$release_at"},
+                "last_text": {"$first": "$text"},
+                "last_title": {"$first": "$title"},
+                "last_post_id": {"$first": "$post_id"},
+                "last_kind": {"$first": "$kind"},
+            }},
+            {"$sort": {"last_post_at": -1}},
+            {"$limit": limit * 3},  # over-fetch in case some profiles are missing
+        ]
+        rows = await db.posts.aggregate(pipeline).to_list(limit * 3)
+        if not rows:
+            return {"items": []}
+        user_ids = [r["_id"] for r in rows]
+        # Only show approved + non-suspended + non-stub members with a profile and an avatar.
+        users = await db.users.find(
+            {
+                "user_id": {"$in": user_ids},
+                "status": "approved",
+                "suspended": {"$ne": True},
+            },
+            {"_id": 0, "user_id": 1},
+        ).to_list(500)
+        approved_ids = {u["user_id"] for u in users}
+        profiles = await db.profiles.find(
+            {"user_id": {"$in": list(approved_ids)}, "is_stub": {"$ne": True}},
+            {"_id": 0, "user_id": 1, "name": 1, "market": 1, "avatar_path": 1},
+        ).to_list(500)
+        pmap = {p["user_id"]: p for p in profiles}
+
+        items = []
+        for r in rows:
+            uid = r["_id"]
+            if uid not in approved_ids:
+                continue
+            prof = pmap.get(uid)
+            if not prof:
+                continue
+            snippet_src = (r.get("last_title") or r.get("last_text") or "").strip()
+            snippet = snippet_src[:140].rstrip()
+            if len(snippet_src) > 140:
+                snippet = snippet.rstrip() + "…"
+            items.append({
+                "user_id": uid,
+                "name": prof.get("name") or "",
+                "market": prof.get("market") or "",
+                "avatar_path": prof.get("avatar_path"),
+                "last_post_at": r["last_post_at"],
+                "last_kind": r.get("last_kind"),
+                "last_post_id": r.get("last_post_id"),
+                "snippet": snippet,
+            })
+            if len(items) >= limit:
+                break
+        return {"items": items}
+
     return router

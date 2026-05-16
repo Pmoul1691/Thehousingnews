@@ -39,6 +39,35 @@ function SectionDivider() {
   );
 }
 
+// MemberAvatar — real photo when an avatar_path exists, initials fallback
+// otherwise. Used on the "From the feed" rows and member essay cards.
+function MemberAvatar({ name, avatarPath, size = 44, className = "" }) {
+  const [errored, setErrored] = useState(false);
+  const letter = (name || "?").trim().charAt(0).toUpperCase() || "M";
+  const dim = { width: size, height: size };
+  if (avatarPath && !errored) {
+    return (
+      <img
+        src={`${API}/uploads/file/${avatarPath}`}
+        alt={name || "Member"}
+        loading="lazy"
+        onError={() => setErrored(true)}
+        className={`rounded-full object-cover bg-cream-soft border border-gold/30 shrink-0 ${className}`}
+        style={dim}
+      />
+    );
+  }
+  return (
+    <div
+      className={`rounded-full bg-cream-soft border border-gold/30 flex items-center justify-center shrink-0 ${className}`}
+      style={dim}
+      aria-label={name || "Member"}
+    >
+      <span className="font-display font-semibold text-gold" style={{ fontSize: Math.round(size * 0.42) }}>{letter}</span>
+    </div>
+  );
+}
+
 // ── SECTION 1: Hero w/ right-side product preview ─────────────────────────
 //
 // The two previews below are intentionally styled to mimic actual screenshots
@@ -641,6 +670,66 @@ function CommunityStandardsSection() {
   );
 }
 
+// ── SECTION 6.5: Members on the feed (recently active member tiles) ───────
+function MembersOnTheFeedSection({ members }) {
+  if (!members || members.length < 3) return null;
+  return (
+    <section data-testid="landing-members-feed" className="container-editorial py-24">
+      <div className="flex items-end justify-between mb-12 flex-wrap gap-4">
+        <div>
+          <Eyebrow>From the feed</Eyebrow>
+          <h2 className="font-display font-semibold text-[34px] sm:text-[40px] leading-tight text-ink mt-5">
+            Members writing this week.
+          </h2>
+        </div>
+        <Link
+          to="/members"
+          data-testid="landing-members-feed-all"
+          className="font-sans font-semibold text-[14px] text-gold hover:text-ink transition-colors"
+        >
+          See all members →
+        </Link>
+      </div>
+      <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        {members.slice(0, 6).map((m) => {
+          const href = m.last_kind === "essay" && m.last_post_id
+            ? `/essays/${m.last_post_id}`
+            : `/profile/${m.user_id}`;
+          return (
+            <li key={m.user_id}>
+              <Link
+                to={href}
+                data-testid={`landing-member-${m.user_id}`}
+                className="flex items-start gap-4 bg-white border border-gold/15 rounded-sm p-5 hover:border-gold/50 hover:-translate-y-0.5 transition-all duration-200 h-full"
+              >
+                <MemberAvatar name={m.name} avatarPath={m.avatar_path} size={48} />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-baseline gap-2 flex-wrap">
+                    <p className="font-display font-semibold text-[15px] text-ink truncate">{m.name}</p>
+                    <span className="font-mono text-[10px] text-gold/70 uppercase tracking-widest shrink-0">
+                      {timeAgo(m.last_post_at)}
+                    </span>
+                  </div>
+                  {m.market && (
+                    <p className="font-sans text-[11px] text-ink/55 uppercase tracking-[0.18em] font-semibold mt-0.5">
+                      {m.market}
+                    </p>
+                  )}
+                  {m.snippet && (
+                    <p className="font-serif text-[14px] text-ink/75 leading-relaxed mt-3 line-clamp-3">
+                      {m.snippet}
+                    </p>
+                  )}
+                </div>
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
 // ── SECTION 7: Member article previews ─────────────────────────────────────
 function MemberArticlePreviews({ essays }) {
   if (!essays?.length) return null;
@@ -676,9 +765,15 @@ function MemberArticlePreviews({ essays }) {
                 {e.title || "Untitled"}
               </h3>
               {e.author?.name && (
-                <p className="font-serif text-[14px] italic text-ink/65 mt-3">
-                  By {e.author.name}{e.author.market ? ` · ${e.author.market}` : ""}
-                </p>
+                <div className="flex items-center gap-3 mt-4 pt-4 border-t border-gold/10">
+                  <MemberAvatar name={e.author.name} avatarPath={e.author.avatar_path} size={32} />
+                  <div className="min-w-0">
+                    <p className="font-display font-semibold text-[13px] text-ink truncate">{e.author.name}</p>
+                    {e.author.market && (
+                      <p className="font-sans text-[11px] text-ink/55 truncate">{e.author.market}</p>
+                    )}
+                  </div>
+                </div>
               )}
             </Link>
           </li>
@@ -815,6 +910,7 @@ export default function Landing() {
   const [dailyEntries, setDailyEntries] = useState([]);
   const [publishers, setPublishers] = useState([]);
   const [podcasts, setPodcasts] = useState([]);
+  const [recentMembers, setRecentMembers] = useState([]);
 
   useEffect(() => {
     let alive = true;
@@ -822,13 +918,15 @@ export default function Landing() {
       api.get("/essays?limit=12").catch(() => ({ data: { items: [] } })),
       api.get("/agg/publishers-latest", { params: { hours: 36 } }).catch(() => ({ data: { items: [] } })),
       api.get("/agg/podcasts").catch(() => ({ data: { items: [] } })),
-    ]).then(([eRes, pRes, podRes]) => {
+      api.get("/agg/recent-members", { params: { limit: 6 } }).catch(() => ({ data: { items: [] } })),
+    ]).then(([eRes, pRes, podRes, mRes]) => {
       if (!alive) return;
       setEssays(eRes.data.items || []);
       const pubItems = (pRes.data.items || []);
       const podItems = (podRes.data.items || []);
       setPublishers(pubItems.map((e) => e.publisher).filter(Boolean));
       setPodcasts(podItems);
+      setRecentMembers(mRes.data.items || []);
       const pubs = pubItems
         .filter((e) => e.article)
         .map((e) => ({ kind: "publisher", publisher: e.publisher, article: e.article }));
@@ -860,6 +958,7 @@ export default function Landing() {
       <SectionDivider />
       <CommunityStandardsSection />
       <SectionDivider />
+      <MembersOnTheFeedSection members={recentMembers} />
       <MemberArticlePreviews essays={essays} />
       <HeadlinesSection entries={dailyEntries} />
       <SectionDivider />

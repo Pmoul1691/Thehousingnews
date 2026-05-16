@@ -426,6 +426,21 @@ in Phase 2 frontend work).
   Current Matters appears in **Blogs** (already ingesting at
   `www.keepingcurrentmatters.com/feed`, 8 articles in DB).
 
+## Phase 11 — Real member photos on Landing (2026-02-16)
+- **New public endpoint** `GET /api/agg/recent-members?limit=8` — returns
+  approved (non-stub, non-suspended) members who have published an approved
+  post in the last 30 days. Returns: `user_id`, `name`, `market`,
+  `avatar_path`, `last_post_at`, `last_kind`, `last_post_id`, `snippet`.
+  No emails. Sorted by most-recent activity.
+- **New `MemberAvatar` atom** in `Landing.jsx` — `<img>` loaded from
+  `${API}/uploads/file/<avatar_path>` with graceful `onError` fallback to a
+  cream-soft initial circle. Reused across all new landing avatar surfaces.
+- **New `MembersOnTheFeedSection`** — six member cards (avatar + name +
+  market + relative time + 3-line post snippet) right before the essay grid.
+  Hidden gracefully when fewer than 3 active members exist.
+- **`MemberArticlePreviews`** essay cards now include an avatar + name +
+  market footer band instead of the old "By Name · Market" italic line.
+
 ## Backlog
 - P0 (user action): DNS for thehousingnews.com.
 - P0 (user action): Newsletter provider choice + API key.
