@@ -122,7 +122,7 @@ function TheDailyPreview({ className = "" }) {
             <p className="font-sans text-[8.5px] uppercase tracking-[0.22em] font-semibold text-[#E07A2A]">The Daily</p>
             <p className="font-display font-semibold text-[15px] text-[#1B2A4E] leading-tight mt-0.5">What everyone is reading.</p>
           </div>
-          <span className="font-mono text-[9px] text-slate-500">38 sources</span>
+          <span className="font-mono text-[9px] text-slate-500">40 sources</span>
         </div>
         <div className="grid grid-cols-2 gap-2.5">
           <MiniDailyCard
@@ -226,7 +226,7 @@ function HeroSection() {
           <p className="font-serif text-[18px] sm:text-[20px] leading-[1.55] text-ink/75 mt-7 max-w-[44ch]">
             A publishing network for real estate professionals. Read what the
             industry is publishing and publish what you&apos;re seeing — alongside
-            twice-daily briefings pulled from 34 housing sources.
+            twice-daily briefings pulled from 40 housing sources.
           </p>
 
           {/* Two co-equal pillars in the eyebrow strip */}
@@ -240,7 +240,7 @@ function HeroSection() {
             <div className="border-l-2 border-gold/60 pl-3">
               <p className="font-sans text-[10px] uppercase tracking-[0.22em] font-semibold text-gold">Read</p>
               <p className="font-display font-semibold text-[15px] text-ink mt-1 leading-tight">
-                34 sources, twice-daily, in one place.
+                40 sources, twice-daily, in one place.
               </p>
             </div>
           </div>
@@ -294,7 +294,7 @@ function HeroSection() {
             <p className="font-display text-[13px] text-ink mt-0.5">Members publishing daily</p>
           </div>
           <div className="hidden sm:block absolute bottom-6 -right-4 bg-cream-soft border border-gold/20 rounded-sm px-3 py-2 rotate-[3deg] shadow-sm">
-            <p className="font-sans text-[9px] uppercase tracking-[0.2em] text-gold/80 font-semibold">38 sources</p>
+            <p className="font-sans text-[9px] uppercase tracking-[0.2em] text-gold/80 font-semibold">40 sources</p>
             <p className="font-display text-[13px] text-ink mt-0.5">Twice daily.</p>
           </div>
         </div>
