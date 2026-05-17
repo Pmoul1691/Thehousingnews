@@ -156,4 +156,153 @@ def setup(db):
             "pats": {"live": pats_live, "revoked": pats_revoked},
         }
 
+    @router.get("/members")
+    async def list_members(
+        q: str | None = None,
+        status: str | None = None,
+        limit: int = 30,
+        offset: int = 0,
+        session_token: str | None = Cookie(default=None),
+        authorization: str | None = Header(default=None),
+    ):
+        await _admin(session_token, authorization)
+        limit = max(1, min(100, limit))
+        offset = max(0, offset)
+        query: dict = {}
+        if status and status in ("approved", "invited", "pending", "needs_application", "declined"):
+            query["status"] = status
+        if status == "suspended":
+            query["suspended"] = True
+        if q:
+            import re
+            safe = re.escape(q.strip())
+            query["$or"] = [
+                {"email": {"$regex": safe, "$options": "i"}},
+                {"name":  {"$regex": safe, "$options": "i"}},
+            ]
+        total = await db.users.count_documents(query)
+        users = await db.users.find(query, {"_id": 0}).sort("created_at", -1).skip(offset).limit(limit).to_list(limit)
+        uids = [u["user_id"] for u in users]
+        profiles = await db.profiles.find(
+            {"user_id": {"$in": uids}},
+            {"_id": 0, "user_id": 1, "avatar_path": 1, "market": 1, "is_stub": 1},
+        ).to_list(500) if uids else []
+        pmap = {p["user_id"]: p for p in profiles}
+
+        # Bulk-count posts per user in one aggregate
+        post_counts = {}
+        if uids:
+            rows = await db.posts.aggregate([
+                {"$match": {"user_id": {"$in": uids}}},
+                {"$group": {"_id": "$user_id", "n": {"$sum": 1}}},
+            ]).to_list(500)
+            post_counts = {r["_id"]: r["n"] for r in rows}
+
+        out = []
+        for u in users:
+            prof = pmap.get(u["user_id"]) or {}
+            out.append({
+                "user_id": u["user_id"],
+                "email": u["email"],
+                "name": u.get("name") or "",
+                "status": u.get("status"),
+                "suspended": u.get("suspended", False),
+                "is_admin": u.get("is_admin", False),
+                "source": u.get("source"),
+                "created_at": u.get("created_at"),
+                "last_login_at": u.get("last_login_at"),
+                "market": prof.get("market"),
+                "avatar_path": prof.get("avatar_path"),
+                "is_stub": prof.get("is_stub", False),
+                "posts_total": post_counts.get(u["user_id"], 0),
+            })
+        return {"items": out, "total": total, "limit": limit, "offset": offset}
+
+    @router.get("/members/{user_id}")
+    async def member_detail(
+        user_id: str,
+        session_token: str | None = Cookie(default=None),
+        authorization: str | None = Header(default=None),
+    ):
+        await _admin(session_token, authorization)
+        user = await db.users.find_one({"user_id": user_id}, {"_id": 0})
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        profile = await db.profiles.find_one({"user_id": user_id}, {"_id": 0}) or {}
+
+        # Post counts by kind + status
+        post_rows = await db.posts.aggregate([
+            {"$match": {"user_id": user_id}},
+            {"$group": {"_id": {"kind": "$kind", "status": "$status"}, "n": {"$sum": 1}}},
+        ]).to_list(50)
+        by_kind: dict = {}
+        for r in post_rows:
+            k = r["_id"].get("kind") or "post"
+            s = r["_id"].get("status") or "unknown"
+            by_kind.setdefault(k, {"total": 0, "by_status": {}})
+            by_kind[k]["total"] += r["n"]
+            by_kind[k]["by_status"][s] = by_kind[k]["by_status"].get(s, 0) + r["n"]
+
+        # Replies, reactions, follows, briefs
+        replies_count   = await db.replies.count_documents({"user_id": user_id}) if "replies" in await db.list_collection_names() else 0
+        reactions_count = await db.reactions.count_documents({"user_id": user_id}) if "reactions" in await db.list_collection_names() else 0
+
+        briefs_sent    = await db.brief_dispatches.count_documents({"recipient_user_id": user_id})
+        briefs_opened  = await db.brief_dispatches.count_documents({"recipient_user_id": user_id, "first_opened_at": {"$ne": None}})
+        briefs_clicked = await db.brief_dispatches.count_documents({"recipient_user_id": user_id, "first_clicked_at": {"$ne": None}})
+
+        invites_sent_by_user = await db.invite_tokens.count_documents({"sent_by": user_id}) if "invite_tokens" in await db.list_collection_names() else 0
+
+        # PAT counts
+        pats_live    = await db.pats.count_documents({"user_id": user_id, "revoked_at": None})
+        pats_revoked = await db.pats.count_documents({"user_id": user_id, "revoked_at": {"$ne": None}})
+
+        # Recent posts (last 20)
+        recent_posts = await db.posts.find(
+            {"user_id": user_id},
+            {"_id": 0, "post_id": 1, "kind": 1, "status": 1, "title": 1, "text": 1, "created_at": 1, "release_at": 1, "tags": 1},
+        ).sort("created_at", -1).limit(20).to_list(20)
+
+        return {
+            "user": {
+                "user_id": user["user_id"],
+                "email": user["email"],
+                "name": user.get("name") or "",
+                "picture": user.get("picture"),
+                "status": user.get("status"),
+                "suspended": user.get("suspended", False),
+                "is_admin": user.get("is_admin", False),
+                "source": user.get("source"),
+                "created_at": user.get("created_at"),
+                "last_login_at": user.get("last_login_at"),
+                "tos_accepted_at": user.get("tos_accepted_at"),
+                "brief_morning_optout": user.get("brief_morning_optout", False),
+                "brief_evening_optout": user.get("brief_evening_optout", False),
+                "supporter_until": user.get("supporter_until"),
+                "partner_tier": user.get("partner_tier"),
+            },
+            "profile": {
+                "name": profile.get("name"),
+                "market": profile.get("market"),
+                "bio": profile.get("bio"),
+                "avatar_path": profile.get("avatar_path"),
+                "linkedin_url": profile.get("linkedin_url"),
+                "is_stub": profile.get("is_stub", False),
+                "objectives": profile.get("objectives") or [],
+                "updated_at": profile.get("updated_at"),
+            },
+            "stats": {
+                "posts_by_kind": by_kind,
+                "replies": replies_count,
+                "reactions": reactions_count,
+                "briefs_sent": briefs_sent,
+                "briefs_opened": briefs_opened,
+                "briefs_clicked": briefs_clicked,
+                "invites_sent": invites_sent_by_user,
+                "pats_live": pats_live,
+                "pats_revoked": pats_revoked,
+            },
+            "recent_posts": recent_posts,
+        }
+
     return router

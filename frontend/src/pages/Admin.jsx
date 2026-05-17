@@ -8,6 +8,7 @@ import AdminPromptsPanel from "@/components/AdminPromptsPanel";
 import AdminResetDbPanel from "@/components/AdminResetDbPanel";
 import AdminInvitePanel from "@/components/AdminInvitePanel";
 import AdminOverview from "@/components/AdminOverview";
+import AdminMembership from "@/components/AdminMembership";
 
 function RssImportButton() {
   const [busy, setBusy] = useState(false);
@@ -160,6 +161,7 @@ export default function Admin() {
       <div className="flex items-center gap-6 mb-8 border-b hairline overflow-x-auto">
         {[
           { k: "dashboard", l: "Dashboard" },
+          { k: "membership", l: "Membership" },
           { k: "apps", l: "Applications" },
           { k: "mod", l: "Moderation" },
           { k: "subjects", l: "Subjects" },
@@ -180,6 +182,8 @@ export default function Admin() {
 
       {section === "dashboard" ? (
         <AdminOverview />
+      ) : section === "membership" ? (
+        <AdminMembership />
       ) : section === "stats" ? (
         <AdminAnalyticsPanel />
       ) : section === "subjects" ? (

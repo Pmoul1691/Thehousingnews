@@ -605,6 +605,27 @@ the newsfeed". Three changes:
   Applications / Moderation / Subjects / Analytics / Invite / Orphans
   tabs remain available, unchanged.
 
+## Phase 17 — Admin Membership tab (2026-02-16)
+- **Backend**: two new admin-only endpoints on `/api/admin/dashboard`:
+  - `GET /members?q=&status=&limit=&offset=` — paginated, searchable list of
+    every user, with `posts_total` bulk-aggregated in one query. Status
+    filter supports `approved | invited | pending | needs_application |
+    declined | suspended`. Search runs against name + email.
+  - `GET /members/{user_id}` — full user view: user doc, profile, posts
+    broken down by kind + status, replies / reactions / briefs (sent /
+    opened / clicked) / invites-sent / PATs counts, plus the last 20 posts
+    with tags.
+- **Frontend** `AdminMembership.jsx` (`/admin → Membership` tab):
+  - Left list (340px) with avatar, name, email, status badge, post count,
+    pagination. Click selects.
+  - Right detail pane with member header + suspend toggle, meta strip
+    (Joined / Last login / Source / ToS), 9-tile interaction grid (posts
+    by kind, replies, reactions, brief opens/clicks, invites, PATs), brief
+    opt-out indicators, and a list of recent posts each linking to its
+    public page (`/essays/:id` or `/p/:id`).
+  - Search input + status select + Filter button at the top.
+- New tab inserted between Dashboard and Applications in the admin nav.
+
 ## Backlog
 - P0 (user action): DNS for thehousingnews.com.
 - P0 (user action): Newsletter provider choice + API key.
