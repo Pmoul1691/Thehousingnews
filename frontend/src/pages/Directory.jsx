@@ -56,7 +56,14 @@ function MemberCard({ m }) {
               </span>
             ) : null}
           </div>
-          {meta ? (
+          {m.headline ? (
+            <p
+              className="font-serif text-[13px] text-ink/85 mt-1 leading-snug line-clamp-2"
+              data-testid={`directory-headline-${m.user_id}`}
+            >
+              {m.headline}
+            </p>
+          ) : meta ? (
             <p className="font-mono text-[10px] uppercase tracking-wider text-muted-ink mt-1 truncate">{meta}</p>
           ) : null}
           {m.market ? (

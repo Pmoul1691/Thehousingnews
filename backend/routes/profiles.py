@@ -131,7 +131,8 @@ def setup(db):
                 "user_id": uid,
                 "name": p.get("name") or u.get("name") or "",
                 "market": p.get("market") or li.get("location") or "",
-                "bio": (p.get("bio") or li.get("headline") or "")[:280],
+                "bio": (p.get("bio") or "")[:280],
+                "headline": (li.get("headline") or "")[:180],
                 "avatar_path": p.get("avatar_path") or li.get("profile_pic_url"),
                 "current_role": top_exp.get("title") or li.get("occupation") or "",
                 "current_company": top_exp.get("company") or "",
@@ -149,6 +150,7 @@ def setup(db):
                 or ql in (it["bio"] or "").lower()
                 or ql in (it["current_role"] or "").lower()
                 or ql in (it["current_company"] or "").lower()
+                or ql in (it["headline"] or "").lower()
             )]
 
         # Members who've written essays first, then alphabetical

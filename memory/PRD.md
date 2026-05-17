@@ -237,25 +237,28 @@ of teams.
 
 
 
-## Phase 26 — LinkedIn re-sync + Career block + Admin tab rename (2026-02-17)
-- **Settings page** (`pages/Settings.jsx`): added "Career profile" section that
-  shows the member's connected LinkedIn URL, last-sync timestamp (from
-  `profiles.linkedin_data.synced_at`), and a gold "Re-sync from LinkedIn"
-  button. The button hits the existing `POST /api/profile/linkedin-import`
-  endpoint (EnrichLayer), which refreshes the cached headline/location/work
-  history/education without overwriting user-edited fields (market/bio/
-  objectives). Disabled when no LinkedIn URL is on file.
+## Phase 26 — LinkedIn re-sync + Career block + Directory headlines + Admin tab rename (2026-02-17)
+- **Settings page** (`pages/Settings.jsx`): added "Career profile" section
+  with connected LinkedIn URL, last-sync timestamp, and a gold "Re-sync from
+  LinkedIn" button wired to `POST /api/profile/linkedin-import`. Refreshes
+  cached headline/location/work history/education; never overwrites
+  user-edited market/bio/objectives.
 - **Profile Career block** (`pages/Profile.jsx::CareerBlock`): public + own
-  member profiles now render a "Career" hairline section between Public
-  objectives and Recent posts. Shows the LinkedIn headline, summary (capped
-  600 chars), up to 5 experiences (title · company · location · year range),
-  up to 3 education entries, and a "Sourced from LinkedIn" footnote linking
-  to the canonical profile. The block hides gracefully when no
-  `linkedin_data` is on file, so members without a synced LinkedIn don't see
-  an empty placeholder.
+  member profiles render a "Career" hairline section between Public
+  objectives and Recent posts. Shows headline, summary (≤600 chars), up to 5
+  experiences (title · company · location · year range), up to 3 education
+  entries, "Sourced from LinkedIn" footnote. Hides gracefully when no
+  `linkedin_data` is on file.
+- **Directory headlines** (`routes/profiles.py::member_directory` +
+  `pages/Directory.jsx`): the public `/profile/directory` endpoint now
+  returns a separate `headline` field (≤180 chars) sourced from
+  `linkedin_data.headline`. The `bio` field is now strictly the
+  user-entered bio (no LinkedIn fallback), eliminating the duplicate-text
+  bug. `/members` renders the headline as a serif 2-line strap directly
+  under each member's name when present; falls back to the existing role
+  meta otherwise. Search now also matches against `headline`.
 - **Admin tab disambiguation**: `/admin` previously rendered two tabs both
-  labeled "Analytics" (the new Phase 24 Site Analytics + the legacy Phase 4a
-  Member Analytics panel). Renamed to **Site Analytics** (new — pageviews,
+  labeled "Analytics". Renamed to **Site Analytics** (new — pageviews,
   acquisition, engagement, retention/churn, traffic) and **Member Analytics**
   (legacy — membership counts, application funnel, posts/week).
 
