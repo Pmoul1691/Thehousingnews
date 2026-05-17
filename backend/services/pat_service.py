@@ -26,6 +26,12 @@ PAT_PREFIX = "thn_pat_"
 PAT_BODY_LEN = 32  # base32 chars after the prefix
 PAT_DISPLAY_PREFIX_LEN = 12  # how much of the raw token we store/show as `prefix`
 
+# Available PAT scopes. A token with no scopes (or the special `*` value)
+# inherits its owner's full permissions — the current default for any token
+# minted before this field existed.
+KNOWN_SCOPES = ("posts:write", "essays:write", "profile:write")
+SCOPE_ALL = "*"
+
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -67,20 +73,49 @@ async def resolve_pat(db, raw_token: str) -> Optional[dict]:
         await db.pats.update_one({"id": pat["id"]}, {"$set": {"last_used_at": _now_iso()}})
     except Exception:
         logger.exception("pat last_used_at stamp failed for prefix=%s", prefix)
+    # Attach scopes so downstream require_scope() helpers can enforce them
+    # without re-querying. Sessions tokens (non-PAT) have no `_pat_scopes`,
+    # which means they keep full access.
+    user = dict(user)
+    user["_pat_id"] = pat["id"]
+    user["_pat_scopes"] = pat.get("scopes") or [SCOPE_ALL]
     return user
 
 
-async def create_pat(db, user_id: str, name: str) -> dict:
+def pat_has_scope(user: dict, required: str) -> bool:
+    """Return True if the resolving credential is allowed to perform `required`.
+
+    A standard session-token request has no `_pat_scopes` and is always allowed.
+    A PAT-resolved user must have either the literal scope or `*` in its list.
+    """
+    scopes = user.get("_pat_scopes")
+    if scopes is None:
+        return True  # session-token caller
+    return SCOPE_ALL in scopes or required in scopes
+
+
+async def create_pat(db, user_id: str, name: str, scopes: Optional[list] = None) -> dict:
     """Create a new PAT for `user_id`. Returns the row PLUS the raw token (the
     only time the raw token is ever exposed). Caller must show it once and
-    discard."""
+    discard.
+
+    `scopes` is an optional list of strings from KNOWN_SCOPES. Empty/None
+    defaults to full access ([`*`]).
+    """
     raw = generate_token()
+    if not scopes:
+        normalized = [SCOPE_ALL]
+    else:
+        normalized = sorted({s for s in scopes if s == SCOPE_ALL or s in KNOWN_SCOPES})
+        if not normalized:
+            normalized = [SCOPE_ALL]
     row = {
         "id": str(uuid.uuid4()),
         "user_id": user_id,
         "name": (name or "").strip()[:80] or "Unnamed token",
         "prefix": raw[:PAT_DISPLAY_PREFIX_LEN],
         "token_hash": _hash_token(raw),
+        "scopes": normalized,
         "created_at": _now_iso(),
         "last_used_at": None,
         "revoked_at": None,
@@ -100,6 +135,7 @@ def public_pat_view(row: dict) -> dict:
         "id": row.get("id"),
         "name": row.get("name"),
         "prefix": row.get("prefix"),
+        "scopes": row.get("scopes") or [SCOPE_ALL],
         "created_at": row.get("created_at"),
         "last_used_at": row.get("last_used_at"),
         "revoked_at": row.get("revoked_at"),

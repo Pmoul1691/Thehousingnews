@@ -560,6 +560,51 @@ the newsfeed". Three changes:
 - API base URL is auto-derived from `window.location.origin` so the
   recipes are accurate in any deployment.
 
+## Phase 16 — Backlog cleanup + Admin Dashboard (2026-02-16)
+
+**Per-window brief opt-outs**
+- `DigestPrefs` model now includes `brief_morning: bool` and
+  `brief_evening: bool` (both default True). `GET /me/digest-prefs` returns
+  them; `PUT /me/digest-prefs` mirrors them into the top-level user doc as
+  `brief_morning_optout` / `brief_evening_optout` so the brief dispatcher's
+  Mongo filter uses them directly. The legacy `brief_optout` flag still
+  suppresses both, for compatibility.
+- Settings UI gained a second "Daily Brief (housing news)" group with two
+  independent toggles below the existing AM/PM digest toggles.
+
+**PAT scopes**
+- `services/pat_service.py` now stores a `scopes` array per PAT
+  (`posts:write`, `essays:write`, `profile:write`, or `*` for full access).
+  Default is `[*]` when none specified. `resolve_pat` attaches
+  `_pat_scopes` to the resolved user. New `pat_has_scope(user, required)`
+  helper returns True for session-token callers and enforces the list for
+  PATs.
+- `POST /api/pats` accepts an optional `scopes: list[str]`. New public
+  `GET /api/pats/scopes` returns the UI catalog.
+- Settings UI gained a scope-chip picker on the create-form and a
+  scope-badge row on every PAT in the list view ("full access" when
+  scope is `*`).
+
+**Newsletter category seeds (+2)**
+- Added Real Estate News (`realestatenews.com/feed`) and Notebook by Brad
+  Inman (`inman.com/category/brad-inman/feed/`) under `newsletter`.
+  ResiClub already in. Newsletters category total = **3**.
+
+**Comprehensive Admin Dashboard**
+- New endpoint `GET /api/admin/dashboard/overview` returns 10 aggregated
+  sections in a single round trip: members counts, application queue,
+  Brevo invites, brief health (sent/opens/clicks), feed health per
+  publisher, recent posts (last 20 with author), trending tags (top 20
+  last 30d), top members (most-published last 30d), PATs counts.
+- New `AdminOverview.jsx` component — minimalist tile UI: 6 stat tiles
+  + 6 panels (Daily Brief health, Invites, Feed health table with
+  status per publisher, Top members ladder, Trending tag cloud, Recent
+  posts feed). 5 quick-action buttons up top: Send/Preview morning
+  brief, Send/Preview evening brief, Import substacks.
+- New default tab on `/admin` page is **Dashboard**. The existing
+  Applications / Moderation / Subjects / Analytics / Invite / Orphans
+  tabs remain available, unchanged.
+
 ## Backlog
 - P0 (user action): DNS for thehousingnews.com.
 - P0 (user action): Newsletter provider choice + API key.

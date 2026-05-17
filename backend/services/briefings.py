@@ -165,6 +165,9 @@ async def send_brief(db, kind: str, dry_run: bool = False) -> dict:
             "status": {"$in": ["approved", "invited"]},
             "suspended": {"$ne": True},
             "brief_optout": {"$ne": True},
+            # Per-window opt-outs added in Phase 16. Either flag suppresses
+            # just one window; the legacy `brief_optout` still suppresses both.
+            f"brief_{kind}_optout": {"$ne": True},
         },
         {"_id": 0, "user_id": 1, "email": 1, "name": 1},
     ).to_list(5000)

@@ -17,6 +17,7 @@ from datetime import datetime, timezone
 
 class CreatePatBody(BaseModel):
     name: str = Field(..., min_length=1, max_length=80)
+    scopes: list[str] = Field(default_factory=list)
 
 
 def setup(db):
@@ -35,12 +36,25 @@ def setup(db):
         authorization: str | None = Header(default=None),
     ):
         user = await _approved_user(session_token, authorization)
-        # Cap users at a reasonable number of live PATs to prevent runaway tokens.
         live_count = await db.pats.count_documents({"user_id": user["user_id"], "revoked_at": None})
         if live_count >= 10:
             raise HTTPException(status_code=400, detail="Revoke an existing token before creating another (max 10).")
-        out = await create_pat(db, user["user_id"], body.name)
+        out = await create_pat(db, user["user_id"], body.name, scopes=body.scopes)
         return out
+
+    @router.get("/scopes")
+    async def list_scopes():
+        """Return the scopes UI dropdowns can offer. Public — no PII exposed."""
+        from services.pat_service import KNOWN_SCOPES, SCOPE_ALL
+        return {
+            "all": SCOPE_ALL,
+            "items": [
+                {"key": "posts:write",   "label": "Publish short posts",   "description": "POST /api/posts"},
+                {"key": "essays:write",  "label": "Publish essays",        "description": "POST /api/essays"},
+                {"key": "profile:write", "label": "Update profile",        "description": "PUT /api/profile"},
+            ],
+            "known": list(KNOWN_SCOPES),
+        }
 
     @router.get("")
     async def list_pats(

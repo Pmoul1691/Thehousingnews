@@ -15,6 +15,11 @@ router = APIRouter(prefix="/api", tags=["users"])
 class DigestPrefs(BaseModel):
     am: bool = True
     pm: bool = True
+    # Per-window Daily-Brief opt-ins (Phase 16). Default True so existing users
+    # keep receiving briefs after the migration. Members can untick either or
+    # both from the Settings page.
+    brief_morning: bool = True
+    brief_evening: bool = True
 
 
 def _now_iso() -> str:
@@ -41,14 +46,26 @@ def setup(db):
 
     @router.get("/me/digest-prefs")
     async def get_digest_prefs(user=Depends(_user)):
-        prefs = user.get("digest_prefs") or {"am": True, "pm": True}
-        return prefs
+        prefs = user.get("digest_prefs") or {}
+        return {
+            "am": prefs.get("am", True),
+            "pm": prefs.get("pm", True),
+            "brief_morning": not user.get("brief_morning_optout", False),
+            "brief_evening": not user.get("brief_evening_optout", False),
+        }
 
     @router.put("/me/digest-prefs")
     async def set_digest_prefs(payload: DigestPrefs, user=Depends(_user)):
+        # Persist the legacy am/pm member-post digest knobs in digest_prefs
+        # and mirror the brief on/off booleans into the top-level user doc
+        # so the dispatcher's mongo filter can use them directly.
         await db.users.update_one(
             {"user_id": user["user_id"]},
-            {"$set": {"digest_prefs": payload.model_dump()}},
+            {"$set": {
+                "digest_prefs": {"am": payload.am, "pm": payload.pm},
+                "brief_morning_optout": not payload.brief_morning,
+                "brief_evening_optout": not payload.brief_evening,
+            }},
         )
         return payload.model_dump()
 

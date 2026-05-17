@@ -42,6 +42,7 @@ from routes.aggregator_suggestions import setup as setup_aggregator_suggestions
 from routes.admin_reset import setup as setup_admin_reset
 from routes.admin_invite import setup as setup_admin_invite
 from routes.admin_briefings import setup as setup_admin_briefings
+from routes.admin_dashboard import setup as setup_admin_dashboard
 from routes.refresh_feeds import setup as setup_refresh_feeds
 from routes.pats import setup as setup_pats
 from routes.podcasts import setup as setup_podcasts
@@ -310,6 +311,7 @@ app.include_router(setup_aggregator_suggestions(db))
 app.include_router(setup_admin_reset(db))
 app.include_router(setup_admin_invite(db))
 app.include_router(setup_admin_briefings(db))
+app.include_router(setup_admin_dashboard(db))
 app.include_router(setup_refresh_feeds(db))
 app.include_router(setup_pats(db))
 app.include_router(setup_podcasts(db))

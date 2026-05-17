@@ -7,24 +7,32 @@ import { toast } from "sonner";
 export default function Settings() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
-  const [prefs, setPrefs] = useState({ am: true, pm: true });
+  const [prefs, setPrefs] = useState({ am: true, pm: true, brief_morning: true, brief_evening: true });
   const [fetching, setFetching] = useState(true);
   const [saving, setSaving] = useState(false);
   const [invites, setInvites] = useState(null);
   const [genBusy, setGenBusy] = useState(false);
   const [pats, setPats] = useState([]);
   const [newPatName, setNewPatName] = useState("");
+  const [newPatScopes, setNewPatScopes] = useState([]); // empty = full access
   const [newPatBusy, setNewPatBusy] = useState(false);
   const [revealedToken, setRevealedToken] = useState(null);
+  const [scopeCatalog, setScopeCatalog] = useState([]);
 
   useEffect(() => {
     if (loading) return;
     if (!user) { navigate("/", { replace: true }); return; }
     if (user.status !== "approved") { navigate("/feed", { replace: true }); return; }
     Promise.all([
-      api.get("/me/digest-prefs").then((r) => setPrefs({ am: r.data.am !== false, pm: r.data.pm !== false })),
+      api.get("/me/digest-prefs").then((r) => setPrefs({
+        am: r.data.am !== false,
+        pm: r.data.pm !== false,
+        brief_morning: r.data.brief_morning !== false,
+        brief_evening: r.data.brief_evening !== false,
+      })),
       api.get("/me/invites").then((r) => setInvites(r.data)).catch(() => setInvites(null)),
       api.get("/pats").then((r) => setPats(r.data.items || [])).catch(() => setPats([])),
+      api.get("/pats/scopes").then((r) => setScopeCatalog(r.data.items || [])).catch(() => setScopeCatalog([])),
     ]).finally(() => setFetching(false));
   }, [user, loading, navigate]);
 
@@ -74,15 +82,20 @@ export default function Settings() {
     if (!newPatName.trim()) return;
     setNewPatBusy(true);
     try {
-      const r = await api.post("/pats", { name: newPatName.trim() });
+      const r = await api.post("/pats", { name: newPatName.trim(), scopes: newPatScopes });
       setRevealedToken(r.data.token);
       setNewPatName("");
+      setNewPatScopes([]);
       const list = await api.get("/pats");
       setPats(list.data.items || []);
       toast.success("Access token created. Copy it now — you won't see it again.");
     } catch (err) {
       toast.error(err?.response?.data?.detail || "Could not create token");
     } finally { setNewPatBusy(false); }
+  };
+
+  const toggleScope = (key) => {
+    setNewPatScopes((curr) => curr.includes(key) ? curr.filter((s) => s !== key) : [...curr, key]);
   };
 
   const revokePat = async (patId) => {
@@ -115,10 +128,18 @@ export default function Settings() {
       {fetching ? (
         <div className="font-serif text-base text-muted-ink">Loading.</div>
       ) : (
-        <div className="border hairline rounded-sm divide-y divide-[#E8D4A0]">
-          <ToggleRow label="Morning digest" hint="Sent after the 8:30am Chicago release." checked={prefs.am} disabled={saving} onChange={(v) => save({ ...prefs, am: v })} testid="toggle-am" />
-          <ToggleRow label="Evening digest" hint="Sent after the 5:30pm Chicago release." checked={prefs.pm} disabled={saving} onChange={(v) => save({ ...prefs, pm: v })} testid="toggle-pm" />
-        </div>
+        <>
+          <p className="font-sans text-[11px] uppercase tracking-[0.18em] font-semibold text-gold mb-3">Member-post digests</p>
+          <div className="border hairline rounded-sm divide-y divide-[#E8D4A0]">
+            <ToggleRow label="Morning digest" hint="Sent after the 8:30am Chicago release." checked={prefs.am} disabled={saving} onChange={(v) => save({ ...prefs, am: v })} testid="toggle-am" />
+            <ToggleRow label="Evening digest" hint="Sent after the 5:30pm Chicago release." checked={prefs.pm} disabled={saving} onChange={(v) => save({ ...prefs, pm: v })} testid="toggle-pm" />
+          </div>
+          <p className="font-sans text-[11px] uppercase tracking-[0.18em] font-semibold text-gold mt-10 mb-3">Daily Brief (housing news)</p>
+          <div className="border hairline rounded-sm divide-y divide-[#E8D4A0]">
+            <ToggleRow label="Morning Brief" hint="7:30am Chicago — top 8 publisher articles + 1 podcast pick." checked={prefs.brief_morning !== false} disabled={saving} onChange={(v) => save({ ...prefs, brief_morning: v })} testid="toggle-brief-am" />
+            <ToggleRow label="Evening Brief" hint="5:30pm Chicago — top 8 articles + 24h trending topics." checked={prefs.brief_evening !== false} disabled={saving} onChange={(v) => save({ ...prefs, brief_evening: v })} testid="toggle-brief-pm" />
+          </div>
+        </>
       )}
 
       {invites && (
@@ -239,24 +260,55 @@ export default function Settings() {
           </div>
         )}
 
-        <form onSubmit={createPat} className="border hairline rounded-sm bg-cream p-5 mb-6 flex items-center gap-3 flex-wrap" data-testid="pat-create-form">
-          <input
-            type="text"
-            value={newPatName}
-            onChange={(e) => setNewPatName(e.target.value)}
-            placeholder="Token name (e.g. Claude Desktop, n8n automation)"
-            maxLength={80}
-            data-testid="pat-name-input"
-            className="flex-1 min-w-[200px] border hairline bg-white rounded-sm px-3 py-2 font-sans text-sm focus:outline-none focus:border-gold"
-          />
-          <button
-            type="submit"
-            disabled={newPatBusy || !newPatName.trim() || pats.filter((p) => !p.revoked_at).length >= 10}
-            data-testid="pat-create-btn"
-            className="bg-gold text-cream font-sans font-semibold text-sm px-5 py-2 rounded-sm hover:opacity-90 transition-opacity disabled:opacity-50"
-          >
-            {newPatBusy ? "Creating…" : "Create token"}
-          </button>
+        <form onSubmit={createPat} className="border hairline rounded-sm bg-cream p-5 mb-6 space-y-3" data-testid="pat-create-form">
+          <div className="flex items-center gap-3 flex-wrap">
+            <input
+              type="text"
+              value={newPatName}
+              onChange={(e) => setNewPatName(e.target.value)}
+              placeholder="Token name (e.g. Claude Desktop, n8n automation)"
+              maxLength={80}
+              data-testid="pat-name-input"
+              className="flex-1 min-w-[200px] border hairline bg-white rounded-sm px-3 py-2 font-sans text-sm focus:outline-none focus:border-gold"
+            />
+            <button
+              type="submit"
+              disabled={newPatBusy || !newPatName.trim() || pats.filter((p) => !p.revoked_at).length >= 10}
+              data-testid="pat-create-btn"
+              className="bg-gold text-cream font-sans font-semibold text-sm px-5 py-2 rounded-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+            >
+              {newPatBusy ? "Creating…" : "Create token"}
+            </button>
+          </div>
+          {scopeCatalog.length > 0 && (
+            <div data-testid="pat-scopes-picker">
+              <p className="font-sans text-[11px] uppercase tracking-[0.18em] font-semibold text-muted-ink mb-2">
+                Scopes
+                <span className="ml-2 normal-case tracking-normal text-[11px] text-muted-ink italic">
+                  (leave empty for full access)
+                </span>
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {scopeCatalog.map((s) => {
+                  const on = newPatScopes.includes(s.key);
+                  return (
+                    <button
+                      key={s.key}
+                      type="button"
+                      onClick={() => toggleScope(s.key)}
+                      data-testid={`pat-scope-${s.key.replace(":","-")}`}
+                      title={s.description}
+                      className={`font-mono text-[11px] px-2.5 py-1 rounded-sm border transition-colors ${
+                        on ? "bg-ink text-cream border-ink" : "bg-white text-ink border-gold/40 hover:border-gold"
+                      }`}
+                    >
+                      {on ? "✓ " : ""}{s.key}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </form>
 
         {pats.length === 0 ? (
@@ -277,6 +329,13 @@ export default function Settings() {
                         · Created {new Date(p.created_at).toLocaleDateString()}
                         {p.last_used_at ? ` · Last used ${new Date(p.last_used_at).toLocaleDateString()}` : " · Never used"}
                       </span>
+                    </div>
+                    <div className="mt-1 flex flex-wrap gap-1.5">
+                      {(p.scopes || ["*"]).map((s) => (
+                        <span key={s} className="font-mono text-[10px] bg-cream-soft border border-gold/30 text-ink px-1.5 py-0.5 rounded-sm">
+                          {s === "*" ? "full access" : s}
+                        </span>
+                      ))}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">

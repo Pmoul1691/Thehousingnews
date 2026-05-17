@@ -42,6 +42,9 @@ SEED_PUBLISHERS = [
     ("Multi-Housing News",      "multi-housing",    "national_trade", "https://www.multihousingnews.com/feed/",               "https://www.multihousingnews.com",   "headline_and_snippet", "pending"),
     ("Eye on Housing",          "eye-on-housing",   "industry_blog",  "https://eyeonhousing.org/feed/",                       "https://eyeonhousing.org",           "headline_and_snippet", "not_required"),
     ("ResiClub",                "resiclub",         "newsletter",     "https://www.resiclub.com/feed",                        "https://www.resiclub.com",           "headline_and_snippet", "not_required"),
+    # 2026-02-16: Additional newsletter sources seeded for the newsletter category.
+    ("Real Estate News",        "realestatenews",   "newsletter",     "https://www.realestatenews.com/feed",                  "https://www.realestatenews.com",     "headline_and_snippet", "pending"),
+    ("Notebook by Brad Inman",  "brad-inman",       "newsletter",     "https://www.inman.com/category/brad-inman/feed/",      "https://www.inman.com/category/brad-inman", "headline_and_snippet", "pending"),
 ]
 
 

@@ -7,6 +7,7 @@ import AdminAnalyticsPanel from "@/components/AdminAnalyticsPanel";
 import AdminPromptsPanel from "@/components/AdminPromptsPanel";
 import AdminResetDbPanel from "@/components/AdminResetDbPanel";
 import AdminInvitePanel from "@/components/AdminInvitePanel";
+import AdminOverview from "@/components/AdminOverview";
 
 function RssImportButton() {
   const [busy, setBusy] = useState(false);
@@ -36,7 +37,7 @@ function RssImportButton() {
 export default function Admin() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
-  const [section, setSection] = useState("apps");
+  const [section, setSection] = useState("dashboard");
   const [appsTab, setAppsTab] = useState("pending");
   const [flagsTab, setFlagsTab] = useState("open");
   const [apps, setApps] = useState([]);
@@ -156,8 +157,9 @@ export default function Admin() {
         </div>
       </div>
 
-      <div className="flex items-center gap-6 mb-8 border-b hairline">
+      <div className="flex items-center gap-6 mb-8 border-b hairline overflow-x-auto">
         {[
+          { k: "dashboard", l: "Dashboard" },
           { k: "apps", l: "Applications" },
           { k: "mod", l: "Moderation" },
           { k: "subjects", l: "Subjects" },
@@ -169,14 +171,16 @@ export default function Admin() {
             key={t.k}
             data-testid={`admin-section-${t.k}`}
             onClick={() => setSection(t.k)}
-            className={`pb-3 font-display font-semibold text-base transition-colors ${section === t.k ? "text-gold border-b-2 border-gold" : "text-muted-ink hover:text-ink"}`}
+            className={`pb-3 font-display font-semibold text-base transition-colors whitespace-nowrap ${section === t.k ? "text-gold border-b-2 border-gold" : "text-muted-ink hover:text-ink"}`}
           >
             {t.l}
           </button>
         ))}
       </div>
 
-      {section === "stats" ? (
+      {section === "dashboard" ? (
+        <AdminOverview />
+      ) : section === "stats" ? (
         <AdminAnalyticsPanel />
       ) : section === "subjects" ? (
         <AdminPromptsPanel />
