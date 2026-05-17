@@ -269,7 +269,7 @@ function HeroSection() {
           </div>
 
           <p className="mt-3 font-sans text-[12px] text-ink/55" data-testid="landing-pricing-note">
-            Free for 45 days for invited members. After that, $12.50/mo or $100/yr.
+            Free 30-day trial when you sign up now.
           </p>
 
           <p className="mt-8 font-sans text-[12.5px] text-ink/55 tracking-wide">
