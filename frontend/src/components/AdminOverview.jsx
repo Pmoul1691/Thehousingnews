@@ -168,7 +168,7 @@ export default function AdminOverview() {
       {/* Members + Apps + Invites */}
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3" data-testid="admin-stat-grid">
         <StatTile label="Approved" value={fmt(d.members.approved)} hint="Paying or trial" testid="stat-members-approved" />
-        <StatTile label="Invited" value={fmt(d.members.invited)} hint="In 45-day trial" testid="stat-members-invited" />
+        <StatTile label="Invited" value={fmt(d.members.invited)} hint="In 30-day trial" testid="stat-members-invited" />
         <StatTile label="New 7d" value={fmt(d.members.new_7d)} hint="Joined this week" accent testid="stat-members-new" />
         <StatTile label="Suspended" value={fmt(d.members.suspended)} testid="stat-members-suspended" />
         <StatTile label="Pending apps" value={fmt(d.applications.pending)} hint={`${d.applications.approved} approved · ${d.applications.declined} declined`} testid="stat-apps-pending" />

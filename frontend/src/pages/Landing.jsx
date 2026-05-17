@@ -1046,7 +1046,7 @@ function FinalCtaSection() {
             data-testid="landing-final-apply"
             className="inline-flex items-center justify-center bg-gold text-ink font-sans font-semibold text-[14px] px-8 py-3 rounded-sm hover:bg-cream transition-colors"
           >
-            Start 45-day free trial
+            Start 30-day free trial
           </Link>
           <Link
             to="/news"
