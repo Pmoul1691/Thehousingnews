@@ -117,6 +117,23 @@ admin can make the final call. False decline is worse than false flag.
 """.strip()
 
 
+async def _get_active_prompt(db) -> str:
+    """Return the live moderation prompt. Admins can override the file
+    constant by saving a custom version in moderation_settings; this is
+    how we tune the prompt over time without redeploying."""
+    if db is None:
+        return SYSTEM_PROMPT
+    try:
+        row = await db.moderation_settings.find_one(
+            {"key": "system_prompt"}, {"_id": 0, "value": 1},
+        )
+        if row and (row.get("value") or "").strip():
+            return row["value"]
+    except Exception:
+        logger.exception("failed to load custom system_prompt; using default")
+    return SYSTEM_PROMPT
+
+
 def _api_key() -> str:
     k = os.environ.get("EMERGENT_LLM_KEY")
     if not k:
@@ -140,6 +157,7 @@ def _parse_verdict(raw: str) -> dict:
 
 async def review_content(
     *,
+    db=None,
     target_kind: str,          # "post" | "essay" | "reply"
     text: str,
     title: Optional[str] = None,
@@ -158,10 +176,11 @@ async def review_content(
     user_text = "\n".join(body_parts)
 
     session_id = f"mod_{uuid.uuid4().hex[:12]}"
+    system_prompt = await _get_active_prompt(db)
     chat = LlmChat(
         api_key=_api_key(),
         session_id=session_id,
-        system_message=SYSTEM_PROMPT,
+        system_message=system_prompt,
     ).with_model(MODEL_PROVIDER, MODEL_NAME)
 
     response = await chat.send_message(UserMessage(text=user_text))
@@ -197,7 +216,7 @@ async def moderate_and_record(db, *, target_kind: str, target_id: str,
 
     try:
         verdict = await review_content(
-            target_kind=target_kind, text=text, title=title, subtitle=subtitle,
+            db=db, target_kind=target_kind, text=text, title=title, subtitle=subtitle,
         )
     except Exception as exc:  # noqa: BLE001 - we want every error caught
         logger.exception("moderation review failed")

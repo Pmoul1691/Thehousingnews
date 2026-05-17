@@ -667,6 +667,27 @@ the newsfeed". Three changes:
   - Post-auth callback now sends approved users with a profile to `/today`
     instead of `/feed`.
 
+## Phase 25 — Moderation prompt-tuning loop (2026-02-17)
+- **Backend**: `services/moderation.py` now reads the active system prompt
+  from `moderation_settings` (DB) at call time, falling back to the file
+  constant if no custom version is saved. Admins can tune Claude without a
+  redeploy.
+- **New endpoints**:
+  - `GET /api/admin/moderation/prompt` — returns active prompt, default
+    prompt, `is_custom`, last edit metadata.
+  - `PUT /api/admin/moderation/prompt` — save a custom prompt (max 20k
+    chars).
+  - `POST /api/admin/moderation/prompt/reset` — drop the custom prompt
+    and fall back to the file default.
+  - `GET /api/admin/moderation/prompt/suggestions` — surfaces
+    actionable category-level signal from the audit trail: categories
+    with override-rate ≥ 50% (Claude too aggressive) and categories
+    with 0% overrides on ≥ 5 decisions (well calibrated).
+- **Frontend** new "Prompt" sub-tab inside AI Review with:
+  - Tuning Suggestions card (data-driven, friendly empty state).
+  - Editable system-prompt textarea with Save / Load default / Revert.
+  - Inline metadata: last edit time + which admin made the change.
+
 ## Phase 24 — Member Directory + Landing favicons (2026-02-17)
 
 ### Member Directory (`/members`)

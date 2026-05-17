@@ -153,6 +153,156 @@ function ReviewCard({ r, onDecide, busyId }) {
   );
 }
 
+function PromptPanel() {
+  const [data, setData] = useState(null);
+  const [suggestions, setSuggestions] = useState(null);
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [p, s] = await Promise.all([
+        api.get("/admin/moderation/prompt"),
+        api.get("/admin/moderation/prompt/suggestions"),
+      ]);
+      setData(p.data);
+      setText(p.data.active || "");
+      setSuggestions(s.data);
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || "Failed to load prompt");
+    } finally { setLoading(false); }
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const save = async () => {
+    if (!window.confirm("Save this prompt? All future moderation calls will use it.")) return;
+    setBusy(true);
+    try {
+      await api.put("/admin/moderation/prompt", { value: text });
+      toast.success("Prompt saved");
+      await load();
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || "Save failed");
+    } finally { setBusy(false); }
+  };
+  const reset = async () => {
+    if (!window.confirm("Discard the custom prompt and revert to the default?")) return;
+    setBusy(true);
+    try {
+      await api.post("/admin/moderation/prompt/reset");
+      toast.success("Reverted to default");
+      await load();
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || "Reset failed");
+    } finally { setBusy(false); }
+  };
+
+  if (loading) return <p className="font-serif italic text-sm text-muted-ink py-10 text-center">Loading prompt.</p>;
+  if (!data) return null;
+
+  return (
+    <div className="space-y-5" data-testid="mod-prompt-panel">
+      {(suggestions?.too_aggressive?.length > 0 || suggestions?.well_calibrated?.length > 0) ? (
+        <section className="bg-cream-soft border border-gold/15 rounded-sm p-5" data-testid="mod-prompt-suggestions">
+          <p className="font-sans text-[10px] uppercase tracking-[0.22em] font-semibold text-gold">
+            Tuning suggestions · last 60 days · {suggestions.sample_size} decisions
+          </p>
+          {suggestions.too_aggressive.length > 0 ? (
+            <div className="mt-3">
+              <p className="font-display font-semibold text-sm ink mb-2">Claude may be too aggressive on:</p>
+              <ul className="space-y-1">
+                {suggestions.too_aggressive.map((s) => (
+                  <li key={s.category} className="font-mono text-[12px] text-deepred">
+                    <span className="font-semibold">{CAT_LABELS[s.category] || s.category}</span>
+                    <span className="text-muted-ink ml-2">— {s.override_rate}% override rate ({s.overridden}/{s.total})</span>
+                  </li>
+                ))}
+              </ul>
+              <p className="font-serif italic text-xs text-muted-ink mt-2">
+                Consider relaxing the policy language for these categories in the prompt below.
+              </p>
+            </div>
+          ) : null}
+          {suggestions.well_calibrated.length > 0 ? (
+            <div className="mt-3">
+              <p className="font-display font-semibold text-sm ink mb-2">Well calibrated (you agreed with Claude every time):</p>
+              <ul className="space-y-1">
+                {suggestions.well_calibrated.map((s) => (
+                  <li key={s.category} className="font-mono text-[12px] text-emerald-700">
+                    <span className="font-semibold">{CAT_LABELS[s.category] || s.category}</span>
+                    <span className="text-muted-ink ml-2">— {s.total} decisions, 0 overrides</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </section>
+      ) : (
+        <section className="bg-cream-soft border border-gold/15 rounded-sm p-5">
+          <p className="font-sans text-[10px] uppercase tracking-[0.22em] font-semibold text-gold">Tuning suggestions</p>
+          <p className="font-serif italic text-sm text-muted-ink mt-2">
+            Not enough decisions yet to surface category-level suggestions. Once you&apos;ve reviewed ~10 flagged items, this panel will tell you which categories Claude is too aggressive on.
+          </p>
+        </section>
+      )}
+
+      <section>
+        <div className="flex items-center justify-between mb-2">
+          <p className="font-sans text-[10px] uppercase tracking-[0.22em] font-semibold text-gold">
+            System prompt {data.is_custom ? <span className="text-deepred">· Custom</span> : <span className="text-muted-ink">· Default</span>}
+          </p>
+          {data.updated_at ? (
+            <p className="font-mono text-[10px] text-muted-ink">Last edited {new Date(data.updated_at).toLocaleString()}</p>
+          ) : null}
+        </div>
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          rows={24}
+          data-testid="mod-prompt-textarea"
+          className="w-full bg-white border border-gold/20 rounded-sm p-3 font-mono text-[12px] ink leading-relaxed focus:outline-none focus:ring-1 focus:ring-gold"
+          spellCheck={false}
+        />
+        <div className="flex items-center gap-2 mt-3">
+          <button
+            type="button"
+            onClick={save}
+            disabled={busy || text === data.active}
+            data-testid="mod-prompt-save"
+            className="font-sans text-xs uppercase tracking-wider font-semibold bg-ink text-cream px-3 py-2 rounded-sm hover:bg-gold disabled:opacity-40 transition-colors"
+          >
+            {busy ? "Saving…" : "Save prompt"}
+          </button>
+          {data.is_custom ? (
+            <button
+              type="button"
+              onClick={reset}
+              disabled={busy}
+              data-testid="mod-prompt-reset"
+              className="font-sans text-xs uppercase tracking-wider font-semibold border border-deepred text-deepred hover:bg-deepred hover:text-cream px-3 py-2 rounded-sm disabled:opacity-40 transition-colors"
+            >
+              Revert to default
+            </button>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => setText(data.default)}
+            data-testid="mod-prompt-load-default"
+            className="font-sans text-xs uppercase tracking-wider font-semibold text-muted-ink hover:text-ink"
+          >
+            Load default into editor
+          </button>
+        </div>
+        <p className="font-serif italic text-xs text-muted-ink mt-3 max-w-prose">
+          Changes apply on the next moderation call (no restart needed). The default version is the one committed in <span className="font-mono">services/moderation.py</span>; reverting drops your custom version and falls back to the file.
+        </p>
+      </section>
+    </div>
+  );
+}
+
 function PatternsPanel({ data, loading, days, onDaysChange }) {
   if (loading) {
     return <p className="font-serif italic text-sm text-muted-ink py-10 text-center">Loading patterns.</p>;
@@ -341,6 +491,7 @@ export default function AdminAiModeration() {
         {[
           { k: "queue", l: "Queue" },
           { k: "patterns", l: "Patterns" },
+          { k: "prompt", l: "Prompt" },
         ].map((t) => (
           <button
             key={t.k}
@@ -354,7 +505,9 @@ export default function AdminAiModeration() {
         ))}
       </div>
 
-      {view === "patterns" ? (
+      {view === "prompt" ? (
+        <PromptPanel />
+      ) : view === "patterns" ? (
         <PatternsPanel data={patterns} loading={patternsLoading} days={patternsDays} onDaysChange={setPatternsDays} />
       ) : (
       <>

@@ -25,6 +25,10 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+class PromptUpdate(BaseModel):
+    value: str
+
+
 def setup(db):
     async def _admin(
         session_token: Optional[str] = Cookie(default=None),
@@ -294,5 +298,109 @@ def setup(db):
             }},
         )
         return {"ok": True, "decision": decision}
+
+    @router.get("/prompt")
+    async def get_prompt(
+        session_token: Optional[str] = Cookie(default=None),
+        authorization: Optional[str] = Header(default=None),
+    ):
+        await _admin(session_token, authorization)
+        from services.moderation import SYSTEM_PROMPT, _get_active_prompt
+        active = await _get_active_prompt(db)
+        row = await db.moderation_settings.find_one(
+            {"key": "system_prompt"}, {"_id": 0, "value": 1, "updated_at": 1, "updated_by": 1},
+        )
+        return {
+            "active": active,
+            "default": SYSTEM_PROMPT,
+            "is_custom": active.strip() != SYSTEM_PROMPT.strip(),
+            "updated_at": (row or {}).get("updated_at"),
+            "updated_by": (row or {}).get("updated_by"),
+        }
+
+    @router.put("/prompt")
+    async def update_prompt(
+        body: PromptUpdate,
+        session_token: Optional[str] = Cookie(default=None),
+        authorization: Optional[str] = Header(default=None),
+    ):
+        admin = await _admin(session_token, authorization)
+        value = (body.value or "").strip()
+        if not value:
+            raise HTTPException(status_code=400, detail="Prompt cannot be empty")
+        if len(value) > 20000:
+            raise HTTPException(status_code=400, detail="Prompt too long (max 20k chars)")
+        await db.moderation_settings.update_one(
+            {"key": "system_prompt"},
+            {"$set": {
+                "key": "system_prompt",
+                "value": value,
+                "updated_at": _now_iso(),
+                "updated_by": admin["user_id"],
+            }},
+            upsert=True,
+        )
+        return {"ok": True, "len": len(value)}
+
+    @router.post("/prompt/reset")
+    async def reset_prompt(
+        session_token: Optional[str] = Cookie(default=None),
+        authorization: Optional[str] = Header(default=None),
+    ):
+        await _admin(session_token, authorization)
+        await db.moderation_settings.delete_one({"key": "system_prompt"})
+        return {"ok": True}
+
+    @router.get("/prompt/suggestions")
+    async def prompt_suggestions(
+        session_token: Optional[str] = Cookie(default=None),
+        authorization: Optional[str] = Header(default=None),
+    ):
+        """Surface concrete tuning suggestions from the audit trail.
+
+        Looks at: (a) categories where admins overrode Claude most often
+        (Claude is too aggressive on these — relax the rule), and
+        (b) categories where the override rate is 0% on multiple decisions
+        (Claude is calibrated well).
+        """
+        await _admin(session_token, authorization)
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=60)).isoformat()
+        rows = await db.moderation_reviews.find(
+            {"reviewed_at": {"$gte": cutoff},
+             "admin_decision": {"$in": ["approve_override", "confirm_decline"]}},
+            {"_id": 0, "categories": 1, "admin_decision": 1},
+        ).to_list(2000)
+
+        # Per-category override rate
+        per_cat: dict = {}
+        for r in rows:
+            for c in (r.get("categories") or []):
+                if c == "none":
+                    continue
+                per_cat.setdefault(c, {"total": 0, "overridden": 0})
+                per_cat[c]["total"] += 1
+                if r["admin_decision"] == "approve_override":
+                    per_cat[c]["overridden"] += 1
+
+        too_aggressive = []
+        well_calibrated = []
+        for cat, s in per_cat.items():
+            if s["total"] < 3:
+                continue  # Not enough data
+            rate = s["overridden"] / s["total"]
+            entry = {"category": cat, "total": s["total"],
+                     "overridden": s["overridden"], "override_rate": round(rate * 100)}
+            if rate >= 0.5:
+                too_aggressive.append(entry)
+            elif rate == 0 and s["total"] >= 5:
+                well_calibrated.append(entry)
+
+        too_aggressive.sort(key=lambda x: -x["override_rate"])
+        return {
+            "too_aggressive": too_aggressive[:5],
+            "well_calibrated": well_calibrated[:5],
+            "window_days": 60,
+            "sample_size": len(rows),
+        }
 
     return router
