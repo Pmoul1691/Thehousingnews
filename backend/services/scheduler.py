@@ -7,6 +7,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from services.release_window import CHICAGO, previous_window, window_kind, window_label
 from services.brevo import send_digest_email
 from services.briefings import send_morning_brief, send_evening_brief
+from services.admin_summary import send_admin_summary
 from services.essay_dispatch import dispatch_essay_to_followers
 from services.admin_digest import send_admin_digest
 from services.substack_import import import_substack_feed
@@ -279,6 +280,17 @@ def start_scheduler(db) -> AsyncIOScheduler:
         minute=30,
         args=[db],
         id="brief_evening",
+        replace_existing=True,
+        misfire_grace_time=600,
+    )
+    # Daily admin operator summary — 7:00 AM America/Chicago.
+    scheduler.add_job(
+        send_admin_summary,
+        trigger="cron",
+        hour=7,
+        minute=0,
+        args=[db],
+        id="admin_summary",
         replace_existing=True,
         misfire_grace_time=600,
     )

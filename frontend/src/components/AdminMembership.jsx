@@ -66,32 +66,45 @@ function StatPill({ label, value, testid }) {
   );
 }
 
-function MemberRow({ m, active, onClick }) {
+function MemberRow({ m, active, onClick, selected, onToggleSelect }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
+    <div
       data-testid={`member-row-${m.user_id}`}
-      className={`w-full text-left flex items-center gap-3 px-3 py-2.5 border-b border-gold/10 transition-colors ${
+      className={`w-full flex items-center gap-2 px-3 py-2.5 border-b border-gold/10 transition-colors ${
         active ? "bg-gold/10 border-l-2 border-l-gold pl-[10px]" : "hover:bg-cream-soft"
       }`}
     >
-      <Avatar name={m.name || m.email} avatarPath={m.avatar_path} size={32} />
-      <div className="flex-1 min-w-0">
-        <div className="flex items-baseline gap-2">
-          <span className="font-display font-semibold text-[13px] ink truncate">{m.name || "—"}</span>
-          {m.is_admin && <span className="font-mono text-[9px] uppercase text-gold shrink-0">admin</span>}
-          {m.is_stub && <span className="font-mono text-[9px] uppercase text-muted-ink shrink-0">stub</span>}
+      <input
+        type="checkbox"
+        checked={selected}
+        onChange={(e) => { e.stopPropagation(); onToggleSelect(m.user_id); }}
+        onClick={(e) => e.stopPropagation()}
+        data-testid={`member-select-${m.user_id}`}
+        className="shrink-0 cursor-pointer accent-gold"
+        aria-label={`Select ${m.email}`}
+      />
+      <button
+        type="button"
+        onClick={onClick}
+        className="flex items-center gap-3 flex-1 min-w-0 text-left"
+      >
+        <Avatar name={m.name || m.email} avatarPath={m.avatar_path} size={32} />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-baseline gap-2">
+            <span className="font-display font-semibold text-[13px] ink truncate">{m.name || "—"}</span>
+            {m.is_admin && <span className="font-mono text-[9px] uppercase text-gold shrink-0">admin</span>}
+            {m.is_stub && <span className="font-mono text-[9px] uppercase text-muted-ink shrink-0">stub</span>}
+          </div>
+          <div className="font-mono text-[10px] text-muted-ink truncate">{m.email}</div>
         </div>
-        <div className="font-mono text-[10px] text-muted-ink truncate">{m.email}</div>
-      </div>
-      <div className="flex flex-col items-end shrink-0">
-        <span className={`font-mono text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded-sm ${statusBadgeCls(m.status, m.suspended)}`}>
-          {m.suspended ? "susp" : m.status?.slice(0, 6)}
-        </span>
-        <span className="font-mono text-[10px] text-muted-ink mt-1">{m.posts_total} posts</span>
-      </div>
-    </button>
+        <div className="flex flex-col items-end shrink-0">
+          <span className={`font-mono text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded-sm ${statusBadgeCls(m.status, m.suspended)}`}>
+            {m.suspended ? "susp" : m.status?.slice(0, 6)}
+          </span>
+          <span className="font-mono text-[10px] text-muted-ink mt-1">{m.posts_total} posts</span>
+        </div>
+      </button>
+    </div>
   );
 }
 
@@ -266,6 +279,8 @@ export default function AdminMembership() {
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(true);
   const [selectedUid, setSelectedUid] = useState(null);
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [bulkBusy, setBulkBusy] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -286,6 +301,9 @@ export default function AdminMembership() {
 
   useEffect(() => { load(); }, [load]);
 
+  // Clear selection whenever the visible page or filters change.
+  useEffect(() => { setSelectedIds(new Set()); }, [q, status, offset]);
+
   const submitSearch = (e) => {
     e.preventDefault();
     setOffset(0);
@@ -294,6 +312,47 @@ export default function AdminMembership() {
 
   const hasNext = offset + limit < total;
   const hasPrev = offset > 0;
+
+  const visibleIds = useMemo(() => members.map((m) => m.user_id), [members]);
+  const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.has(id));
+
+  const toggleSelect = (uid) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(uid)) next.delete(uid); else next.add(uid);
+      return next;
+    });
+  };
+
+  const toggleSelectAllVisible = () => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (allVisibleSelected) {
+        visibleIds.forEach((id) => next.delete(id));
+      } else {
+        visibleIds.forEach((id) => next.add(id));
+      }
+      return next;
+    });
+  };
+
+  const clearSelection = () => setSelectedIds(new Set());
+
+  const runBulk = async (action) => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    const labels = { suspend: "Suspend", unsuspend: "Unsuspend", approve_invited: "Approve invited" };
+    if (!window.confirm(`${labels[action]} ${ids.length} member${ids.length === 1 ? "" : "s"}?`)) return;
+    setBulkBusy(action);
+    try {
+      const r = await api.post("/admin/dashboard/members/bulk", { action, user_ids: ids });
+      toast.success(`${labels[action]} · ${r.data.modified}/${r.data.matched} changed`);
+      clearSelection();
+      await load();
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || "Bulk action failed");
+    } finally { setBulkBusy(null); }
+  };
 
   return (
     <div className="space-y-6" data-testid="admin-membership">
@@ -329,6 +388,62 @@ export default function AdminMembership() {
       <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-5">
         {/* List */}
         <div className="bg-cream-soft border border-gold/15 rounded-sm overflow-hidden" data-testid="membership-list">
+          {/* Bulk action toolbar */}
+          <div className="px-3 py-2 border-b border-gold/15 bg-white/60 flex items-center gap-2 flex-wrap" data-testid="membership-bulk-toolbar">
+            <label className="flex items-center gap-2 font-mono text-[11px] text-muted-ink cursor-pointer">
+              <input
+                type="checkbox"
+                checked={allVisibleSelected}
+                onChange={toggleSelectAllVisible}
+                disabled={members.length === 0}
+                data-testid="membership-select-all"
+                className="cursor-pointer accent-gold"
+                aria-label="Select all on this page"
+              />
+              <span className="uppercase tracking-wider">
+                {selectedIds.size === 0 ? "Select" : `${selectedIds.size} selected`}
+              </span>
+            </label>
+            <div className="flex items-center gap-1 ml-auto">
+              <button
+                type="button"
+                disabled={selectedIds.size === 0 || bulkBusy !== null}
+                onClick={() => runBulk("approve_invited")}
+                data-testid="membership-bulk-approve"
+                className="font-sans text-[10px] uppercase tracking-wider font-semibold px-2.5 py-1 rounded-sm bg-emerald-700 text-cream hover:bg-emerald-800 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {bulkBusy === "approve_invited" ? "…" : "Approve"}
+              </button>
+              <button
+                type="button"
+                disabled={selectedIds.size === 0 || bulkBusy !== null}
+                onClick={() => runBulk("suspend")}
+                data-testid="membership-bulk-suspend"
+                className="font-sans text-[10px] uppercase tracking-wider font-semibold px-2.5 py-1 rounded-sm border border-deepred text-deepred hover:bg-deepred hover:text-cream disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-deepred"
+              >
+                {bulkBusy === "suspend" ? "…" : "Suspend"}
+              </button>
+              <button
+                type="button"
+                disabled={selectedIds.size === 0 || bulkBusy !== null}
+                onClick={() => runBulk("unsuspend")}
+                data-testid="membership-bulk-unsuspend"
+                className="font-sans text-[10px] uppercase tracking-wider font-semibold px-2.5 py-1 rounded-sm border border-gold text-gold hover:bg-gold hover:text-cream disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-gold"
+              >
+                {bulkBusy === "unsuspend" ? "…" : "Unsuspend"}
+              </button>
+              {selectedIds.size > 0 && (
+                <button
+                  type="button"
+                  onClick={clearSelection}
+                  data-testid="membership-bulk-clear"
+                  className="font-sans text-[10px] uppercase tracking-wider font-semibold px-2 py-1 rounded-sm text-muted-ink hover:text-ink"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+          </div>
           <div className="max-h-[640px] overflow-y-auto">
             {loading && members.length === 0 ? (
               <p className="font-sans text-sm text-muted-ink py-12 text-center">Loading…</p>
@@ -340,6 +455,8 @@ export default function AdminMembership() {
                 m={m}
                 active={selectedUid === m.user_id}
                 onClick={() => setSelectedUid(m.user_id)}
+                selected={selectedIds.has(m.user_id)}
+                onToggleSelect={toggleSelect}
               />
             ))}
           </div>

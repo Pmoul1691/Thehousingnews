@@ -156,6 +156,17 @@ def setup(db):
             "pats": {"live": pats_live, "revoked": pats_revoked},
         }
 
+    @router.post("/send-summary-now")
+    async def send_summary_now(
+        session_token: str | None = Cookie(default=None),
+        authorization: str | None = Header(default=None),
+    ):
+        """Fire the daily admin summary email immediately. Useful for testing
+        the template or pulling a fresh snapshot mid-day."""
+        await _admin(session_token, authorization)
+        from services.admin_summary import send_admin_summary
+        return await send_admin_summary(db)
+
     @router.get("/members")
     async def list_members(
         q: str | None = None,
@@ -217,6 +228,35 @@ def setup(db):
                 "posts_total": post_counts.get(u["user_id"], 0),
             })
         return {"items": out, "total": total, "limit": limit, "offset": offset}
+
+    @router.post("/members/bulk")
+    async def bulk_action(
+        payload: dict,
+        session_token: str | None = Cookie(default=None),
+        authorization: str | None = Header(default=None),
+    ):
+        """Apply one bulk action to a list of user_ids. Returns per-user
+        outcome so the UI can show partial failures.
+
+        Supported actions:
+          - suspend / unsuspend       — set/clear `suspended` flag
+          - approve_invited           — flip status `invited` → `approved`
+        """
+        await _admin(session_token, authorization)
+        action = (payload or {}).get("action")
+        ids = list(payload.get("user_ids") or [])
+        if action not in ("suspend", "unsuspend", "approve_invited"):
+            raise HTTPException(status_code=400, detail="Unknown action")
+        if not ids or len(ids) > 500:
+            raise HTTPException(status_code=400, detail="user_ids must be a list of 1–500 ids")
+        if action in ("suspend", "unsuspend"):
+            update = {"$set": {"suspended": action == "suspend"}}
+            filt = {"user_id": {"$in": ids}}
+        else:  # approve_invited
+            update = {"$set": {"status": "approved"}}
+            filt = {"user_id": {"$in": ids}, "status": "invited"}
+        res = await db.users.update_many(filt, update)
+        return {"ok": True, "matched": res.matched_count, "modified": res.modified_count, "action": action, "count_requested": len(ids)}
 
     @router.get("/members/{user_id}")
     async def member_detail(

@@ -626,19 +626,45 @@ the newsfeed". Three changes:
   - Search input + status select + Filter button at the top.
 - New tab inserted between Dashboard and Applications in the admin nav.
 
+## Phase 18 — Admin Membership Bulk Actions + Once-daily Admin Summary (2026-02-17)
+- **Backend**: `POST /api/admin/dashboard/members/bulk` accepts
+  `{action, user_ids[]}` for `suspend | unsuspend | approve_invited`. Hard cap
+  of 500 ids per request. Returns matched/modified counts so the UI can show
+  partial successes.
+- **Frontend** `AdminMembership.jsx`:
+  - Per-row checkboxes + select-all-on-page checkbox in a bulk toolbar above
+    the list (showing `<n> selected` + Approve / Suspend / Unsuspend / Clear).
+  - `window.confirm` guard before any destructive bulk apply.
+  - Selection auto-clears when filters/pagination change.
+- **Once-daily admin summary** (`services/admin_summary.py`) — APScheduler
+  cron sends a Brevo email to admins each morning with overnight signups,
+  pending applications, brief health, and feed errors. Manual trigger at
+  `POST /api/admin/trigger-summary`.
+
 ## Backlog
 - P0 (user action): DNS for thehousingnews.com.
 - P0 (user action): Newsletter provider choice + API key.
 - P0 (user action): Analytics provider choice + domain key.
-- P1 (Phase 3): Morning + Evening briefing email templates + Brevo dispatcher
-  (8:30 AM / 5:30 PM cron).
+- P0 Epic (long-term): Migrate React SPA to Next.js + Tailwind + TS per
+  aggregator brief (scope TBD with user).
+- P1: Proxycurl LinkedIn import — **BLOCKED on user providing API key**.
+  See "Proxycurl onboarding" section below.
 - P2: Add real member profile photos to Landing "From the feed" rows.
-- P2: Personal Access Tokens (PATs) for programmatic posting — user said WAIT.
-- P3: Upgrade LinkedIn URL import to Proxycurl for full work-history fetch.
-- P0 Epic (long-term): Migrate React SPA to Next.js + TS per aggregator brief.
+- P3: Ship a real MCP server so Claude Desktop can connect via PATs natively
+  (replaces the current prompt-engineering recipe).
+
+## Proxycurl onboarding (how to get the API key)
+1. Sign up at https://nubela.co/proxycurl (free tier: 100 credits).
+2. After verifying email, go to Dashboard → **API Key** (top-right user menu).
+3. Top up credits — LinkedIn person profile lookup costs ~3 credits per call.
+   For a typical member onboarding flow assume ~5 credits per LinkedIn import.
+4. Paste the key into `backend/.env` as `PROXYCURL_API_KEY=...` and restart
+   backend (`sudo supervisorctl restart backend`). The integration will then
+   replace the current placeholder import with full work history.
 
 ## Next Actions
-1. Build Phase 3 email templates + Brevo dispatcher for 8:30 AM / 5:30 PM
-   briefings (P1).
-2. Add real member photos to Landing "From the feed" rows (P2).
+1. Wait for user to deliver Proxycurl API key, then wire up full LinkedIn
+   work-history import.
+2. Discuss Next.js / Tailwind / TS migration scope with user before kicking
+   off Phase 19.
 
