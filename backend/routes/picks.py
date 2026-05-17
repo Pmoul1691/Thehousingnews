@@ -56,7 +56,7 @@ def setup(db):
             {
                 "is_pete_pick": True,
                 "release_at": {"$lte": now_iso, "$gte": cutoff},
-                "status": {"$nin": ["declined", "hidden"]},
+                "status": {"$nin": ["declined", "hidden", "flagged_by_ai"]},
             },
             {"_id": 0},
         ).sort("pete_picked_at", -1).limit(limit)

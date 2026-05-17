@@ -3,7 +3,7 @@ import uuid
 import logging
 from datetime import datetime, timezone
 from typing import Optional
-from fastapi import APIRouter, HTTPException, Depends, Cookie, Header
+from fastapi import APIRouter, HTTPException, Depends, Cookie, Header, BackgroundTasks
 from pydantic import BaseModel, Field
 
 from services.auth_helpers import get_current_user
@@ -34,7 +34,7 @@ def setup(db):
         return {r["user_id"] for r in rows}
 
     @router.post("/{post_id}/replies")
-    async def create_reply(post_id: str, payload: ReplyCreate, user=Depends(_user)):
+    async def create_reply(post_id: str, payload: ReplyCreate, background_tasks: BackgroundTasks, user=Depends(_user)):
         if user.get("status") != "approved":
             raise HTTPException(status_code=403, detail="Membership not approved")
         if user.get("suspended"):
@@ -54,6 +54,17 @@ def setup(db):
             "release_at": release_at,
         }
         await db.replies.insert_one(doc)
+
+        # Claude moderation review (async; never blocks the reply).
+        from services.moderation import moderate_and_record
+        background_tasks.add_task(
+            moderate_and_record, db,
+            target_kind="reply",
+            target_id=reply_id,
+            user_id=user["user_id"],
+            text=payload.text or "",
+        )
+
         doc.pop("_id", None)
         return doc
 

@@ -667,6 +667,46 @@ the newsfeed". Three changes:
   - Post-auth callback now sends approved users with a profile to `/today`
     instead of `/feed`.
 
+## Phase 22 — Claude content moderation (2026-02-17)
+- **Mode**: "Flag, don't block." Claude reviews every post / essay / reply
+  on submit; clean content publishes normally, borderline gets `flag`,
+  clear violations get `decline`. Both `flag` and `decline` route the
+  content to status `flagged_by_ai` and an admin makes the final call.
+- **Model**: `anthropic/claude-sonnet-4-5-20250929` via
+  `emergentintegrations.llm.chat`. Cost: ~$0.001–0.003 per review.
+- **Policy source**: Section 8 of the ToS PDF, distilled into a tight
+  system prompt that lists prohibited categories (Fair Housing, antitrust,
+  client confidentiality, MLS, RESPA, unlicensed advice, harassment,
+  defamation, etc.) and explicit borderline / approve guidance.
+- **Backend**:
+  - `services/moderation.py` — `review_content()` returns
+    `{verdict, risk_score, categories, reasoning, quoted_excerpts}`.
+    `moderate_and_record()` is the BackgroundTasks-friendly wrapper that
+    persists the review and gates the content.
+  - `POST /api/posts` and `POST /api/posts/{post_id}/replies` now fire a
+    background moderation task on every submission (never blocks the
+    response).
+  - `routes/admin_moderation.py`:
+    - `GET /api/admin/moderation/queue?kind=&decided=&limit=`
+    - `GET /api/admin/moderation/stats` (pending, flagged 24h, declined 24h,
+      reviewed 24h)
+    - `POST /api/admin/moderation/{review_id}/decide` with
+      `{decision: approve_override | confirm_decline}`.
+  - Feed exclusions extended to hide `flagged_by_ai` from public lists
+    (own-feed and author analytics still show them so the author knows).
+- **Frontend** `AdminAiModeration.jsx` (new "AI Review" tab in /admin):
+  - 4 stat tiles + filter by kind + include-decided toggle.
+  - Per-review card with verdict badge + risk score + category chips +
+    quoted-excerpt triggers + Claude's reasoning + Override / Confirm
+    decline buttons (with confirm dialogs).
+- **DB**: new `moderation_reviews` collection (`id, target_kind, target_id,
+  user_id, verdict, risk_score, categories[], reasoning, quoted_excerpts[],
+  content_excerpt, model, reviewed_at, admin_decision, admin_user_id,
+  admin_decided_at`).
+- **Verified end-to-end**: clean Austin closing post auto-approved; Fair
+  Housing violation auto-declined with score 95 and exact trigger phrases
+  pulled out. Admin override + confirm-decline both flow correctly.
+
 ## Phase 21 — LinkedIn auto-import via EnrichLayer (2026-02-17)
 - Replaces the now-defunct Proxycurl integration (Nubela shut down after a
   LinkedIn lawsuit in 2025). EnrichLayer is the legitimate successor at

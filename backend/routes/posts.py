@@ -273,6 +273,18 @@ def setup(db):
         }
         await db.posts.insert_one(doc)
 
+        # Claude moderation review (async, never blocks the response).
+        from services.moderation import moderate_and_record
+        background_tasks.add_task(
+            moderate_and_record, db,
+            target_kind="essay" if payload.kind == "essay" else "post",
+            target_id=post_id,
+            user_id=user["user_id"],
+            text=payload.text or "",
+            title=payload.title,
+            subtitle=payload.subtitle,
+        )
+
         if payload.kind == "essay" and status == "approved":
             # Dispatch follower email in background only for instant essays.
             # Scheduled essays will be dispatched by the per-minute scheduler job.
@@ -310,7 +322,7 @@ def setup(db):
         query: dict = {
             "$text": {"$search": q.strip()},
             "release_at": {"$lte": now_iso},
-            "status": {"$nin": ["declined", "hidden"]},
+            "status": {"$nin": ["declined", "hidden", "flagged_by_ai"]},
             "user_id": {"$nin": list(suspended)},
         }
         if kind:
@@ -343,7 +355,7 @@ def setup(db):
         cur = db.posts.find(
             {
                 "release_at": {"$lte": now_iso, "$gte": cutoff},
-                "status": {"$nin": ["declined", "hidden"]},
+                "status": {"$nin": ["declined", "hidden", "flagged_by_ai"]},
                 "user_id": {"$nin": list(suspended)},
             },
             {"_id": 0},
@@ -365,7 +377,7 @@ def setup(db):
         suspended = await _suspended_user_ids()
         query = {
             "release_at": {"$lte": now_iso, "$gte": cutoff},
-            "status": {"$nin": ["declined", "hidden"]},
+            "status": {"$nin": ["declined", "hidden", "flagged_by_ai"]},
             "user_id": {"$nin": list(suspended)},
         }
         if scope == "following":
@@ -425,7 +437,7 @@ def setup(db):
         q = {
             "tags": tag_norm,
             "release_at": {"$lte": now_iso},
-            "status": {"$nin": ["declined", "hidden"]},
+            "status": {"$nin": ["declined", "hidden", "flagged_by_ai"]},
             "user_id": {"$nin": list(suspended)},
         }
         cur = (
@@ -448,7 +460,7 @@ def setup(db):
         pipeline = [
             {"$match": {
                 "release_at": {"$lte": _now_iso(), "$gte": cutoff},
-                "status": {"$nin": ["declined", "hidden"]},
+                "status": {"$nin": ["declined", "hidden", "flagged_by_ai"]},
                 "tags": {"$exists": True, "$ne": []},
             }},
             {"$unwind": "$tags"},

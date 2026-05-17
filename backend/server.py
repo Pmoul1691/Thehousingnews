@@ -47,6 +47,7 @@ from routes.refresh_feeds import setup as setup_refresh_feeds
 from routes.pats import setup as setup_pats
 from routes.podcasts import setup as setup_podcasts
 from routes.today import setup as setup_today
+from routes.admin_moderation import setup as setup_admin_moderation
 from services.object_storage import init_storage
 from services.release_window import next_window, now_chicago
 from services.scheduler import start_scheduler, release_batch
@@ -317,3 +318,4 @@ app.include_router(setup_refresh_feeds(db))
 app.include_router(setup_pats(db))
 app.include_router(setup_podcasts(db))
 app.include_router(setup_today(db))
+app.include_router(setup_admin_moderation(db))

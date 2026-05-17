@@ -9,6 +9,7 @@ import AdminResetDbPanel from "@/components/AdminResetDbPanel";
 import AdminInvitePanel from "@/components/AdminInvitePanel";
 import AdminOverview from "@/components/AdminOverview";
 import AdminMembership from "@/components/AdminMembership";
+import AdminAiModeration from "@/components/AdminAiModeration";
 
 function RssImportButton() {
   const [busy, setBusy] = useState(false);
@@ -162,6 +163,7 @@ export default function Admin() {
         {[
           { k: "dashboard", l: "Dashboard" },
           { k: "membership", l: "Membership" },
+          { k: "aimod", l: "AI Review" },
           { k: "apps", l: "Applications" },
           { k: "mod", l: "Moderation" },
           { k: "subjects", l: "Subjects" },
@@ -184,6 +186,8 @@ export default function Admin() {
         <AdminOverview />
       ) : section === "membership" ? (
         <AdminMembership />
+      ) : section === "aimod" ? (
+        <AdminAiModeration />
       ) : section === "stats" ? (
         <AdminAnalyticsPanel />
       ) : section === "subjects" ? (
