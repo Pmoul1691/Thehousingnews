@@ -45,6 +45,13 @@ export default function AggLayout({ children }) {
           <div className="flex items-center justify-between py-3">
             <Link to="/news" data-testid="agg-nav-home" className="flex items-center gap-3 group">
               <img
+                src="/brand/favicon-gold.svg"
+                alt=""
+                aria-hidden="true"
+                className="h-7 sm:h-8 w-auto select-none"
+                draggable={false}
+              />
+              <img
                 src="/brand/logo-full-light.png"
                 alt="The Housing News"
                 className="h-7 sm:h-8 w-auto select-none"

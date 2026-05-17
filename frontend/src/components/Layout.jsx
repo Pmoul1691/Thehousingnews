@@ -39,7 +39,14 @@ export default function Layout({ children }) {
     <div className="min-h-screen flex flex-col bg-cream ink">
       <header className="sticky top-0 z-30 backdrop-blur-md bg-cream/85 border-b hairline">
         <div className="container-wide flex items-center justify-between py-4">
-          <Link to="/" data-testid="nav-home" className="flex items-center">
+          <Link to="/" data-testid="nav-home" className="flex items-center gap-2.5">
+            <img
+              src="/brand/favicon-gold.svg"
+              alt=""
+              aria-hidden="true"
+              className="h-8 sm:h-9 w-auto select-none"
+              draggable={false}
+            />
             <img
               src="/brand/logo-full.png"
               alt="The Housing News"
@@ -177,7 +184,14 @@ export default function Layout({ children }) {
 
       <footer className="border-t hairline mt-24">
         <div className="container-wide py-12 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            <img
+              src="/brand/favicon-gold.svg"
+              alt=""
+              aria-hidden="true"
+              className="h-10 w-auto select-none"
+              draggable={false}
+            />
             <img
               src="/brand/logo-full.png"
               alt="The Housing News"
