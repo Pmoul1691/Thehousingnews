@@ -237,15 +237,22 @@ of teams.
 
 
 
-## Phase 26 — LinkedIn re-sync + Admin tab rename (2026-02-17)
+## Phase 26 — LinkedIn re-sync + Career block + Admin tab rename (2026-02-17)
 - **Settings page** (`pages/Settings.jsx`): added "Career profile" section that
   shows the member's connected LinkedIn URL, last-sync timestamp (from
   `profiles.linkedin_data.synced_at`), and a gold "Re-sync from LinkedIn"
   button. The button hits the existing `POST /api/profile/linkedin-import`
   endpoint (EnrichLayer), which refreshes the cached headline/location/work
   history/education without overwriting user-edited fields (market/bio/
-  objectives). Disabled when no LinkedIn URL is on file with a hint to add
-  one from the profile page first.
+  objectives). Disabled when no LinkedIn URL is on file.
+- **Profile Career block** (`pages/Profile.jsx::CareerBlock`): public + own
+  member profiles now render a "Career" hairline section between Public
+  objectives and Recent posts. Shows the LinkedIn headline, summary (capped
+  600 chars), up to 5 experiences (title · company · location · year range),
+  up to 3 education entries, and a "Sourced from LinkedIn" footnote linking
+  to the canonical profile. The block hides gracefully when no
+  `linkedin_data` is on file, so members without a synced LinkedIn don't see
+  an empty placeholder.
 - **Admin tab disambiguation**: `/admin` previously rendered two tabs both
   labeled "Analytics" (the new Phase 24 Site Analytics + the legacy Phase 4a
   Member Analytics panel). Renamed to **Site Analytics** (new — pageviews,

@@ -170,6 +170,8 @@ export default function Profile() {
         </ol>
       </section>
 
+      <CareerBlock data={profile.linkedin_data} linkedinUrl={profile.linkedin_url} />
+
       {isSelf && following.length > 0 && (
         <section className="border-t hairline pt-10 mb-12" data-testid="profile-following">
           <p className="uppercase-label mb-4">You follow</p>
@@ -213,5 +215,110 @@ export default function Profile() {
         </section>
       )}
     </div>
+  );
+}
+
+// ── Career block ───────────────────────────────────────────────────────────
+// Renders cached LinkedIn experiences + education from `profile.linkedin_data`
+// (populated by the EnrichLayer import / Re-sync flow). Hidden gracefully when
+// no data is on file. Headline + summary surface at the top, then up to 5
+// experiences and 3 schools.
+function CareerBlock({ data, linkedinUrl }) {
+  if (!data) return null;
+  const experiences = Array.isArray(data.experiences) ? data.experiences.filter((e) => e.company || e.title) : [];
+  const education = Array.isArray(data.education) ? data.education.filter((e) => e.school) : [];
+  const headline = data.headline || data.occupation || "";
+  const summary = data.summary || "";
+
+  if (!headline && !summary && experiences.length === 0 && education.length === 0) return null;
+
+  const fmtYears = (s, e) => {
+    if (!s && !e) return null;
+    if (s && e) return `${s} – ${e}`;
+    if (s) return `${s} – Present`;
+    return `${e}`;
+  };
+
+  return (
+    <section className="border-t hairline pt-10 mb-12" data-testid="profile-career">
+      <p className="uppercase-label mb-4">Career</p>
+
+      {headline && (
+        <p className="font-display font-semibold text-lg ink mb-2" data-testid="career-headline">
+          {headline}
+        </p>
+      )}
+      {summary && (
+        <p className="prose-serif text-[15px] ink/80 leading-relaxed max-w-prose mb-8 whitespace-pre-line" data-testid="career-summary">
+          {summary.length > 600 ? `${summary.slice(0, 600)}…` : summary}
+        </p>
+      )}
+
+      {experiences.length > 0 && (
+        <div className="mb-8" data-testid="career-experiences">
+          <p className="font-sans text-[11px] uppercase tracking-[0.18em] font-semibold text-gold mb-4">Experience</p>
+          <ul className="divide-y divide-[#E8D4A0] border-t border-b hairline">
+            {experiences.slice(0, 5).map((e, i) => {
+              const years = fmtYears(e.starts_at, e.ends_at);
+              return (
+                <li key={i} data-testid={`career-experience-${i}`} className="py-4 flex items-baseline gap-3">
+                  <div className="flex-1 min-w-0">
+                    {e.title && <div className="font-display font-semibold text-base ink">{e.title}</div>}
+                    {e.company && (
+                      <div className="font-serif text-sm ink/80 mt-0.5">
+                        {e.company}
+                        {e.location ? <span className="text-muted-ink"> · {e.location}</span> : null}
+                      </div>
+                    )}
+                  </div>
+                  {years && (
+                    <span className="font-sans text-xs text-muted-ink whitespace-nowrap font-mono">{years}</span>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+
+      {education.length > 0 && (
+        <div data-testid="career-education">
+          <p className="font-sans text-[11px] uppercase tracking-[0.18em] font-semibold text-gold mb-4">Education</p>
+          <ul className="divide-y divide-[#E8D4A0] border-t border-b hairline">
+            {education.slice(0, 3).map((e, i) => {
+              const years = fmtYears(e.starts_at, e.ends_at);
+              const detail = [e.degree, e.field].filter(Boolean).join(" · ");
+              return (
+                <li key={i} data-testid={`career-education-${i}`} className="py-4 flex items-baseline gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="font-display font-semibold text-base ink">{e.school}</div>
+                    {detail && <div className="font-serif text-sm ink/80 mt-0.5">{detail}</div>}
+                  </div>
+                  {years && (
+                    <span className="font-sans text-xs text-muted-ink whitespace-nowrap font-mono">{years}</span>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+
+      {linkedinUrl && (
+        <p className="font-sans text-[11px] uppercase tracking-[0.18em] text-muted-ink mt-5">
+          Sourced from{" "}
+          <a
+            href={linkedinUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            data-testid="career-linkedin-source"
+            className="text-gold hover:opacity-80 transition-opacity underline underline-offset-2"
+          >
+            LinkedIn
+          </a>
+          .
+        </p>
+      )}
+    </section>
   );
 }
