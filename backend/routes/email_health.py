@@ -186,15 +186,14 @@ def setup(db):
         public_url = (await get_public_url(admin)).get("value") or ""
 
         # Run DNS lookups in a thread so we don't block the loop. Brevo's
-        # dedicated DKIM uses selector `b1` (newer accounts) or `mail`
-        # (legacy / shared signing); pass when EITHER selector resolves a
-        # valid public key, so an account configured against Brevo's new
-        # authentication flow doesn't fail just because the legacy
-        # selector isn't present.
-        spf, dkim_mail, dkim_b1, dmarc = await asyncio.gather(
+        # dedicated DKIM selector varies by account: legacy shared signing
+        # uses `mail`, dedicated keys use `b1` or `brevo1` (newer accounts).
+        # Pass when ANY selector resolves a valid public key.
+        spf, dkim_mail, dkim_b1, dkim_brevo1, dmarc = await asyncio.gather(
             asyncio.to_thread(_dns_txt, sender_domain),
             asyncio.to_thread(_dns_txt, f"mail._domainkey.{sender_domain}"),
             asyncio.to_thread(_dns_txt, f"b1._domainkey.{sender_domain}"),
+            asyncio.to_thread(_dns_txt, f"brevo1._domainkey.{sender_domain}"),
             asyncio.to_thread(_dns_txt, f"_dmarc.{sender_domain}"),
         )
         brevo_spf_includes = ("spf.brevo.com", "sendinblue.com", "_spfm.")
@@ -202,15 +201,21 @@ def setup(db):
             "v=spf1" in v and any(inc in v for inc in brevo_spf_includes)
             for v in spf
         )
-        # DKIM selectors: Brevo CNAMEs b1._domainkey.<domain> to a TXT key
-        # at brevo's DKIM host; dnspython follows CNAMEs and returns the
-        # TXT at the target. A valid record contains `p=<base64-key>`.
-        dkim_records = dkim_mail or dkim_b1
-        dkim_ok = any("p=" in v for v in dkim_records)
+        # DKIM selectors: dnspython follows CNAMEs and returns the TXT at
+        # the target. A valid record contains `p=<base64-key>`.
+        dkim_pairs = [
+            ("mail", dkim_mail),
+            ("b1", dkim_b1),
+            ("brevo1", dkim_brevo1),
+        ]
+        selector, dkim_records = next(
+            ((sel, recs) for sel, recs in dkim_pairs if any("p=" in v for v in recs)),
+            (None, []),
+        )
+        dkim_ok = selector is not None
         which_dkim = (
-            "b1._domainkey" if dkim_b1 and not dkim_mail
-            else "mail._domainkey" if dkim_mail
-            else "mail._domainkey"
+            f"{selector}._domainkey" if selector
+            else "b1/brevo1/mail _domainkey"
         )
         checks = [
             {
