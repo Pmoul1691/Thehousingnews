@@ -564,6 +564,72 @@ function TrendingTagsStrip({ tags }) {
   );
 }
 
+// ── Joined this week — hairline social-proof strip ─────────────────────────
+// Placed right under the Hero. Renders 3–5 freshly-approved members as a
+// single calm row of avatar + name + market (+ optional headline). Hides
+// gracefully when fewer than 3 members joined inside the window so the
+// section never looks anemic on a quiet week. Data source:
+// GET /api/agg/new-members (public, no auth required).
+function JoinedThisWeekStrip({ members }) {
+  if (!members || members.length < 3) return null;
+  const items = members.slice(0, 5);
+  return (
+    <section
+      data-testid="landing-joined-this-week"
+      className="border-y border-gold/15 bg-cream-soft"
+    >
+      <div className="container-wide py-6 sm:py-7">
+        <div className="flex items-start gap-6 flex-wrap sm:flex-nowrap">
+          <div className="shrink-0">
+            <p className="font-sans text-[10px] uppercase tracking-[0.22em] font-semibold text-gold">
+              Joined this week
+            </p>
+            <p className="font-serif italic text-sm text-muted-ink mt-1">
+              New voices in the room.
+            </p>
+          </div>
+          <ul className="flex flex-wrap items-center gap-x-6 gap-y-3 flex-1 min-w-0">
+            {items.map((m) => (
+              <li
+                key={m.user_id}
+                data-testid={`new-member-${m.user_id}`}
+                className="flex items-center gap-2.5 min-w-0"
+              >
+                <MemberAvatar
+                  name={m.name}
+                  avatarPath={m.avatar_path}
+                  size={36}
+                  className="!border !border-gold/20"
+                />
+                <div className="min-w-0">
+                  <div
+                    className="font-display font-semibold text-sm ink truncate"
+                    title={m.name}
+                  >
+                    {m.name}
+                  </div>
+                  <div className="font-sans text-[11px] text-muted-ink truncate">
+                    {m.headline || m.market || ""}
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+          <button
+            type="button"
+            onClick={signIn}
+            data-testid="joined-this-week-apply"
+            className="shrink-0 hidden md:inline-flex font-sans text-[11px] uppercase tracking-[0.18em] font-semibold text-gold hover:text-ink transition-colors"
+          >
+            Apply &rarr;
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+
 // ── SECTION 2B: The Network — visual roll-call of member writers ───────────
 function TheNetworkSection({ members }) {
   if (!members || members.length < 3) return null;
@@ -1156,6 +1222,7 @@ export default function Landing() {
   const [publishers, setPublishers] = useState([]);
   const [podcasts, setPodcasts] = useState([]);
   const [recentMembers, setRecentMembers] = useState([]);
+  const [newMembers, setNewMembers] = useState([]);
   const [trendingTags, setTrendingTags] = useState([]);
 
   useEffect(() => {
@@ -1166,7 +1233,8 @@ export default function Landing() {
       api.get("/agg/podcasts").catch(() => ({ data: { items: [] } })),
       api.get("/agg/recent-members", { params: { limit: 24 } }).catch(() => ({ data: { items: [] } })),
       api.get("/agg/trending-tags", { params: { days: 14, limit: 8 } }).catch(() => ({ data: { items: [] } })),
-    ]).then(([eRes, pRes, podRes, mRes, tRes]) => {
+      api.get("/agg/new-members", { params: { days: 14, limit: 5 } }).catch(() => ({ data: { items: [] } })),
+    ]).then(([eRes, pRes, podRes, mRes, tRes, nmRes]) => {
       if (!alive) return;
       setEssays(eRes.data.items || []);
       const pubItems = (pRes.data.items || []);
@@ -1175,6 +1243,7 @@ export default function Landing() {
       setPodcasts(podItems);
       setRecentMembers(mRes.data.items || []);
       setTrendingTags(tRes.data.items || []);
+      setNewMembers(nmRes.data.items || []);
       const pubs = pubItems
         .filter((e) => e.article)
         .map((e) => ({ kind: "publisher", publisher: e.publisher, article: e.article }));
@@ -1198,6 +1267,7 @@ export default function Landing() {
         description="A daily magazine for real estate professionals. Read what the industry is publishing and publish what you're seeing — twice-daily briefings pulled from 40 housing sources, plus member essays from agents, brokers, lenders, and investors."
       />
       <HeroSection />
+      <JoinedThisWeekStrip members={newMembers} />
       <SectionDivider />
       <TheFeedSection publishers={publishers} podcasts={podcasts} />
       <TrendingTagsStrip tags={trendingTags} />

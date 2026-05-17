@@ -237,6 +237,25 @@ of teams.
 
 
 
+## Phase 28 — Joined-this-week landing strip + launch analytics confirmation (2026-02-17)
+- **`GET /api/agg/new-members?days=&limit=`** (public, no auth): returns
+  members whose user row was created inside the rolling window, sorted by
+  `created_at` desc. Returns `user_id`, `name`, `market`, `avatar_path`,
+  `headline` (from `linkedin_data.headline`, ≤140 chars), `joined_at`.
+  Filters out stubs and suspended users.
+- **`JoinedThisWeekStrip`** on Landing (`pages/Landing.jsx`): hairline-only
+  strip placed directly under the Hero. Renders up to 5 freshly-approved
+  members as a calm horizontal row of avatar + name + headline/market, with
+  an "APPLY →" CTA on the right edge. Hides gracefully when fewer than 3
+  members joined in the last 14 days so the section never looks anemic.
+  Default props: 14 days, 5 members.
+- **Launch broadcast analytics — verified, no code change required**:
+  `/api/admin/analytics/email` already aggregates `email_dispatches` by
+  `kind`, so the `launch_broadcast` kind surfaces automatically alongside
+  digests and essays. Confirmed with seeded data: a `launch_broadcast` row
+  with 3 sends / 2 opens (66.7%) / 1 click (33.3%) rendered correctly in
+  the admin Member-Analytics > Email-engagement table.
+
 ## Phase 27 — Welcome wagon launch broadcast (2026-02-17)
 - **`services/launch_broadcast.py`**: one-time public-launch email builder
   + dispatcher. Magazine-aesthetic HTML (cream/gold/ink, serif body,

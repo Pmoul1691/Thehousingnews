@@ -360,4 +360,54 @@ def setup(db):
                 break
         return {"items": items}
 
+    @router.get("/new-members")
+    async def new_members(
+        days: int = Query(default=14, ge=1, le=90),
+        limit: int = Query(default=5, ge=1, le=20),
+    ):
+        """Public list of members who joined recently — for the Landing
+        "Members joined this week" strip. Sorted by most-recent join
+        timestamp. Only returns approved + non-suspended + non-stub
+        members with a real profile. No emails, no IDs beyond what is
+        already exposed via /profile/{user_id}.
+        """
+        cutoff_iso = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+        users = await db.users.find(
+            {
+                "status": "approved",
+                "suspended": {"$ne": True},
+                "created_at": {"$gte": cutoff_iso},
+            },
+            {"_id": 0, "user_id": 1, "created_at": 1},
+        ).sort("created_at", -1).to_list(limit * 4)
+        if not users:
+            return {"items": [], "days": days}
+
+        uids = [u["user_id"] for u in users]
+        profiles = await db.profiles.find(
+            {"user_id": {"$in": uids}, "is_stub": {"$ne": True}},
+            {"_id": 0, "user_id": 1, "name": 1, "market": 1,
+             "avatar_path": 1, "linkedin_data": 1},
+        ).to_list(500)
+        pmap = {p["user_id"]: p for p in profiles}
+
+        items: list[dict] = []
+        for u in users:
+            uid = u["user_id"]
+            prof = pmap.get(uid)
+            if not prof:
+                continue
+            li = prof.get("linkedin_data") or {}
+            items.append({
+                "user_id": uid,
+                "name": prof.get("name") or "",
+                "market": prof.get("market") or "",
+                "avatar_path": prof.get("avatar_path"),
+                "headline": (li.get("headline") or "")[:140],
+                "joined_at": u.get("created_at"),
+            })
+            if len(items) >= limit:
+                break
+        return {"items": items, "days": days}
+
     return router
