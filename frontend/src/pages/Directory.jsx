@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import api from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
+import PageMeta from "@/components/PageMeta";
 import { toast } from "sonner";
 
 /**
@@ -43,7 +44,7 @@ function MemberCard({ m }) {
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 flex-wrap">
             <Link
-              to={`/m/${m.user_id}`}
+              to={`/profile/${m.user_id}`}
               className="font-display font-semibold text-base ink hover:text-gold transition-colors truncate"
               data-testid={`directory-name-${m.user_id}`}
             >
@@ -143,6 +144,10 @@ export default function Directory() {
 
   return (
     <div className="container-wide py-10 sm:py-14 space-y-8" data-testid="directory-page">
+      <PageMeta
+        title="Members"
+        description="The Housing News network — a directory of real estate professionals publishing under thehousingnews.com."
+      />
       <header className="space-y-3">
         <p className="font-sans text-[10px] uppercase tracking-[0.22em] font-semibold text-gold">The Network</p>
         <h1 className="font-display font-semibold text-3xl sm:text-4xl ink tracking-tight">Members.</h1>

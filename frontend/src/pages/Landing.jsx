@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import api, { API } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
+import PageMeta from "@/components/PageMeta";
 
 const signIn = () => {
   // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
@@ -1192,6 +1193,10 @@ export default function Landing() {
 
   return (
     <div data-testid="landing-page" className="bg-cream">
+      <PageMeta
+        title="Where the housing industry reads. And writes."
+        description="A daily magazine for real estate professionals. Read what the industry is publishing and publish what you're seeing — twice-daily briefings pulled from 40 housing sources, plus member essays from agents, brokers, lenders, and investors."
+      />
       <HeroSection />
       <SectionDivider />
       <TheFeedSection publishers={publishers} podcasts={podcasts} />

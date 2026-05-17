@@ -403,4 +403,63 @@ def setup(db):
             "sample_size": len(rows),
         }
 
+    @router.post("/regression-test")
+    async def regression_test(
+        session_token: Optional[str] = Cookie(default=None),
+        authorization: Optional[str] = Header(default=None),
+    ):
+        """Run all canonical cases through the live moderation pipeline and
+        return per-case pass/fail. Uses the currently active prompt — useful
+        right after editing the prompt to confirm nothing regressed.
+
+        ⚠️ Each run costs ~$0.02 in Claude credits (one call per case).
+        """
+        await _admin(session_token, authorization)
+        from services.moderation import review_content
+        from services.moderation_cases import CANONICAL_CASES, case_passes
+        import asyncio
+
+        async def run_one(c):
+            try:
+                verdict = await review_content(
+                    db=db,
+                    target_kind=c["target_kind"],
+                    text=c["text"],
+                    title=c["title"] or None,
+                )
+                passed = case_passes(c, verdict)
+                return {
+                    "name": c["name"],
+                    "description": c["description"],
+                    "expected_verdict": c["expected_verdict"],
+                    "expected_categories": c["expected_categories"],
+                    "got_verdict": verdict.get("verdict"),
+                    "got_categories": verdict.get("categories"),
+                    "got_score": verdict.get("risk_score"),
+                    "got_reasoning": verdict.get("reasoning"),
+                    "passed": passed,
+                }
+            except Exception as exc:
+                logger.exception(f"regression case {c['name']} failed")
+                return {
+                    "name": c["name"],
+                    "description": c["description"],
+                    "expected_verdict": c["expected_verdict"],
+                    "passed": False,
+                    "error": str(exc),
+                }
+
+        # Run cases concurrently — they don't share state.
+        results = await asyncio.gather(*[run_one(c) for c in CANONICAL_CASES])
+        passed = sum(1 for r in results if r.get("passed"))
+        total = len(results)
+        return {
+            "total": total,
+            "passed": passed,
+            "failed": total - passed,
+            "pass_rate": round(100 * passed / total) if total else 0,
+            "results": results,
+            "run_at": _now_iso(),
+        }
+
     return router

@@ -159,6 +159,8 @@ function PromptPanel() {
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [regression, setRegression] = useState(null);
+  const [regressionBusy, setRegressionBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -197,6 +199,20 @@ function PromptPanel() {
     } catch (err) {
       toast.error(err?.response?.data?.detail || "Reset failed");
     } finally { setBusy(false); }
+  };
+
+  const runRegression = async () => {
+    if (!window.confirm("Run all 7 canonical test cases against the live moderation pipeline? This costs ~$0.02 in Claude credits and takes ~10 seconds.")) return;
+    setRegressionBusy(true);
+    try {
+      const r = await api.post("/admin/moderation/regression-test");
+      setRegression(r.data);
+      const t = `${r.data.passed}/${r.data.total} passed`;
+      if (r.data.failed === 0) toast.success(`Regression clean · ${t}`);
+      else toast.error(`${r.data.failed} regression failures · ${t}`);
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || "Regression run failed");
+    } finally { setRegressionBusy(false); }
   };
 
   if (loading) return <p className="font-serif italic text-sm text-muted-ink py-10 text-center">Loading prompt.</p>;
@@ -298,6 +314,59 @@ function PromptPanel() {
         <p className="font-serif italic text-xs text-muted-ink mt-3 max-w-prose">
           Changes apply on the next moderation call (no restart needed). The default version is the one committed in <span className="font-mono">services/moderation.py</span>; reverting drops your custom version and falls back to the file.
         </p>
+      </section>
+
+      <section className="border-t border-gold/15 pt-5">
+        <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+          <div>
+            <p className="font-sans text-[10px] uppercase tracking-[0.22em] font-semibold text-gold">Regression test</p>
+            <p className="font-serif italic text-xs text-muted-ink mt-1 max-w-prose">
+              Runs 7 canonical cases through the live pipeline using the currently active prompt: clean market notes, fair-housing violations, antitrust signaling, confidentiality leaks, spam, and a borderline anecdote. Use this whenever you save a new prompt to catch over-aggressive or over-lenient drift.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={runRegression}
+            disabled={regressionBusy}
+            data-testid="mod-regression-run"
+            className="font-sans text-xs uppercase tracking-wider font-semibold bg-gold text-cream hover:bg-ink px-3 py-2 rounded-sm disabled:opacity-40 transition-colors whitespace-nowrap"
+          >
+            {regressionBusy ? "Running…" : "Run regression"}
+          </button>
+        </div>
+        {regression ? (
+          <div data-testid="mod-regression-results" className="bg-cream-soft border border-gold/15 rounded-sm p-4">
+            <div className="flex items-baseline justify-between mb-3">
+              <p className="font-display font-semibold text-base ink">
+                {regression.passed}/{regression.total} passed
+                <span className={`ml-2 font-mono text-sm ${regression.failed === 0 ? "text-emerald-700" : "text-deepred"}`}>
+                  {regression.pass_rate}%
+                </span>
+              </p>
+              <p className="font-mono text-[10px] text-muted-ink">{new Date(regression.run_at).toLocaleString()}</p>
+            </div>
+            <ul className="space-y-2">
+              {regression.results.map((r) => (
+                <li key={r.name} data-testid={`mod-regression-case-${r.name}`} className={`border-l-2 pl-3 py-1 ${r.passed ? "border-emerald-700" : "border-deepred"}`}>
+                  <div className="flex items-baseline justify-between gap-2 flex-wrap">
+                    <p className="font-display font-semibold text-sm ink">
+                      <span className={r.passed ? "text-emerald-700" : "text-deepred"}>{r.passed ? "✓" : "✗"}</span>
+                      {" "}{r.name}
+                    </p>
+                    <p className="font-mono text-[10px] text-muted-ink">
+                      expected {r.expected_verdict} · got {r.got_verdict || "error"}
+                    </p>
+                  </div>
+                  <p className="font-serif italic text-xs text-muted-ink mt-0.5">{r.description}</p>
+                  {!r.passed && r.got_reasoning ? (
+                    <p className="font-serif text-xs text-deepred mt-1 line-clamp-2">{r.got_reasoning}</p>
+                  ) : null}
+                  {r.error ? <p className="font-mono text-xs text-deepred mt-1">{r.error}</p> : null}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
       </section>
     </div>
   );

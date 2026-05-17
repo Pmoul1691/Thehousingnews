@@ -667,6 +667,43 @@ the newsfeed". Three changes:
   - Post-auth callback now sends approved users with a profile to `/today`
     instead of `/feed`.
 
+## Phase 26 — SEO meta tags + ToS regression test suite (2026-02-17)
+
+### react-helmet-async SEO meta tags
+- Installed `react-helmet-async` (HelmetProvider at index.js root).
+- New `components/PageMeta.jsx` — drop-in helper that emits per-page
+  `<title>`, description, canonical, full Open Graph block, and Twitter
+  summary_large_image card. Auto-uses the current `window.location.href`
+  as canonical and falls back to `/og-image.png` when no per-page image
+  is supplied.
+- Wired into:
+  - `Landing.jsx` — hero copy as og:title + a tight description.
+  - `EssayDetail.jsx` — per-essay og:title, og:description from subtitle
+    or text excerpt, og:image from cover, og:type=article, plus
+    article:author and article:published_time.
+  - `Directory.jsx` — "Members" title with directory description.
+  - `Profile.jsx` — member name + bio as the share card.
+- This is "Option C" from the Next.js conversation, executed without any
+  ingress changes: the SPA emits proper meta tags via Helmet, which
+  modern crawlers (Googlebot, LinkedIn 2023+, Twitter, Slack) read.
+  Tradeoff: oldest social bots that don't run JS still see only the
+  index.html defaults; those defaults are themselves comprehensive
+  (og:image, twitter:card, etc.) so the floor is acceptable.
+
+### ToS regression test suite
+- `services/moderation_cases.py` — 7 canonical edge cases covering: clean
+  market notes, strong industry opinion, Fair Housing violation,
+  antitrust price signaling, client confidentiality leak, spam, and a
+  borderline anecdote that should pass. Tolerant grader: equal-or-stricter
+  verdicts pass.
+- New endpoint `POST /api/admin/moderation/regression-test` runs all 7
+  cases through the live moderation pipeline in parallel (~15s, ~$0.02
+  in Claude credits). Returns per-case pass/fail + reasoning.
+- New **Regression Test** block at the bottom of the Prompt admin tab:
+  one button → results card showing pass/fail count, per-case verdict,
+  expected vs got, and Claude's reasoning when a case fails.
+- Verified: 7/7 passing against the default prompt.
+
 ## Phase 25 — Moderation prompt-tuning loop (2026-02-17)
 - **Backend**: `services/moderation.py` now reads the active system prompt
   from `moderation_settings` (DB) at call time, falling back to the file

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import api, { API } from "@/lib/api";
 import PostItem from "@/components/PostItem";
+import PageMeta from "@/components/PageMeta";
 import EntitlementBadge from "@/components/EntitlementBadge";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
@@ -94,6 +95,13 @@ export default function Profile() {
 
   return (
     <div className="container-prose py-16">
+      <PageMeta
+        title={profile.name || "Member"}
+        description={profile.bio || `${profile.name}'s page on The Housing News.`}
+        image={avatarUrl}
+        kind="article"
+        author={profile.name}
+      />
       <section className="flex flex-col sm:flex-row gap-8 mb-12">
         <div className="w-24 h-24 rounded-full bg-[#F5EDD6] border hairline overflow-hidden flex items-center justify-center shrink-0">
           {avatarUrl ? <img src={avatarUrl} alt="" className="w-full h-full object-cover" /> : (

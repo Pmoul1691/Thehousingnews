@@ -8,6 +8,7 @@ import api, { API } from "@/lib/api";
 import Replies from "@/components/Replies";
 import MediaBlock from "@/components/MediaBlock";
 import ShareButtons from "@/components/ShareButtons";
+import PageMeta from "@/components/PageMeta";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 
@@ -162,6 +163,14 @@ export default function EssayDetail() {
 
   return (
     <>
+      <PageMeta
+        title={essay.title}
+        description={essay.subtitle || (essay.text || "").slice(0, 200)}
+        image={coverUrl}
+        kind="article"
+        author={author?.name}
+        publishedAt={essay.release_at || essay.created_at}
+      />
       {/* Reading progress bar */}
       {!essay.paywall && (
         <div className="fixed top-0 left-0 right-0 h-0.5 z-40 bg-cream" data-testid="essay-progress-track">
