@@ -43,18 +43,18 @@ export default function AggLayout({ children }) {
       <header className="bg-agg-navy text-agg-cream border-b border-agg-navy-deep">
         <div className="max-w-5xl mx-auto px-4 sm:px-6">
           <div className="flex items-center justify-between py-3">
-            <Link to="/news" data-testid="agg-nav-home" className="flex items-center gap-3 group">
+            <Link to="/news" data-testid="agg-nav-home" className="flex items-center gap-3 group min-w-0">
               <img
                 src="/brand/favicon-gold.svg"
                 alt=""
                 aria-hidden="true"
-                className="h-7 sm:h-8 w-auto select-none"
+                className="h-7 sm:h-8 w-auto select-none shrink-0"
                 draggable={false}
               />
               <img
                 src="/brand/logo-full-light.png"
                 alt="The Housing News"
-                className="h-7 sm:h-8 w-auto select-none"
+                className="h-6 sm:h-8 w-auto select-none max-w-[55vw] sm:max-w-none"
                 draggable={false}
               />
               <span className="hidden sm:inline font-sans text-[10px] uppercase tracking-[0.22em] text-agg-orange/90 mt-0.5">

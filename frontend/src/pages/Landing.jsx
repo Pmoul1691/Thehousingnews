@@ -579,7 +579,7 @@ function JoinedThisWeekStrip({ members }) {
       className="border-y border-gold/15 bg-cream-soft"
     >
       <div className="container-wide py-6 sm:py-7">
-        <div className="flex items-start gap-6 flex-wrap sm:flex-nowrap">
+        <div className="flex items-start gap-4 sm:gap-6 flex-col sm:flex-row sm:flex-wrap">
           <div className="shrink-0">
             <p className="font-sans text-[10px] uppercase tracking-[0.22em] font-semibold text-gold">
               Joined this week
@@ -588,7 +588,7 @@ function JoinedThisWeekStrip({ members }) {
               New voices in the room.
             </p>
           </div>
-          <ul className="flex flex-wrap items-center gap-x-6 gap-y-3 flex-1 min-w-0">
+          <ul className="flex flex-wrap items-center gap-x-6 gap-y-3 flex-1 min-w-0 w-full sm:w-auto">
             {items.map((m) => (
               <li
                 key={m.user_id}

@@ -228,14 +228,12 @@ function Stat({ label, value, accent = false, badge = null, testid }) {
   return (
     <div className={`border hairline rounded-sm p-4 ${accent ? "bg-[#FBF6E8]" : "bg-cream"}`} data-testid={testid}>
       <div className={`font-sans text-[10px] uppercase tracking-[0.18em] font-semibold ${accent ? "text-gold" : "text-muted-ink"}`}>{label}</div>
-      <div className="font-display font-semibold text-2xl ink mt-1 flex items-center gap-2 flex-wrap">
-        {value}
-        {badge && (
-          <span data-testid="top-connector-badge-mine" className="font-sans text-[9px] uppercase tracking-wider bg-gold text-cream px-1.5 py-0.5 rounded-sm font-semibold">
-            {badge}
-          </span>
-        )}
-      </div>
+      <div className="font-display font-semibold text-2xl ink mt-1">{value}</div>
+      {badge && (
+        <span data-testid="top-connector-badge-mine" className="inline-block mt-2 font-sans text-[9px] uppercase tracking-wider bg-gold text-cream px-1.5 py-0.5 rounded-sm font-semibold">
+          {badge}
+        </span>
+      )}
     </div>
   );
 }

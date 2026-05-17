@@ -39,26 +39,26 @@ export default function Layout({ children }) {
     <div className="min-h-screen flex flex-col bg-cream ink">
       <header className="sticky top-0 z-30 backdrop-blur-md bg-cream/85 border-b hairline">
         <div className="container-wide flex items-center justify-between py-4">
-          <Link to="/" data-testid="nav-home" className="flex items-center gap-2.5">
+          <Link to="/" data-testid="nav-home" className="flex items-center gap-2.5 min-w-0">
             <img
               src="/brand/favicon-gold.svg"
               alt=""
               aria-hidden="true"
-              className="h-8 sm:h-9 w-auto select-none"
+              className="h-8 sm:h-9 w-auto select-none shrink-0"
               draggable={false}
             />
             <img
               src="/brand/logo-full.png"
               alt="The Housing News"
-              className="h-8 sm:h-9 w-auto select-none"
+              className="h-7 sm:h-9 w-auto select-none max-w-[55vw] sm:max-w-none"
               draggable={false}
             />
           </Link>
-          <div className="flex items-center gap-5">
+          <div className="flex items-center gap-3 sm:gap-5 shrink-0">
             {!hideHeaderTimer && <div className="hidden sm:block"><NextReleaseTimer /></div>}
             {authed && (
               <>
-                <Link to="/feed" data-testid="nav-feed" className="font-sans text-sm font-medium hover:text-gold transition-colors">Feed</Link>
+                <Link to="/feed" data-testid="nav-feed" className="hidden sm:inline font-sans text-sm font-medium hover:text-gold transition-colors">Feed</Link>
                 <Link
                   to="/write"
                   data-testid="nav-write"

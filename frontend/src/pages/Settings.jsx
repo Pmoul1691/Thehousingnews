@@ -233,14 +233,14 @@ export default function Settings() {
             </div>
             <div>
               <div className="font-sans text-[10px] uppercase tracking-wider text-gold font-semibold">Approved</div>
-              <div className="font-display font-semibold text-2xl ink mt-1 flex items-center gap-2" data-testid="invites-approved">
+              <div className="font-display font-semibold text-2xl ink mt-1" data-testid="invites-approved">
                 {invites.approved}
-                {invites.is_top_connector && (
-                  <span data-testid="top-connector-badge-mine" className="font-sans text-[9px] uppercase tracking-wider bg-gold text-cream px-1.5 py-0.5 rounded-sm font-semibold">
-                    Top Connector
-                  </span>
-                )}
               </div>
+              {invites.is_top_connector && (
+                <span data-testid="top-connector-badge-mine" className="inline-block mt-2 font-sans text-[9px] uppercase tracking-wider bg-gold text-cream px-1.5 py-0.5 rounded-sm font-semibold">
+                  Top Connector
+                </span>
+              )}
             </div>
           </div>
 
