@@ -43,6 +43,7 @@ from routes.admin_reset import setup as setup_admin_reset
 from routes.admin_invite import setup as setup_admin_invite
 from routes.admin_briefings import setup as setup_admin_briefings
 from routes.refresh_feeds import setup as setup_refresh_feeds
+from routes.pats import setup as setup_pats
 from routes.podcasts import setup as setup_podcasts
 from services.object_storage import init_storage
 from services.release_window import next_window, now_chicago
@@ -200,6 +201,10 @@ async def on_startup():
     await db.transcode_jobs.create_index("job_id", unique=True)
     await db.transcode_jobs.create_index([("user_id", 1), ("created_at", -1)])
     await db.app_settings.create_index("key", unique=True)
+    # PATs (Personal Access Tokens) — programmatic posting via Bearer thn_pat_*
+    await db.pats.create_index("id", unique=True)
+    await db.pats.create_index("prefix", unique=True)
+    await db.pats.create_index([("user_id", 1), ("revoked_at", 1)])
 
     # Load DB-stored APP_PUBLIC_URL override into the process env so tracking links use it
     try:
@@ -306,4 +311,5 @@ app.include_router(setup_admin_reset(db))
 app.include_router(setup_admin_invite(db))
 app.include_router(setup_admin_briefings(db))
 app.include_router(setup_refresh_feeds(db))
+app.include_router(setup_pats(db))
 app.include_router(setup_podcasts(db))

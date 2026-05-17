@@ -12,6 +12,10 @@ export default function Settings() {
   const [saving, setSaving] = useState(false);
   const [invites, setInvites] = useState(null);
   const [genBusy, setGenBusy] = useState(false);
+  const [pats, setPats] = useState([]);
+  const [newPatName, setNewPatName] = useState("");
+  const [newPatBusy, setNewPatBusy] = useState(false);
+  const [revealedToken, setRevealedToken] = useState(null);
 
   useEffect(() => {
     if (loading) return;
@@ -20,6 +24,7 @@ export default function Settings() {
     Promise.all([
       api.get("/me/digest-prefs").then((r) => setPrefs({ am: r.data.am !== false, pm: r.data.pm !== false })),
       api.get("/me/invites").then((r) => setInvites(r.data)).catch(() => setInvites(null)),
+      api.get("/pats").then((r) => setPats(r.data.items || [])).catch(() => setPats([])),
     ]).finally(() => setFetching(false));
   }, [user, loading, navigate]);
 
@@ -62,6 +67,41 @@ export default function Settings() {
     } catch (e) {
       toast.error(e?.response?.data?.detail || "Could not revoke");
     }
+  };
+
+  const createPat = async (e) => {
+    e.preventDefault();
+    if (!newPatName.trim()) return;
+    setNewPatBusy(true);
+    try {
+      const r = await api.post("/pats", { name: newPatName.trim() });
+      setRevealedToken(r.data.token);
+      setNewPatName("");
+      const list = await api.get("/pats");
+      setPats(list.data.items || []);
+      toast.success("Access token created. Copy it now — you won't see it again.");
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || "Could not create token");
+    } finally { setNewPatBusy(false); }
+  };
+
+  const revokePat = async (patId) => {
+    if (!window.confirm("Revoke this access token? Any integration using it will stop working.")) return;
+    try {
+      await api.delete(`/pats/${patId}`);
+      const list = await api.get("/pats");
+      setPats(list.data.items || []);
+      toast.success("Revoked");
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || "Could not revoke");
+    }
+  };
+
+  const copyToken = (t) => {
+    navigator.clipboard.writeText(t).then(
+      () => toast.success("Copied"),
+      () => toast.error("Copy failed"),
+    );
   };
 
   return (
@@ -158,6 +198,120 @@ export default function Settings() {
           )}
         </section>
       )}
+
+      {/* Personal Access Tokens — programmatic posting via Bearer thn_pat_* */}
+      <section className="mt-16" data-testid="pats-section">
+        <p className="uppercase-label mb-3">Access tokens</p>
+        <h2 className="font-display font-semibold text-2xl ink mb-2">Programmatic posting.</h2>
+        <p className="prose-serif text-base ink/80 leading-relaxed max-w-prose mb-6">
+          Generate a Personal Access Token to post to The Housing News from
+          scripts, automations, or LLM agents (e.g. Claude). Each token has the
+          same write permissions you do. Treat them like passwords — you can
+          only see the value <em>once</em>.
+        </p>
+
+        {revealedToken && (
+          <div className="border border-gold rounded-sm bg-cream-soft p-5 mb-6" data-testid="pat-just-created">
+            <p className="font-sans text-xs uppercase tracking-wider font-semibold text-gold mb-2">
+              New token — copy now, it won&apos;t be shown again
+            </p>
+            <div className="flex items-center gap-3 flex-wrap">
+              <code className="font-mono text-sm bg-white border border-gold/40 px-3 py-2 rounded-sm break-all flex-1" data-testid="pat-revealed-token">
+                {revealedToken}
+              </code>
+              <button
+                type="button"
+                onClick={() => copyToken(revealedToken)}
+                data-testid="pat-copy-revealed"
+                className="bg-ink text-cream font-sans font-semibold text-sm px-4 py-2 rounded-sm hover:bg-gold transition-colors"
+              >
+                Copy
+              </button>
+              <button
+                type="button"
+                onClick={() => setRevealedToken(null)}
+                data-testid="pat-dismiss-revealed"
+                className="font-sans text-xs uppercase tracking-wider font-semibold text-muted-ink hover:text-deepred transition-colors"
+              >
+                I&apos;ve saved it
+              </button>
+            </div>
+          </div>
+        )}
+
+        <form onSubmit={createPat} className="border hairline rounded-sm bg-cream p-5 mb-6 flex items-center gap-3 flex-wrap" data-testid="pat-create-form">
+          <input
+            type="text"
+            value={newPatName}
+            onChange={(e) => setNewPatName(e.target.value)}
+            placeholder="Token name (e.g. Claude Desktop, n8n automation)"
+            maxLength={80}
+            data-testid="pat-name-input"
+            className="flex-1 min-w-[200px] border hairline bg-white rounded-sm px-3 py-2 font-sans text-sm focus:outline-none focus:border-gold"
+          />
+          <button
+            type="submit"
+            disabled={newPatBusy || !newPatName.trim() || pats.filter((p) => !p.revoked_at).length >= 10}
+            data-testid="pat-create-btn"
+            className="bg-gold text-cream font-sans font-semibold text-sm px-5 py-2 rounded-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+          >
+            {newPatBusy ? "Creating…" : "Create token"}
+          </button>
+        </form>
+
+        {pats.length === 0 ? (
+          <p className="font-serif text-sm text-muted-ink italic" data-testid="pat-empty">
+            You haven&apos;t created any access tokens yet.
+          </p>
+        ) : (
+          <div className="border hairline rounded-sm divide-y divide-[#E8D4A0]" data-testid="pat-list">
+            {pats.map((p) => {
+              const revoked = !!p.revoked_at;
+              return (
+                <div key={p.id} data-testid={`pat-${p.id}`} className="px-5 py-4 flex items-center justify-between gap-4 flex-wrap">
+                  <div className="min-w-0">
+                    <div className="font-display font-semibold text-base ink">{p.name}</div>
+                    <div className="font-mono text-xs text-muted-ink mt-1">
+                      {p.prefix}…{" "}
+                      <span className="text-muted-ink">
+                        · Created {new Date(p.created_at).toLocaleDateString()}
+                        {p.last_used_at ? ` · Last used ${new Date(p.last_used_at).toLocaleDateString()}` : " · Never used"}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {revoked ? (
+                      <span className="font-sans text-[10px] uppercase tracking-wide text-deepred border border-deepred px-1.5 py-0.5 rounded-sm">Revoked</span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => revokePat(p.id)}
+                        data-testid={`pat-revoke-${p.id}`}
+                        className="font-sans text-xs uppercase tracking-wider font-semibold text-muted-ink hover:text-deepred transition-colors px-2"
+                      >
+                        Revoke
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        <details className="mt-6 font-sans text-sm text-muted-ink" data-testid="pat-usage-help">
+          <summary className="cursor-pointer text-ink font-semibold">How to use a token</summary>
+          <div className="mt-3 prose-serif leading-relaxed">
+            <p>Pass the token as a Bearer header on any authenticated request:</p>
+            <pre className="bg-cream-soft border hairline rounded-sm p-3 mt-2 overflow-x-auto text-xs">
+{`curl -X POST https://thehousingnews.com/api/posts \\
+  -H "Authorization: Bearer thn_pat_xxxxxxxxxxxxxxx" \\
+  -H "Content-Type: application/json" \\
+  -d '{"kind":"short","text":"Hello from Claude.","tags":["test"]}'`}
+            </pre>
+          </div>
+        </details>
+      </section>
     </div>
   );
 }

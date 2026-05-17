@@ -508,6 +508,40 @@ the newsfeed". Three changes:
   WhatYouGet → MemberCommunity → ... The two pillars read as equals.
 - **`/api/agg/recent-members?limit`** cap raised from 20 → 30.
 
+## Phase 14 — Personal Access Tokens + Trending tags strip (2026-02-16)
+
+**Personal Access Tokens (PATs)** — programmatic posting for LLM agents
+- **`services/pat_service.py`**: token format `thn_pat_<32 url-safe chars>`,
+  stored as SHA-256 hash + 12-char display prefix. Raw value is shown to the
+  user exactly once at creation. `resolve_pat(db, raw)` verifies + stamps
+  `last_used_at`; never raises (callers fall back to session-token path).
+- **`services/auth_helpers.get_current_user`** now recognizes any Bearer
+  token starting with `thn_pat_` and resolves it through the PAT path. All
+  existing protected endpoints (`/api/posts`, `/api/essays`, `/api/auth/me`,
+  etc.) automatically work with PATs — no per-route changes needed.
+- **`routes/pats.py`** (`/api/pats`):
+  - `POST /api/pats` — create (returns raw token ONCE)
+  - `GET /api/pats` — list user's PATs (sanitized: prefix + last_used_at)
+  - `DELETE /api/pats/{id}` — soft revoke (sets `revoked_at`; row kept for audit)
+  - 10-token live cap per user; only `status=approved` members can create.
+- **Settings UI** (`/settings`): new "Access Tokens · Programmatic posting"
+  section with create-form, one-time reveal panel with copy button, list
+  view (prefix · created date · last used · Revoke), and an expandable
+  "How to use a token" curl example.
+- **Mongo indexes added**: `pats.id` (unique), `pats.prefix` (unique),
+  `pats.[user_id, revoked_at]`.
+
+**Trending tags strip** — public social proof on Landing
+- **`GET /api/agg/trending-tags?days=14&limit=8`** — public endpoint
+  returning top hashtags from approved member posts in the last 14 days.
+  No auth required (used by the public Landing page).
+- **`TrendingTagsStrip`** component on `/`, positioned between
+  `TheFeedSection` and `TheNetworkSection` so the visitor sees actual
+  content topics members are writing about, right between the news pillar
+  and the writers pillar. Tag chips link to `/tag/:tag`.
+- Eyebrow: "What members are writing about · last 14 days". Tag pills
+  display `#tag` + count.
+
 ## Backlog
 - P0 (user action): DNS for thehousingnews.com.
 - P0 (user action): Newsletter provider choice + API key.

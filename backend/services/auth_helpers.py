@@ -21,7 +21,8 @@ async def get_current_user(
     session_token: Optional[str] = None,
     authorization: Optional[str] = None,
 ):
-    """Resolve the current user from cookie session_token or Bearer header.
+    """Resolve the current user from cookie session_token, Bearer header, or
+    a Personal Access Token (PAT) Bearer token (prefix `thn_pat_`).
 
     db: motor async db
     """
@@ -31,6 +32,16 @@ async def get_current_user(
             token = authorization.split(" ", 1)[1].strip()
     if not token:
         raise HTTPException(status_code=401, detail="Not authenticated")
+
+    # PAT path — used by automation (e.g. an LLM agent posting on a user's behalf).
+    if token.startswith("thn_pat_"):
+        from services.pat_service import resolve_pat
+        user = await resolve_pat(db, token)
+        if not user:
+            raise HTTPException(status_code=401, detail="Invalid or revoked token")
+        return user
+
+    # Legacy session-token path.
     sess = await db.user_sessions.find_one({"session_token": token}, {"_id": 0})
     if not sess:
         raise HTTPException(status_code=401, detail="Invalid session")

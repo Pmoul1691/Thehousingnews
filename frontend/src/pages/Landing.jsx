@@ -466,6 +466,41 @@ function TheFeedSection({ publishers, podcasts }) {
   );
 }
 
+// ── SECTION 2C: Trending tags strip ────────────────────────────────────────
+function TrendingTagsStrip({ tags }) {
+  if (!tags || tags.length === 0) return null;
+  return (
+    <section
+      data-testid="landing-trending-tags"
+      className="container-editorial py-8 sm:py-10"
+    >
+      <div className="border-y border-gold/15 py-6 sm:py-7">
+        <div className="flex items-baseline gap-3 mb-4 flex-wrap">
+          <p className="font-sans text-[10px] uppercase tracking-[0.28em] font-semibold text-gold">
+            What members are writing about
+          </p>
+          <span className="font-mono text-[10px] text-ink/45">last 14 days</span>
+        </div>
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap" data-testid="landing-trending-tags-list">
+          {tags.map((t) => (
+            <Link
+              key={t.tag}
+              to={`/tag/${encodeURIComponent(t.tag)}`}
+              data-testid={`landing-trending-tag-${t.tag}`}
+              className="group inline-flex items-baseline gap-1.5 px-3 py-1.5 rounded-full bg-cream-soft border border-gold/20 hover:border-gold/60 hover:-translate-y-0.5 transition-all duration-200"
+            >
+              <span className="font-display font-semibold text-[14px] text-ink group-hover:text-gold transition-colors">
+                #{t.tag}
+              </span>
+              <span className="font-mono text-[10px] text-gold/70">{t.count}</span>
+            </Link>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 // ── SECTION 2B: The Network — visual roll-call of member writers ───────────
 function TheNetworkSection({ members }) {
   if (!members || members.length < 3) return null;
@@ -1035,6 +1070,7 @@ export default function Landing() {
   const [publishers, setPublishers] = useState([]);
   const [podcasts, setPodcasts] = useState([]);
   const [recentMembers, setRecentMembers] = useState([]);
+  const [trendingTags, setTrendingTags] = useState([]);
 
   useEffect(() => {
     let alive = true;
@@ -1043,7 +1079,8 @@ export default function Landing() {
       api.get("/agg/publishers-latest", { params: { hours: 36 } }).catch(() => ({ data: { items: [] } })),
       api.get("/agg/podcasts").catch(() => ({ data: { items: [] } })),
       api.get("/agg/recent-members", { params: { limit: 24 } }).catch(() => ({ data: { items: [] } })),
-    ]).then(([eRes, pRes, podRes, mRes]) => {
+      api.get("/agg/trending-tags", { params: { days: 14, limit: 8 } }).catch(() => ({ data: { items: [] } })),
+    ]).then(([eRes, pRes, podRes, mRes, tRes]) => {
       if (!alive) return;
       setEssays(eRes.data.items || []);
       const pubItems = (pRes.data.items || []);
@@ -1051,6 +1088,7 @@ export default function Landing() {
       setPublishers(pubItems.map((e) => e.publisher).filter(Boolean));
       setPodcasts(podItems);
       setRecentMembers(mRes.data.items || []);
+      setTrendingTags(tRes.data.items || []);
       const pubs = pubItems
         .filter((e) => e.article)
         .map((e) => ({ kind: "publisher", publisher: e.publisher, article: e.article }));
@@ -1072,6 +1110,7 @@ export default function Landing() {
       <HeroSection />
       <SectionDivider />
       <TheFeedSection publishers={publishers} podcasts={podcasts} />
+      <TrendingTagsStrip tags={trendingTags} />
       <SectionDivider />
       <TheNetworkSection members={recentMembers} />
       <SectionDivider />

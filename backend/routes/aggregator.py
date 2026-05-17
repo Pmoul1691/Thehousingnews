@@ -263,6 +263,31 @@ def setup(db):
         # Some browsers / link checkers do GET on this URL — return a soft no-op.
         return {"ok": True}
 
+    @router.get("/trending-tags")
+    async def trending_tags(
+        days: int = Query(default=14, ge=1, le=90),
+        limit: int = Query(default=8, ge=1, le=30),
+    ):
+        """Public-safe top N hashtags across approved member posts in the last
+        `days`. No auth — used by the Landing page social-proof strip to show
+        what real estate professionals on the platform are writing about.
+        """
+        from datetime import datetime as _dt
+        cutoff = (_dt.now(timezone.utc) - timedelta(days=days)).isoformat()
+        pipeline = [
+            {"$match": {
+                "status": "approved",
+                "release_at": {"$gte": cutoff},
+                "tags": {"$exists": True, "$ne": []},
+            }},
+            {"$unwind": "$tags"},
+            {"$group": {"_id": "$tags", "count": {"$sum": 1}}},
+            {"$sort": {"count": -1, "_id": 1}},
+            {"$limit": limit},
+        ]
+        rows = await db.posts.aggregate(pipeline).to_list(limit)
+        return {"items": [{"tag": r["_id"], "count": r["count"]} for r in rows], "days": days}
+
     @router.get("/recent-members")
     async def recent_members(limit: int = Query(default=8, ge=1, le=30)):
         """Public-safe list of recently-active members for the Landing page.
