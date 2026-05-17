@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException, Depends, Cookie, Header
 from pydantic import BaseModel, Field, field_validator
 
 from services.auth_helpers import get_current_user
+from services.linkedin_import import fetch_linkedin_profile, LinkedInImportError
 
 logger = logging.getLogger(__name__)
 
@@ -125,6 +126,73 @@ def setup(db):
         if not prof:
             raise HTTPException(status_code=404, detail="Profile not found")
         return prof
+
+    @router.post("/linkedin-import")
+    async def linkedin_import(payload: dict, user=Depends(_user)):
+        """Look up a LinkedIn profile via EnrichLayer and return suggested
+        fields the frontend can use to pre-fill the onboarding form.
+
+        Also persists the raw experiences + education on the user's profile
+        doc so we can render a "Career" block later without re-charging credits.
+
+        Request body: {"linkedin_url": "https://www.linkedin.com/in/..."}
+        """
+        url = (payload or {}).get("linkedin_url") or ""
+        url = url.strip()
+        # Allow bare handles too
+        if re.match(r"^[a-zA-Z0-9\-]{2,80}$", url):
+            url = f"https://www.linkedin.com/in/{url.lower()}"
+        if not url:
+            # Fall back to whatever's already on the profile
+            existing = await db.profiles.find_one(
+                {"user_id": user["user_id"]}, {"_id": 0, "linkedin_url": 1},
+            )
+            url = (existing or {}).get("linkedin_url") or ""
+        if not url:
+            raise HTTPException(status_code=400, detail="No LinkedIn URL provided")
+
+        try:
+            enriched = fetch_linkedin_profile(url)
+        except LinkedInImportError as exc:
+            raise HTTPException(status_code=502, detail=str(exc))
+
+        # Cache the enriched data on the profile (don't overwrite user-edited
+        # fields like market/bio/objectives — those stay manual).
+        now_iso = datetime.now(timezone.utc).isoformat()
+        await db.profiles.update_one(
+            {"user_id": user["user_id"]},
+            {"$set": {
+                "linkedin_url": enriched["linkedin_url"],
+                "linkedin_data": {
+                    "headline": enriched.get("headline"),
+                    "occupation": enriched.get("occupation"),
+                    "summary": enriched.get("summary"),
+                    "location": enriched.get("location"),
+                    "profile_pic_url": enriched.get("profile_pic_url"),
+                    "experiences": enriched.get("experiences"),
+                    "education": enriched.get("education"),
+                    "synced_at": now_iso,
+                },
+            }},
+            upsert=False,
+        )
+
+        # Suggested values for the onboarding form. The frontend decides
+        # whether to apply them (we never overwrite without consent).
+        return {
+            "ok": True,
+            "linkedin_url": enriched["linkedin_url"],
+            "suggested": {
+                "name": enriched.get("full_name"),
+                "market": enriched.get("location"),
+                "bio": (enriched.get("headline") or "")[:280],
+                "avatar_url": enriched.get("profile_pic_url"),
+            },
+            "career": {
+                "experiences": enriched.get("experiences") or [],
+                "education": enriched.get("education") or [],
+            },
+        }
 
     @router.get("/{user_id}/essays")
     async def list_essays(user_id: str, user=Depends(_user)):

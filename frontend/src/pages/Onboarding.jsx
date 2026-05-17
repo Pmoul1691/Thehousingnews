@@ -17,6 +17,8 @@ export default function Onboarding() {
   });
   const [submitting, setSubmitting] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importedCareer, setImportedCareer] = useState(null);
 
   useEffect(() => {
     api.get("/profile").then((r) => {
@@ -54,6 +56,30 @@ export default function Onboarding() {
       toast.error(e?.response?.data?.detail || "Upload failed");
     } finally {
       setUploading(false);
+    }
+  };
+
+  const importFromLinkedIn = async () => {
+    const url = (form.linkedin_url || "").trim();
+    if (!url) { toast.error("Paste your LinkedIn URL first"); return; }
+    setImporting(true);
+    try {
+      const r = await api.post("/profile/linkedin-import", { linkedin_url: url });
+      const s = r.data?.suggested || {};
+      setForm((prev) => ({
+        ...prev,
+        // Only fill blanks — never overwrite what the member already typed.
+        name: prev.name?.trim() ? prev.name : (s.name || prev.name),
+        market: prev.market?.trim() ? prev.market : (s.market || prev.market),
+        bio: prev.bio?.trim() ? prev.bio : (s.bio || prev.bio),
+        linkedin_url: r.data?.linkedin_url || prev.linkedin_url,
+      }));
+      setImportedCareer(r.data?.career || null);
+      toast.success("Imported from LinkedIn");
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || "LinkedIn import failed");
+    } finally {
+      setImporting(false);
     }
   };
 
@@ -148,6 +174,36 @@ export default function Onboarding() {
             value={form.linkedin_url}
             onChange={(e) => setForm({ ...form, linkedin_url: e.target.value })}
           />
+          <div className="mt-3 flex items-start gap-3 flex-wrap">
+            <button
+              type="button"
+              onClick={importFromLinkedIn}
+              disabled={importing || !form.linkedin_url?.trim()}
+              data-testid="onb-linkedin-import"
+              className="inline-flex items-center gap-1.5 bg-ink text-cream font-sans font-semibold text-xs uppercase tracking-wider px-3 py-2 rounded-sm hover:bg-gold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {importing ? "Importing…" : "Auto-fill from LinkedIn →"}
+            </button>
+            <p className="font-serif italic text-xs text-muted-ink max-w-xs">
+              We&apos;ll fill in any blank fields above (we never overwrite what you&apos;ve typed) and pull your work history into your profile.
+            </p>
+          </div>
+          {importedCareer?.experiences?.length > 0 && (
+            <div className="mt-4 bg-cream-soft border border-gold/20 rounded-sm p-4" data-testid="onb-linkedin-career">
+              <p className="font-sans text-[10px] uppercase tracking-[0.22em] font-semibold text-gold mb-2">
+                Imported from LinkedIn
+              </p>
+              <ul className="space-y-1.5 font-serif text-sm text-ink/80">
+                {importedCareer.experiences.slice(0, 5).map((e, i) => (
+                  <li key={i}>
+                    <span className="font-semibold ink">{e.title}</span>
+                    {e.company ? <> · {e.company}</> : null}
+                    {e.starts_at ? <span className="font-mono text-[11px] text-muted-ink ml-2">{e.starts_at}–{e.ends_at || "present"}</span> : null}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           <details className="mt-3 group">
             <summary className="cursor-pointer font-sans text-xs text-gold hover:opacity-80 select-none">
               How to copy your LinkedIn URL →

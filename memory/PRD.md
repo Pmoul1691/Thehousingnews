@@ -667,6 +667,28 @@ the newsfeed". Three changes:
   - Post-auth callback now sends approved users with a profile to `/today`
     instead of `/feed`.
 
+## Phase 21 — LinkedIn auto-import via EnrichLayer (2026-02-17)
+- Replaces the now-defunct Proxycurl integration (Nubela shut down after a
+  LinkedIn lawsuit in 2025). EnrichLayer is the legitimate successor at
+  `https://enrichlayer.com`.
+- **Backend**:
+  - `services/linkedin_import.py` — thin wrapper around EnrichLayer's
+    `GET /api/v2/profile?profile_url=...` with `Authorization: Bearer
+    $ENRICHLAYER_API_KEY`. Returns a normalised dict (name, headline,
+    occupation, city/state, photo, experiences[], education[]).
+  - `POST /api/profile/linkedin-import` (`routes/profiles.py`) accepts
+    `{linkedin_url}`, calls EnrichLayer, caches `linkedin_data` on the
+    member's profile doc, and returns `{suggested, career}` for the
+    frontend to apply.
+- **Frontend** `Onboarding.jsx`:
+  - "Auto-fill from LinkedIn →" button next to the LinkedIn URL field.
+  - On click: only fills blank fields (never overwrites user input).
+  - Renders an "Imported from LinkedIn" preview card with the first 5
+    work experiences (title · company · year range).
+- **Cost**: 1–3 EnrichLayer credits per lookup (~$0.06 per import on the
+  $100 PAYG tier). Cache-friendly: `use_cache=if-present`.
+- **Env var**: `ENRICHLAYER_API_KEY` (already set in backend/.env).
+
 ## Phase 20 — Aggregator + Podcast directory additions (2026-02-17)
 - **Added 4 publishers** to the aggregator (now 40 active):
   Commercial Property Executive, RISMedia Housecall, Miller Samuel, CRE Daily.
@@ -685,8 +707,7 @@ the newsfeed". Three changes:
 - P0 (user action): Analytics provider choice + domain key.
 - P0 Epic (long-term): Migrate React SPA to Next.js + Tailwind + TS per
   aggregator brief (scope TBD with user).
-- P1: Proxycurl LinkedIn import — **BLOCKED on user providing API key**.
-  See "Proxycurl onboarding" section below.
+- P1: ~~Proxycurl LinkedIn import~~ — **DONE in Phase 21 via EnrichLayer.**
 - P2: Bump hardcoded "from 34 housing sources" copy + "38 SOURCES" mockup on
   Landing to reflect the now-40 active publisher count.
 - P2: Add real member profile photos to Landing "From the feed" rows.
