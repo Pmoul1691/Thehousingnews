@@ -136,7 +136,7 @@ def _logo_html(size: int = 72) -> str:
         return ""
     return (
         f'<div style="text-align:center; margin:0 0 20px 0;">'
-        f'<img src="{base}/brand/logo-mark.png" alt="The Housing News" '
+        f'<img src="{base}/brand/bloom-gold.png" alt="The Housing News" '
         f'width="{size}" height="{size}" style="display:inline-block; width:{size}px; height:{size}px; max-width:{size}px;" />'
         f'</div>'
     )
