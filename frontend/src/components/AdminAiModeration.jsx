@@ -178,15 +178,49 @@ function PromptPanel() {
   }, []);
   useEffect(() => { load(); }, [load]);
 
-  const save = async () => {
-    if (!window.confirm("Save this prompt? All future moderation calls will use it.")) return;
+  const save = async (skipRegression = false) => {
+    const msg = skipRegression
+      ? "Save and SKIP the regression guardrail? Use only if you know what you're doing."
+      : "Save this prompt? A quick regression test will run first (~15s, ~$0.02). Save will be blocked if pass rate drops below 80%.";
+    if (!window.confirm(msg)) return;
     setBusy(true);
     try {
-      await api.put("/admin/moderation/prompt", { value: text });
-      toast.success("Prompt saved");
+      const r = await api.put(
+        "/admin/moderation/prompt",
+        { value: text },
+        { params: skipRegression ? { skip_regression: true } : {} },
+      );
+      const guardrail = r.data?.guardrail;
+      if (guardrail) {
+        toast.success(`Saved · regression ${guardrail.passed}/${guardrail.total}`);
+      } else {
+        toast.success("Prompt saved");
+      }
       await load();
     } catch (err) {
-      toast.error(err?.response?.data?.detail || "Save failed");
+      const detail = err?.response?.data?.detail;
+      if (detail?.code === "regression_failed") {
+        const g = detail.guardrail || {};
+        const failing = (g.failing_cases || []).map((f) => `${f.name} (expected ${f.expected}, got ${f.got || "error"})`).join("; ");
+        toast.error(
+          `Save blocked · ${g.passed}/${g.total} passed. Failing: ${failing}`,
+          { duration: 12000 },
+        );
+        setRegression({
+          total: g.total, passed: g.passed, failed: g.failed, pass_rate: g.pass_rate,
+          run_at: new Date().toISOString(),
+          results: (g.failing_cases || []).map((f) => ({
+            name: f.name,
+            description: "Pre-save guardrail check",
+            expected_verdict: f.expected,
+            got_verdict: f.got,
+            got_reasoning: f.reasoning,
+            passed: false,
+          })),
+        });
+      } else {
+        toast.error(typeof detail === "string" ? detail : "Save failed");
+      }
     } finally { setBusy(false); }
   };
   const reset = async () => {
@@ -281,15 +315,24 @@ function PromptPanel() {
           className="w-full bg-white border border-gold/20 rounded-sm p-3 font-mono text-[12px] ink leading-relaxed focus:outline-none focus:ring-1 focus:ring-gold"
           spellCheck={false}
         />
-        <div className="flex items-center gap-2 mt-3">
+        <div className="flex items-center gap-2 mt-3 flex-wrap">
           <button
             type="button"
-            onClick={save}
+            onClick={() => save(false)}
             disabled={busy || text === data.active}
             data-testid="mod-prompt-save"
             className="font-sans text-xs uppercase tracking-wider font-semibold bg-ink text-cream px-3 py-2 rounded-sm hover:bg-gold disabled:opacity-40 transition-colors"
           >
-            {busy ? "Saving…" : "Save prompt"}
+            {busy ? "Saving…" : "Save (with regression check)"}
+          </button>
+          <button
+            type="button"
+            onClick={() => save(true)}
+            disabled={busy || text === data.active}
+            data-testid="mod-prompt-save-skip"
+            className="font-sans text-xs uppercase tracking-wider font-semibold border border-deepred text-deepred px-3 py-2 rounded-sm hover:bg-deepred hover:text-cream disabled:opacity-40 transition-colors"
+          >
+            Save (skip regression)
           </button>
           {data.is_custom ? (
             <button

@@ -49,6 +49,8 @@ from routes.podcasts import setup as setup_podcasts
 from routes.today import setup as setup_today
 from routes.admin_moderation import setup as setup_admin_moderation
 from routes.mcp import setup as setup_mcp
+from routes.events import setup as setup_events
+from routes.admin_analytics import setup as setup_admin_analytics
 from services.object_storage import init_storage
 from services.release_window import next_window, now_chicago
 from services.scheduler import start_scheduler, release_batch
@@ -321,3 +323,5 @@ app.include_router(setup_podcasts(db))
 app.include_router(setup_today(db))
 app.include_router(setup_admin_moderation(db))
 app.include_router(setup_mcp(db))
+app.include_router(setup_events(db))
+app.include_router(setup_admin_analytics(db))

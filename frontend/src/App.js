@@ -38,6 +38,7 @@ import Tag from "@/pages/Tag";
 import Claim from "@/pages/Claim";
 import Today from "@/pages/Today";
 import Directory from "@/pages/Directory";
+import usePageviewTracker from "@/hooks/usePageviewTracker";
 
 // Aggregator pages
 import AggHome from "@/pages/AggHome";
@@ -59,6 +60,7 @@ function isAggregatorPath(pathname) {
 
 function Router() {
   const location = useLocation();
+  usePageviewTracker();
   // Handle session_id during render to avoid race with AuthProvider
   if (location.hash?.includes("session_id=")) {
     return <AuthCallback />;

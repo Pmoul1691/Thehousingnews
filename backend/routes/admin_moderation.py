@@ -323,6 +323,8 @@ def setup(db):
         body: PromptUpdate,
         session_token: Optional[str] = Cookie(default=None),
         authorization: Optional[str] = Header(default=None),
+        skip_regression: bool = Query(default=False,
+                                      description="Bypass the regression-test guardrail"),
     ):
         admin = await _admin(session_token, authorization)
         value = (body.value or "").strip()
@@ -330,6 +332,77 @@ def setup(db):
             raise HTTPException(status_code=400, detail="Prompt cannot be empty")
         if len(value) > 20000:
             raise HTTPException(status_code=400, detail="Prompt too long (max 20k chars)")
+
+        # ─── Regression guardrail ─────────────────────────────────────────
+        # Run the canonical cases against the proposed prompt before saving.
+        # Block the save if pass rate drops below 80%. Caller can override
+        # by passing skip_regression=true (e.g. for empty deploys/seed).
+        guardrail = None
+        if not skip_regression:
+            from services.moderation import review_content
+            from services.moderation_cases import CANONICAL_CASES, case_passes
+            import asyncio
+            # Temporarily set the prompt as if it were saved (write then test
+            # then maybe rollback). Simpler: pass the candidate prompt via
+            # an inline override.
+            await db.moderation_settings.update_one(
+                {"key": "system_prompt_candidate"},
+                {"$set": {"key": "system_prompt_candidate", "value": value,
+                          "updated_at": _now_iso()}},
+                upsert=True,
+            )
+            try:
+                async def run_one(c):
+                    try:
+                        # Monkey-route by calling review_content but with
+                        # the candidate prompt — we patch via a fresh chat
+                        # that injects the value as system_message directly.
+                        from services.moderation import (
+                            LlmChat, UserMessage, _api_key,
+                            MODEL_PROVIDER, MODEL_NAME, _parse_verdict,
+                        )
+                        body_parts = []
+                        if c.get("title"):
+                            body_parts.append(f"TITLE: {c['title']}")
+                        body_parts.append(f"KIND: {c['target_kind']}")
+                        body_parts.append(f"\nCONTENT:\n{c['text']}")
+                        chat = LlmChat(
+                            api_key=_api_key(),
+                            session_id=f"mod_pretest_{c['name']}",
+                            system_message=value,
+                        ).with_model(MODEL_PROVIDER, MODEL_NAME)
+                        resp = await chat.send_message(UserMessage(text="\n".join(body_parts)))
+                        verdict = _parse_verdict(resp)
+                        verdict.setdefault("categories", [])
+                        return {"case": c, "verdict": verdict, "passed": case_passes(c, verdict)}
+                    except Exception as exc:
+                        logger.exception(f"pre-save regression {c['name']} failed")
+                        return {"case": c, "verdict": {}, "passed": False, "error": str(exc)}
+                results = await asyncio.gather(*[run_one(c) for c in CANONICAL_CASES])
+                passed = sum(1 for r in results if r["passed"])
+                total = len(results)
+                pass_rate = round(100 * passed / total) if total else 0
+                guardrail = {
+                    "total": total, "passed": passed, "failed": total - passed,
+                    "pass_rate": pass_rate,
+                    "failing_cases": [{"name": r["case"]["name"],
+                                        "expected": r["case"]["expected_verdict"],
+                                        "got": r["verdict"].get("verdict"),
+                                        "reasoning": r["verdict"].get("reasoning")}
+                                       for r in results if not r["passed"]],
+                }
+                if pass_rate < 80:
+                    raise HTTPException(
+                        status_code=422,
+                        detail={
+                            "code": "regression_failed",
+                            "message": f"Pass rate {pass_rate}% is below the 80% guardrail. {len(guardrail['failing_cases'])} canonical case(s) failing. Save blocked. Pass skip_regression=true to override.",
+                            "guardrail": guardrail,
+                        },
+                    )
+            finally:
+                await db.moderation_settings.delete_one({"key": "system_prompt_candidate"})
+
         await db.moderation_settings.update_one(
             {"key": "system_prompt"},
             {"$set": {
@@ -340,7 +413,7 @@ def setup(db):
             }},
             upsert=True,
         )
-        return {"ok": True, "len": len(value)}
+        return {"ok": True, "len": len(value), "guardrail": guardrail}
 
     @router.post("/prompt/reset")
     async def reset_prompt(
