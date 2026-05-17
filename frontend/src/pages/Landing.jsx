@@ -220,7 +220,7 @@ function HeroSection() {
             <br />
             reads.
             <br />
-            <span className="text-gold">And writes.</span>
+            <span className="text-deepred">And writes.</span>
           </h1>
           <p className="font-serif text-[18px] sm:text-[20px] leading-[1.55] text-ink/75 mt-7 max-w-[44ch]">
             A publishing network for real estate professionals. Read what the
