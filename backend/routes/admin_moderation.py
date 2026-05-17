@@ -121,6 +121,119 @@ def setup(db):
             "reviewed_24h": reviewed_24h,
         }
 
+    @router.get("/patterns")
+    async def patterns(
+        session_token: Optional[str] = Cookie(default=None),
+        authorization: Optional[str] = Header(default=None),
+        days: int = Query(default=30, ge=1, le=180),
+    ):
+        """Aggregate signal across the moderation_reviews audit trail.
+
+        Returns:
+          - top_categories: top 5 violation categories in the window
+          - top_flagged_users: members generating the most flags/declines
+          - daily_volume: per-day counts of reviewed/flagged/declined
+          - claude_accuracy: how often the admin agreed with Claude's verdict
+                             (i.e. admin chose `confirm_decline` on decisions),
+                             vs. how often the admin overrode Claude
+        """
+        await _admin(session_token, authorization)
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+
+        # Top categories
+        cat_pipeline = [
+            {"$match": {"reviewed_at": {"$gte": cutoff},
+                        "verdict": {"$in": ["flag", "decline"]}}},
+            {"$unwind": "$categories"},
+            {"$match": {"categories": {"$ne": "none"}}},
+            {"$group": {"_id": "$categories", "count": {"$sum": 1}}},
+            {"$sort": {"count": -1}},
+            {"$limit": 8},
+        ]
+        cat_rows = await db.moderation_reviews.aggregate(cat_pipeline).to_list(8)
+        top_categories = [{"category": r["_id"], "count": r["count"]} for r in cat_rows]
+
+        # Top flagged users
+        user_pipeline = [
+            {"$match": {"reviewed_at": {"$gte": cutoff},
+                        "verdict": {"$in": ["flag", "decline"]}}},
+            {"$group": {
+                "_id": "$user_id",
+                "flags": {"$sum": {"$cond": [{"$eq": ["$verdict", "flag"]}, 1, 0]}},
+                "declines": {"$sum": {"$cond": [{"$eq": ["$verdict", "decline"]}, 1, 0]}},
+                "total": {"$sum": 1},
+            }},
+            {"$sort": {"total": -1}},
+            {"$limit": 5},
+        ]
+        user_rows = await db.moderation_reviews.aggregate(user_pipeline).to_list(5)
+        uids = [r["_id"] for r in user_rows if r["_id"]]
+        users_by_id: dict = {}
+        if uids:
+            async for u in db.users.find(
+                {"user_id": {"$in": uids}},
+                {"_id": 0, "user_id": 1, "name": 1, "email": 1},
+            ):
+                users_by_id[u["user_id"]] = u
+        top_flagged_users = [{
+            "user_id": r["_id"],
+            "name": (users_by_id.get(r["_id"]) or {}).get("name") or "—",
+            "email": (users_by_id.get(r["_id"]) or {}).get("email") or "",
+            "flags": r["flags"],
+            "declines": r["declines"],
+            "total": r["total"],
+        } for r in user_rows]
+
+        # Daily volume (last 14 days for the bar)
+        bar_cutoff = (datetime.now(timezone.utc) - timedelta(days=14)).isoformat()
+        daily_pipeline = [
+            {"$match": {"reviewed_at": {"$gte": bar_cutoff}}},
+            {"$project": {
+                "day": {"$substr": ["$reviewed_at", 0, 10]},
+                "verdict": 1,
+            }},
+            {"$group": {
+                "_id": "$day",
+                "reviewed": {"$sum": 1},
+                "flagged": {"$sum": {"$cond": [{"$eq": ["$verdict", "flag"]}, 1, 0]}},
+                "declined": {"$sum": {"$cond": [{"$eq": ["$verdict", "decline"]}, 1, 0]}},
+            }},
+            {"$sort": {"_id": 1}},
+        ]
+        daily_rows = await db.moderation_reviews.aggregate(daily_pipeline).to_list(14)
+        daily_volume = [{
+            "day": r["_id"], "reviewed": r["reviewed"],
+            "flagged": r["flagged"], "declined": r["declined"],
+        } for r in daily_rows]
+
+        # Claude accuracy — among decided reviews
+        decided_total = await db.moderation_reviews.count_documents({
+            "reviewed_at": {"$gte": cutoff},
+            "admin_decision": {"$in": ["approve_override", "confirm_decline"]},
+        })
+        admin_agreed = await db.moderation_reviews.count_documents({
+            "reviewed_at": {"$gte": cutoff},
+            "admin_decision": "confirm_decline",
+        })
+        admin_overrode = await db.moderation_reviews.count_documents({
+            "reviewed_at": {"$gte": cutoff},
+            "admin_decision": "approve_override",
+        })
+        accuracy = round(100 * admin_agreed / decided_total) if decided_total else None
+
+        return {
+            "window_days": days,
+            "top_categories": top_categories,
+            "top_flagged_users": top_flagged_users,
+            "daily_volume": daily_volume,
+            "claude_accuracy": {
+                "decided_total": decided_total,
+                "admin_agreed": admin_agreed,
+                "admin_overrode": admin_overrode,
+                "agreement_pct": accuracy,
+            },
+        }
+
     @router.post("/{review_id}/decide")
     async def decide(
         review_id: str,

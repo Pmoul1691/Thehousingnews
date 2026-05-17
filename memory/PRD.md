@@ -667,6 +667,37 @@ the newsfeed". Three changes:
   - Post-auth callback now sends approved users with a profile to `/today`
     instead of `/feed`.
 
+## Phase 23 — MCP server + Moderation patterns + audit-trail tuning (2026-02-17)
+
+### MCP server for Claude Desktop (replaces prompt-engineering recipe)
+- New `routes/mcp.py` at `POST /api/mcp` implements JSON-RPC 2.0 over
+  streamable HTTP per MCP spec (protocol version 2025-03-26).
+- Auth: existing PAT system (`Authorization: Bearer thn_pat_*`).
+- Supports `initialize`, `tools/list`, `tools/call`, `ping`.
+- **7 tools exposed** to MCP clients:
+  - `read_todays_briefing` (auto-picks morning/evening by Chicago time)
+  - `search_news` (publisher articles, configurable window)
+  - `list_my_drafts`, `save_draft`
+  - `publish_essay` (auto-fires Claude moderation in background)
+  - `list_my_posts`, `read_my_replies`
+- Settings.jsx "Quick connect → Claude" tab now ships the real
+  `claude_desktop_config.json` snippet (using `npx mcp-remote` as the
+  stdio→HTTP bridge). Replaces the old prompt-engineering recipe.
+- Verified live: initialize, tools/list, search_news, save_draft, and
+  list_my_drafts round-trip via curl. Unauthenticated calls correctly
+  rejected with JSON-RPC -32001.
+
+### Moderation patterns + audit-trail tuning
+- New `GET /api/admin/moderation/patterns?days=N` aggregates:
+  - top violation categories (top 8)
+  - top flagged members (top 5, with flag/decline counts)
+  - daily volume bar chart (last 14 days)
+  - Claude / admin agreement metrics (decided_total, admin_agreed,
+    admin_overrode, agreement_pct)
+- New "Patterns" sub-tab inside the AI Review admin panel renders all four
+  blocks plus a 7d/30d/90d window switcher and an inline tuning note that
+  explains how to read the override rate.
+
 ## Phase 22 — Claude content moderation (2026-02-17)
 - **Mode**: "Flag, don't block." Claude reviews every post / essay / reply
   on submit; clean content publishes normally, borderline gets `flag`,

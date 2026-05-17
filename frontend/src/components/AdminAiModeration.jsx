@@ -153,6 +153,132 @@ function ReviewCard({ r, onDecide, busyId }) {
   );
 }
 
+function PatternsPanel({ data, loading, days, onDaysChange }) {
+  if (loading) {
+    return <p className="font-serif italic text-sm text-muted-ink py-10 text-center">Loading patterns.</p>;
+  }
+  if (!data) return null;
+  const acc = data.claude_accuracy || {};
+  const maxDaily = Math.max(1, ...(data.daily_volume || []).map((d) => d.reviewed));
+
+  return (
+    <div className="space-y-6" data-testid="mod-patterns">
+      <div className="flex items-center justify-between flex-wrap gap-2 border-b border-gold/15 pb-2">
+        <p className="font-mono text-[10px] uppercase tracking-wider text-muted-ink">Window</p>
+        <div className="flex items-center gap-1">
+          {[7, 30, 90].map((d) => (
+            <button
+              key={d}
+              type="button"
+              onClick={() => onDaysChange(d)}
+              data-testid={`mod-patterns-window-${d}`}
+              className={`font-sans text-[11px] uppercase tracking-wider font-semibold px-2.5 py-1 rounded-sm ${days === d ? "bg-gold text-cream" : "text-muted-ink hover:text-ink"}`}
+            >{d}d</button>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <section className="bg-cream-soft border border-gold/15 rounded-sm p-5">
+          <p className="font-sans text-[10px] uppercase tracking-[0.22em] font-semibold text-gold mb-3">Top violation categories</p>
+          {(data.top_categories || []).length === 0 ? (
+            <p className="font-serif italic text-sm text-muted-ink">No violations in this window.</p>
+          ) : (
+            <ol className="space-y-2">
+              {data.top_categories.map((c, i) => (
+                <li key={c.category} data-testid={`mod-cat-${c.category}`} className="flex items-baseline gap-3">
+                  <span className="font-mono text-[10px] text-muted-ink w-5">{(i + 1).toString().padStart(2, "0")}</span>
+                  <span className="font-display font-semibold text-base ink flex-1">{CAT_LABELS[c.category] || c.category}</span>
+                  <span className="font-mono text-sm text-gold font-semibold">{c.count}</span>
+                </li>
+              ))}
+            </ol>
+          )}
+        </section>
+
+        <section className="bg-cream-soft border border-gold/15 rounded-sm p-5">
+          <p className="font-sans text-[10px] uppercase tracking-[0.22em] font-semibold text-gold mb-3">Members generating the most flags</p>
+          {(data.top_flagged_users || []).length === 0 ? (
+            <p className="font-serif italic text-sm text-muted-ink">No member has triggered a flag in this window.</p>
+          ) : (
+            <ol className="space-y-2.5">
+              {data.top_flagged_users.map((u, i) => (
+                <li key={u.user_id || i} data-testid={`mod-user-${u.user_id}`} className="flex items-baseline gap-3 border-b border-gold/10 last:border-0 pb-2 last:pb-0">
+                  <span className="font-mono text-[10px] text-muted-ink w-5">{(i + 1).toString().padStart(2, "0")}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-display font-semibold text-sm ink truncate">{u.name}</p>
+                    <p className="font-mono text-[10px] uppercase tracking-wider text-muted-ink truncate">{u.email}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-mono text-sm text-deepred font-semibold">{u.declines}d · {u.flags}f</p>
+                    <p className="font-mono text-[10px] text-muted-ink">{u.total} total</p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          )}
+        </section>
+
+        <section className="bg-cream-soft border border-gold/15 rounded-sm p-5 lg:col-span-2">
+          <p className="font-sans text-[10px] uppercase tracking-[0.22em] font-semibold text-gold mb-3">Daily volume · last 14 days</p>
+          {(data.daily_volume || []).length === 0 ? (
+            <p className="font-serif italic text-sm text-muted-ink">No moderation activity yet.</p>
+          ) : (
+            <div className="flex items-end gap-2 h-32" data-testid="mod-daily-chart">
+              {data.daily_volume.map((d) => {
+                const pct = Math.round(100 * d.reviewed / maxDaily);
+                const flaggedPct = d.reviewed ? Math.round(100 * d.flagged / d.reviewed) : 0;
+                const declinedPct = d.reviewed ? Math.round(100 * d.declined / d.reviewed) : 0;
+                return (
+                  <div key={d.day} className="flex-1 flex flex-col items-center" title={`${d.day}: ${d.reviewed} reviewed, ${d.flagged} flagged, ${d.declined} declined`}>
+                    <div className="w-full h-full flex flex-col justify-end relative">
+                      <div className="w-full bg-gold/30 rounded-t-sm" style={{ height: `${pct}%` }}>
+                        <div className="bg-gold w-full" style={{ height: `${flaggedPct}%` }} />
+                        <div className="bg-deepred w-full" style={{ height: `${declinedPct}%` }} />
+                      </div>
+                    </div>
+                    <span className="font-mono text-[8px] text-muted-ink mt-1">{d.day.slice(5)}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          <div className="flex items-center gap-4 mt-3 font-mono text-[10px] text-muted-ink">
+            <span><span className="inline-block w-2 h-2 bg-gold/30 mr-1"/>Approved</span>
+            <span><span className="inline-block w-2 h-2 bg-gold mr-1"/>Flagged</span>
+            <span><span className="inline-block w-2 h-2 bg-deepred mr-1"/>Declined</span>
+          </div>
+        </section>
+
+        <section className="bg-ink text-cream rounded-sm p-5 lg:col-span-2" data-testid="mod-accuracy">
+          <p className="font-sans text-[10px] uppercase tracking-[0.22em] font-semibold text-gold">Claude / admin agreement · {days}d</p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
+            <div>
+              <p className="font-display font-semibold text-3xl text-cream">{acc.agreement_pct ?? "—"}{acc.agreement_pct != null ? "%" : ""}</p>
+              <p className="font-mono text-[10px] uppercase tracking-wider text-cream/70 mt-1">Admin agreed with Claude</p>
+            </div>
+            <div>
+              <p className="font-display font-semibold text-3xl text-cream">{acc.decided_total ?? 0}</p>
+              <p className="font-mono text-[10px] uppercase tracking-wider text-cream/70 mt-1">Decisions logged</p>
+            </div>
+            <div>
+              <p className="font-display font-semibold text-3xl text-emerald-300">{acc.admin_overrode ?? 0}</p>
+              <p className="font-mono text-[10px] uppercase tracking-wider text-cream/70 mt-1">Overrode → approved</p>
+            </div>
+            <div>
+              <p className="font-display font-semibold text-3xl text-deepred">{acc.admin_agreed ?? 0}</p>
+              <p className="font-mono text-[10px] uppercase tracking-wider text-cream/70 mt-1">Confirmed decline</p>
+            </div>
+          </div>
+          <p className="font-serif italic text-xs text-cream/60 mt-3">
+            Use the override rate to retune the prompt. A high override rate means Claude is too aggressive; a low rate with rising user reports means it&apos;s too lenient.
+          </p>
+        </section>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminAiModeration() {
   const [items, setItems] = useState([]);
   const [stats, setStats] = useState(null);
@@ -160,6 +286,10 @@ export default function AdminAiModeration() {
   const [decided, setDecided] = useState(false);
   const [kind, setKind] = useState("");
   const [busyId, setBusyId] = useState(null);
+  const [view, setView] = useState("queue"); // "queue" | "patterns"
+  const [patterns, setPatterns] = useState(null);
+  const [patternsLoading, setPatternsLoading] = useState(false);
+  const [patternsDays, setPatternsDays] = useState(30);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -177,6 +307,20 @@ export default function AdminAiModeration() {
 
   useEffect(() => { load(); }, [load]);
 
+  const loadPatterns = useCallback(async () => {
+    setPatternsLoading(true);
+    try {
+      const r = await api.get("/admin/moderation/patterns", { params: { days: patternsDays } });
+      setPatterns(r.data);
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || "Failed to load patterns");
+    } finally { setPatternsLoading(false); }
+  }, [patternsDays]);
+
+  useEffect(() => {
+    if (view === "patterns") loadPatterns();
+  }, [view, loadPatterns]);
+
   const decide = async (reviewId, decision) => {
     if (!window.confirm(decision === "approve_override"
       ? "Override Claude and publish this content?"
@@ -193,6 +337,27 @@ export default function AdminAiModeration() {
 
   return (
     <div className="space-y-6" data-testid="admin-aimoderation">
+      <div className="flex items-center gap-4 border-b border-gold/15">
+        {[
+          { k: "queue", l: "Queue" },
+          { k: "patterns", l: "Patterns" },
+        ].map((t) => (
+          <button
+            key={t.k}
+            type="button"
+            onClick={() => setView(t.k)}
+            data-testid={`mod-view-${t.k}`}
+            className={`pb-2.5 font-display font-semibold text-sm transition-colors ${view === t.k ? "text-gold border-b-2 border-gold" : "text-muted-ink hover:text-ink"}`}
+          >
+            {t.l}
+          </button>
+        ))}
+      </div>
+
+      {view === "patterns" ? (
+        <PatternsPanel data={patterns} loading={patternsLoading} days={patternsDays} onDaysChange={setPatternsDays} />
+      ) : (
+      <>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <StatTile testid="mod-stat-pending" label="Pending" value={stats?.pending ?? "—"} hint="Awaiting your call" tone={stats?.pending > 0 ? "warn" : "ok"} />
         <StatTile testid="mod-stat-flagged" label="Flagged · 24h" value={stats?.flagged_24h ?? "—"} hint="Borderline" />
@@ -247,6 +412,8 @@ export default function AdminAiModeration() {
             <ReviewCard key={r.id} r={r} onDecide={decide} busyId={busyId} />
           ))}
         </div>
+      )}
+      </>
       )}
     </div>
   );

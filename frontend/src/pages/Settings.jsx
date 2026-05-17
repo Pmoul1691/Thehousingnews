@@ -387,19 +387,27 @@ function PatRecipes({ prefilledToken }) {
     );
   };
 
-  const claudeProjectPrompt = `You can publish posts to my account on The Housing News on my behalf.
+  const claudeMcpConfig = `// Claude Desktop config — add to ~/Library/Application Support/Claude/claude_desktop_config.json
+// (Windows: %APPDATA%\\Claude\\claude_desktop_config.json)
+{
+  "mcpServers": {
+    "thehousingnews": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-remote",
+        "${apiBase}/api/mcp",
+        "--header",
+        "Authorization: Bearer ${tokenStr}"
+      ]
+    }
+  }
+}
 
-When I ask you to "post", "publish", or "share" something to The Housing News, send a POST request to:
-  ${apiBase}/api/posts
-with these headers:
-  Authorization: Bearer ${tokenStr}
-  Content-Type: application/json
-and a body like:
-  { "kind": "short", "text": "<the post body, including any #hashtags>", "tags": [] }
-
-For longer essays, set "kind": "essay" and include a "title" and "subtitle".
-
-Before sending, always show me the final text and confirm. After publishing, share the returned post_id so I can review it on the platform.`;
+// After saving, fully quit and reopen Claude Desktop. Then ask Claude:
+//   "What can you do for The Housing News?"
+// Claude will list 7 tools (read briefing, search news, save draft, publish
+// essay, list my posts, read my replies, list my drafts).`;
 
   const customGptYaml = `openapi: 3.0.0
 info:
@@ -465,7 +473,7 @@ requests.post(
 ).json()`;
 
   const recipes = [
-    { id: "claude",  label: "Claude (Projects)",  body: claudeProjectPrompt, note: "Paste into Claude → Projects → Project Instructions. Then ask Claude to post anything." },
+    { id: "claude",  label: "Claude Desktop (MCP)",  body: claudeMcpConfig,    note: "Real MCP server — Claude gets 7 native tools (read briefing, search news, save draft, publish essay, list posts/replies). Requires Node.js installed locally. Paste into Claude Desktop config, then restart the app." },
     { id: "gpt",     label: "ChatGPT (Actions)",  body: customGptYaml,       note: "In your Custom GPT → Configure → Actions → Add. Paste this OpenAPI schema and add the token under Authentication." },
     { id: "n8n",     label: "n8n / Zapier / Make", body: n8nConfig,          note: "Use any HTTP Request node. Same recipe works for Zapier, Make, Pipedream, etc." },
     { id: "curl",    label: "Curl / Script",      body: curlBlock,           note: "Drop-in snippets for any shell or backend job." },
