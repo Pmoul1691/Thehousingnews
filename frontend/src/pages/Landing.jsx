@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import api, { API } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
 
 const signIn = () => {
   // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
@@ -1065,6 +1066,16 @@ function FinalCtaSection() {
 
 // ── Top-level page ─────────────────────────────────────────────────────────
 export default function Landing() {
+  // Approved members land on /today, not the marketing page.
+  const { user, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
+  useEffect(() => {
+    if (authLoading) return;
+    if (user && user.status === "approved") {
+      navigate("/today", { replace: true });
+    }
+  }, [user, authLoading, navigate]);
+
   const [essays, setEssays] = useState([]);
   const [dailyEntries, setDailyEntries] = useState([]);
   const [publishers, setPublishers] = useState([]);

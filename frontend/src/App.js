@@ -36,6 +36,7 @@ import Search from "@/pages/Search";
 import Pricing from "@/pages/Pricing";
 import Tag from "@/pages/Tag";
 import Claim from "@/pages/Claim";
+import Today from "@/pages/Today";
 
 // Aggregator pages
 import AggHome from "@/pages/AggHome";
@@ -69,6 +70,7 @@ function Router() {
       <Routes>
         {/* === Members product (owns /) === */}
         <Route path="/" element={<Landing />} />
+        <Route path="/today" element={<Today />} />
         <Route path="/about" element={<About />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/apply" element={<Apply />} />

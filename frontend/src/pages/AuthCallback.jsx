@@ -32,7 +32,7 @@ export default function AuthCallback() {
           if (!me.has_profile) {
             navigate("/onboarding", { replace: true, state: { user: me } });
           } else {
-            navigate("/feed", { replace: true, state: { user: me } });
+            navigate("/today", { replace: true, state: { user: me } });
           }
         } else if (r.data.status === "needs_application") {
           navigate("/apply", { replace: true, state: { user: r.data } });

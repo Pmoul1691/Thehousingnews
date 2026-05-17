@@ -641,6 +641,44 @@ the newsfeed". Three changes:
   pending applications, brief health, and feed errors. Manual trigger at
   `POST /api/admin/trigger-summary`.
 
+## Phase 19 — "Today" home (post-login landing) (2026-02-17)
+- **Goal**: turn every authenticated login into either a read action or a
+  write action without forcing members to navigate. Replaces `/feed` as the
+  default post-login destination.
+- **Backend**: new `GET /api/today` returns a single bundle:
+  - `briefing` — current window (morning vs evening, picked by Chicago time)
+    via the existing `build_brief_payload(db, kind)`. Reuses the same article
+    + trending pipeline as the email briefing.
+  - `recent_essays` — last 5 approved member essays with author profiles.
+  - `top_aggregator` — top 4 publisher articles in the last 24h, deduped by
+    publisher, independent of the briefing.
+  - `my_draft` — the viewer's in-progress draft (or null).
+  - `notifications` — counts of new replies on their posts + new followers
+    since their last `last_today_seen_at` (stamped on every visit).
+- **Frontend** `Today.jsx` (`/today`):
+  - Greeting (time-of-day aware) + date header.
+  - Notification strip (only if counts > 0).
+  - Two-column layout: Briefing + WriteNudge on the left; Recent essays + Top
+    aggregator on the right.
+  - WriteNudge swaps between "Pick up where you left off" (draft title +
+    Continue writing →) and "Your turn" (Start writing →).
+- **Routing**:
+  - Approved members hitting `/` auto-redirect to `/today`.
+  - Post-auth callback now sends approved users with a profile to `/today`
+    instead of `/feed`.
+
+## Phase 20 — Aggregator + Podcast directory additions (2026-02-17)
+- **Added 4 publishers** to the aggregator (now 40 active):
+  Commercial Property Executive, RISMedia Housecall, Miller Samuel, CRE Daily.
+- **Added 7 podcasts** to the directory (now 17 total):
+  Real Estate News for Investors, Power House (HousingWire), HousingWire
+  Daily, Real Estate Today (NAR), Center for REALTOR Development, America's
+  Commercial Real Estate Show, Keeping It Real.
+- **Site favicon**: replaced PNG with user-supplied `Gold.svg` seal as the
+  primary icon (PNG kept as legacy fallback). Same seal also placed next to
+  the wordmark in `Layout.jsx` header, `Layout.jsx` footer, and
+  `AggLayout.jsx` aggregator header.
+
 ## Backlog
 - P0 (user action): DNS for thehousingnews.com.
 - P0 (user action): Newsletter provider choice + API key.
@@ -649,6 +687,8 @@ the newsfeed". Three changes:
   aggregator brief (scope TBD with user).
 - P1: Proxycurl LinkedIn import — **BLOCKED on user providing API key**.
   See "Proxycurl onboarding" section below.
+- P2: Bump hardcoded "from 34 housing sources" copy + "38 SOURCES" mockup on
+  Landing to reflect the now-40 active publisher count.
 - P2: Add real member profile photos to Landing "From the feed" rows.
 - P3: Ship a real MCP server so Claude Desktop can connect via PATs natively
   (replaces the current prompt-engineering recipe).
