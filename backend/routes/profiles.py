@@ -121,12 +121,34 @@ def setup(db):
         async for row in db.posts.aggregate(pipeline):
             essay_counts[row["_id"]] = row["n"]
 
+        # Top-connector counts: how many approved members each profile has
+        # invited. Joins on invite_codes.owner_user_id × users.status='approved'.
+        top_conn_counts: dict = {}
+        prof_uids = [p["user_id"] for p in profs]
+        if prof_uids:
+            inv_rows = await db.invite_codes.find(
+                {"owner_user_id": {"$in": prof_uids},
+                 "redeemed_by_user_id": {"$ne": None}},
+                {"_id": 0, "owner_user_id": 1, "redeemed_by_user_id": 1},
+            ).to_list(5000)
+            all_redeemed = [r["redeemed_by_user_id"] for r in inv_rows]
+            if all_redeemed:
+                approved_redeemers = await db.users.find(
+                    {"user_id": {"$in": all_redeemed}, "status": "approved"},
+                    {"_id": 0, "user_id": 1},
+                ).to_list(5000)
+                approved_set = {u["user_id"] for u in approved_redeemers}
+                for r in inv_rows:
+                    if r["redeemed_by_user_id"] in approved_set:
+                        top_conn_counts[r["owner_user_id"]] = top_conn_counts.get(r["owner_user_id"], 0) + 1
+
         items = []
         for p in profs:
             uid = p["user_id"]
             u = uid_to_user.get(uid) or {}
             li = p.get("linkedin_data") or {}
             top_exp = (li.get("experiences") or [{}])[0]
+            approved_n = top_conn_counts.get(uid, 0)
             items.append({
                 "user_id": uid,
                 "name": p.get("name") or u.get("name") or "",
@@ -139,6 +161,8 @@ def setup(db):
                 "essays_count": essay_counts.get(uid, 0),
                 "is_admin": bool(u.get("is_admin")),
                 "linkedin_url": p.get("linkedin_url"),
+                "is_top_connector": approved_n >= 3,
+                "approved_referrals": approved_n,
             })
 
         # Text search (client-typed)
@@ -208,6 +232,17 @@ def setup(db):
         prof = await db.profiles.find_one({"user_id": user_id}, {"_id": 0})
         if not prof:
             raise HTTPException(status_code=404, detail="Profile not found")
+        # Decorate with top-connector status (computed live; no extra column)
+        n = await db.invite_codes.aggregate([
+            {"$match": {"owner_user_id": user_id, "redeemed_by_user_id": {"$ne": None}}},
+            {"$lookup": {"from": "users", "localField": "redeemed_by_user_id",
+                          "foreignField": "user_id", "as": "u"}},
+            {"$match": {"u.status": "approved"}},
+            {"$count": "approved"},
+        ]).to_list(1)
+        approved = (n[0].get("approved") if n else 0) or 0
+        prof["is_top_connector"] = approved >= 3
+        prof["approved_referrals"] = approved
         return prof
 
     @router.post("/linkedin-import")

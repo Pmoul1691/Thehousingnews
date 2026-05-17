@@ -38,6 +38,7 @@ import Tag from "@/pages/Tag";
 import Claim from "@/pages/Claim";
 import Today from "@/pages/Today";
 import Directory from "@/pages/Directory";
+import Referrals from "@/pages/Referrals";
 import usePageviewTracker from "@/hooks/usePageviewTracker";
 
 // Aggregator pages
@@ -87,6 +88,7 @@ function Router() {
         <Route path="/profile/:id" element={<Profile />} />
         <Route path="/members" element={<Members />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/referrals" element={<Referrals />} />
         <Route path="/upgrade" element={<Upgrade />} />
         <Route path="/upgrade/success" element={<UpgradeSuccess />} />
         <Route path="/essays" element={<Essays />} />

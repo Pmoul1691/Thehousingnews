@@ -124,6 +124,7 @@ export default function Layout({ children }) {
                       <Link to="/prompts" onClick={closeMenu} data-testid="menu-prompts" className="font-display text-xl ink px-4 py-3 rounded-sm hover:bg-[#F5EDD6]/60 hover:text-gold transition-colors">Subjects</Link>
                       <Link to="/library" onClick={closeMenu} data-testid="menu-library" className="font-display text-xl ink px-4 py-3 rounded-sm hover:bg-[#F5EDD6]/60 hover:text-gold transition-colors">Library</Link>
                       <Link to="/members" onClick={closeMenu} data-testid="menu-members" className="font-display text-xl ink px-4 py-3 rounded-sm hover:bg-[#F5EDD6]/60 hover:text-gold transition-colors">Members</Link>
+                      <Link to="/referrals" onClick={closeMenu} data-testid="menu-referrals" className="font-display text-xl ink px-4 py-3 rounded-sm hover:bg-[#F5EDD6]/60 hover:text-gold transition-colors">Referrals</Link>
                       <Link to="/profile" onClick={closeMenu} data-testid="menu-profile" className="font-display text-xl ink px-4 py-3 rounded-sm hover:bg-[#F5EDD6]/60 hover:text-gold transition-colors">Profile</Link>
                       <Link to="/settings" onClick={closeMenu} data-testid="menu-settings" className="font-display text-xl ink px-4 py-3 rounded-sm hover:bg-[#F5EDD6]/60 hover:text-gold transition-colors">Settings</Link>
                       {user.is_admin && (

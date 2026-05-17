@@ -237,6 +237,31 @@ of teams.
 
 
 
+## Phase 29 — Top Connectors: 20 lifetime invites + badge + leaderboard (2026-02-17)
+- **Invites bumped from 2/quarter → 20 lifetime** per member
+  (`routes/invites.py`). Each code is still single-use, 60-day expiry.
+  Legacy `quarter_key` column kept on the row for audits.
+- **New endpoints**:
+  - `GET /api/referrals/me` — issued / redeemed / approved counts +
+    full invitee list (name + status) + `is_top_connector` boolean.
+  - `GET /api/referrals/leaderboard` — top 10 members ranked by
+    approved-referral count. Hides ties below the threshold (3) so the
+    page renders gracefully on a quiet platform.
+- **Top Connector badge** (≥3 approved referrals):
+  - Surfaces on the public Profile header (`pages/Profile.jsx`).
+  - Surfaces on every Member Directory card (`pages/Directory.jsx`)
+    alongside the Editor pill.
+  - Settings invites section now shows live progress (Sent / Redeemed /
+    Approved) + the badge inline once earned.
+- **`/referrals` page** (`pages/Referrals.jsx`, new): Top-Connectors
+  leaderboard with avatar + name + market + approved count. Above it,
+  the member's own progress with a badge-progress bar ("One more
+  approved invite to earn the badge") and a list of "People you brought
+  in" with their current status pills (approved / pending / declined).
+- **"Referrals" link** added to the global member nav (`Layout.jsx`).
+- **Incentive design**: status-only (badge + leaderboard). No cash
+  cost. Three approved invites = badge + #N spot on the public board.
+
 ## Phase 28 — Joined-this-week landing strip + launch analytics confirmation (2026-02-17)
 - **`GET /api/agg/new-members?days=&limit=`** (public, no auth): returns
   members whose user row was created inside the rolling window, sorted by

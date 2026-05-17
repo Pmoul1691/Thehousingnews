@@ -112,6 +112,15 @@ export default function Profile() {
           <p className="uppercase-label mb-2">{profile.market}</p>
           <h1 className="font-display font-semibold text-3xl ink mb-2 flex items-center gap-3 flex-wrap">
             {profile.name}
+            {profile.is_top_connector && (
+              <span
+                data-testid="profile-top-connector-badge"
+                title={`${profile.approved_referrals} approved referrals`}
+                className="font-sans text-[10px] uppercase tracking-[0.16em] bg-gold text-cream px-2 py-1 rounded-sm font-semibold"
+              >
+                Top Connector
+              </span>
+            )}
             {profile.linkedin_url && (
               <a
                 href={profile.linkedin_url}

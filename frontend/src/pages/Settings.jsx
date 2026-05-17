@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import api from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
@@ -212,16 +212,46 @@ export default function Settings() {
           <p className="uppercase-label mb-3">Invitations</p>
           <h2 className="font-display font-semibold text-2xl ink mb-2">Bring someone in.</h2>
           <p className="prose-serif text-base ink/80 leading-relaxed max-w-prose mb-6">
-            Two invite codes per quarter. Each code is one-time-use and expires after sixty days. We still review every application, but a valid code tells us you vouch for the person.
+            Twenty invite codes, lifetime. Each is one-time-use and expires sixty days after you generate it. We still review every application, but a valid code tells us you vouch for the person. Three approved invites earns you the <strong className="text-gold">Top Connector</strong> badge on your profile and a spot on the public leaderboard.
           </p>
 
-          <div className="border hairline rounded-sm bg-cream p-5 mb-6 flex items-center justify-between gap-4 flex-wrap" data-testid="invites-quota">
+          <div className="border hairline rounded-sm bg-cream p-5 mb-6 grid grid-cols-2 sm:grid-cols-4 gap-4" data-testid="invites-quota">
             <div>
-              <div className="font-sans text-xs uppercase tracking-wider text-muted-ink font-semibold">{invites.quarter}</div>
-              <div className="font-display font-semibold text-lg ink mt-1">
-                {invites.remaining} of {invites.max_per_quarter} codes left
+              <div className="font-sans text-[10px] uppercase tracking-wider text-muted-ink font-semibold">Codes left</div>
+              <div className="font-display font-semibold text-2xl ink mt-1" data-testid="invites-remaining">
+                {invites.remaining}
+                <span className="text-muted-ink text-base"> / {invites.lifetime_cap}</span>
               </div>
             </div>
+            <div>
+              <div className="font-sans text-[10px] uppercase tracking-wider text-muted-ink font-semibold">Sent</div>
+              <div className="font-display font-semibold text-2xl ink mt-1">{invites.issued}</div>
+            </div>
+            <div>
+              <div className="font-sans text-[10px] uppercase tracking-wider text-muted-ink font-semibold">Redeemed</div>
+              <div className="font-display font-semibold text-2xl ink mt-1">{invites.redeemed}</div>
+            </div>
+            <div>
+              <div className="font-sans text-[10px] uppercase tracking-wider text-gold font-semibold">Approved</div>
+              <div className="font-display font-semibold text-2xl ink mt-1 flex items-center gap-2" data-testid="invites-approved">
+                {invites.approved}
+                {invites.is_top_connector && (
+                  <span data-testid="top-connector-badge-mine" className="font-sans text-[9px] uppercase tracking-wider bg-gold text-cream px-1.5 py-0.5 rounded-sm font-semibold">
+                    Top Connector
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between gap-4 flex-wrap mb-6">
+            <Link
+              to="/referrals"
+              data-testid="invites-leaderboard-link"
+              className="font-sans text-xs uppercase tracking-[0.18em] font-semibold text-gold hover:text-ink transition-colors"
+            >
+              View the Top Connectors leaderboard &rarr;
+            </Link>
             <button
               data-testid="invites-generate"
               onClick={generate}
@@ -234,7 +264,7 @@ export default function Settings() {
 
           {invites.items.length === 0 ? (
             <p className="font-serif text-sm text-muted-ink italic" data-testid="invites-empty">
-              You have not generated any codes this quarter.
+              You have not generated any codes yet.
             </p>
           ) : (
             <div className="border hairline rounded-sm divide-y divide-[#E8D4A0]" data-testid="invites-list">

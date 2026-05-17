@@ -55,6 +55,15 @@ function MemberCard({ m }) {
                 Editor
               </span>
             ) : null}
+            {m.is_top_connector ? (
+              <span
+                data-testid={`top-connector-badge-${m.user_id}`}
+                title={`${m.approved_referrals} approved referrals`}
+                className="font-mono text-[9px] uppercase tracking-wider bg-gold text-cream px-1.5 py-0.5 rounded-sm font-semibold"
+              >
+                Top Connector
+              </span>
+            ) : null}
           </div>
           {m.headline ? (
             <p
