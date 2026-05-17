@@ -185,22 +185,43 @@ def setup(db):
         public_domain = _public_domain()
         public_url = (await get_public_url(admin)).get("value") or ""
 
-        # Run DNS lookups in a thread so we don't block the loop
-        spf, dkim, dmarc = await asyncio.gather(
+        # Run DNS lookups in a thread so we don't block the loop. Brevo's
+        # dedicated DKIM uses selector `b1` (newer accounts) or `mail`
+        # (legacy / shared signing); pass when EITHER selector resolves a
+        # valid public key, so an account configured against Brevo's new
+        # authentication flow doesn't fail just because the legacy
+        # selector isn't present.
+        spf, dkim_mail, dkim_b1, dmarc = await asyncio.gather(
             asyncio.to_thread(_dns_txt, sender_domain),
             asyncio.to_thread(_dns_txt, f"mail._domainkey.{sender_domain}"),
+            asyncio.to_thread(_dns_txt, f"b1._domainkey.{sender_domain}"),
             asyncio.to_thread(_dns_txt, f"_dmarc.{sender_domain}"),
+        )
+        brevo_spf_includes = ("spf.brevo.com", "sendinblue.com", "_spfm.")
+        spf_ok = any(
+            "v=spf1" in v and any(inc in v for inc in brevo_spf_includes)
+            for v in spf
+        )
+        # DKIM selectors: Brevo CNAMEs b1._domainkey.<domain> to a TXT key
+        # at brevo's DKIM host; dnspython follows CNAMEs and returns the
+        # TXT at the target. A valid record contains `p=<base64-key>`.
+        dkim_records = dkim_mail or dkim_b1
+        dkim_ok = any("p=" in v for v in dkim_records)
+        which_dkim = (
+            "b1._domainkey" if dkim_b1 and not dkim_mail
+            else "mail._domainkey" if dkim_mail
+            else "mail._domainkey"
         )
         checks = [
             {
                 "name": "SPF record",
-                "ok": any("v=spf1" in v and "spf.brevo.com" in v for v in spf),
+                "ok": spf_ok,
                 "detail": next((v for v in spf if "v=spf1" in v), "not found"),
             },
             {
-                "name": "DKIM record (mail._domainkey)",
-                "ok": any("p=" in v and "k=rsa" in v for v in dkim),
-                "detail": (dkim[0][:80] + "...") if dkim else "not found",
+                "name": f"DKIM record ({which_dkim})",
+                "ok": dkim_ok,
+                "detail": (dkim_records[0][:80] + "...") if dkim_records else "not found",
             },
             {
                 "name": "DMARC record",
