@@ -92,13 +92,74 @@ function BrowserChrome({ url, children, className = "" }) {
   );
 }
 
+// ── Favicon helpers ───────────────────────────────────────────────────────
+// Maps the editorial "source name" (as it appears in mockups + category lists)
+// to a canonical hostname. Used to pull real per-publisher favicons from
+// Google's favicon service so the homepage shows actual brand marks instead
+// of single-letter monograms.
+const SOURCE_HOSTS = {
+  "HousingWire": "housingwire.com",
+  "Inman": "inman.com",
+  "RISMedia": "rismedia.com",
+  "TRD New York": "therealdeal.com",
+  "TRD Miami": "therealdeal.com",
+  "TRD LA": "therealdeal.com",
+  "The Real Deal": "therealdeal.com",
+  "Notorious R.O.B.": "notorious-rob.com",
+  "Vendor Alley": "vendoralley.com",
+  "Realtor.com Research": "realtor.com",
+  "Redfin": "redfin.com",
+  "Mortgage News Daily": "mortgagenewsdaily.com",
+  "HousingWire Mortgage": "housingwire.com",
+  "BiggerPockets": "biggerpockets.com",
+  "Tom Ferry": "tomferry.com",
+  "Buffini": "buffini.com",
+  "Miller Samuel": "millersamuel.com",
+  "CRE Daily": "credaily.com",
+  "Calculated Risk": "calculatedriskblog.com",
+  "Eye on Housing": "eyeonhousing.org",
+  "The Close": "theclose.com",
+  "Commercial Observer": "commercialobserver.com",
+  "Multi-Housing News": "multihousingnews.com",
+};
+
+function faviconUrl(source) {
+  const host = SOURCE_HOSTS[source];
+  if (!host) return null;
+  return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=64`;
+}
+
+function SourceFavicon({ source, size = 24, className = "" }) {
+  const [errored, setErrored] = useState(false);
+  const url = faviconUrl(source);
+  if (!url || errored) {
+    return (
+      <div
+        className={`rounded-sm bg-[#1B2A4E] flex items-center justify-center text-white font-display font-semibold shrink-0 ${className}`}
+        style={{ width: size, height: size, fontSize: Math.max(9, size * 0.45) }}
+      >
+        {(source || "?")[0]}
+      </div>
+    );
+  }
+  return (
+    <img
+      src={url}
+      alt={source}
+      width={size}
+      height={size}
+      onError={() => setErrored(true)}
+      className={`rounded-sm bg-white border border-ink/10 shrink-0 object-contain ${className}`}
+      style={{ width: size, height: size }}
+    />
+  );
+}
+
 function MiniDailyCard({ source, label, headline, when, badge }) {
   return (
     <div className="bg-white border border-slate-200 rounded-sm p-3">
       <div className="flex items-center gap-2 mb-2">
-        <div className="w-6 h-6 rounded-sm bg-[#1B2A4E] flex items-center justify-center text-white font-display text-[10px] font-semibold shrink-0">
-          {source[0]}
-        </div>
+        <SourceFavicon source={source} size={24} />
         <p className="font-display font-semibold text-[11px] text-[#1B2A4E] truncate flex-1">{source}</p>
         {badge && (
           <span className={`font-sans text-[8px] uppercase tracking-[0.14em] font-semibold px-1 py-[1px] rounded-sm ${badge.cls}`}>
@@ -605,14 +666,14 @@ function TheNetworkSection({ members }) {
 
 // ── SECTION 2A: Intelligence network ──────────────────────────────────────
 const CATEGORY_CARDS = [
-  { key: "national",   label: "National",   sample: "HousingWire, Inman, RISMedia" },
-  { key: "regional",   label: "Regional",   sample: "TRD New York, TRD Miami, TRD LA" },
-  { key: "blogs",      label: "Blogs",      sample: "Notorious R.O.B., Vendor Alley" },
-  { key: "data",       label: "Data",       sample: "Realtor.com Research, Redfin" },
-  { key: "mortgage",   label: "Mortgage",   sample: "Mortgage News Daily, HousingWire Mortgage" },
-  { key: "commentary", label: "Commentary", sample: "Member essays, market notes" },
-  { key: "podcasts",   label: "Podcasts",   sample: "BiggerPockets, Tom Ferry, Buffini" },
-  { key: "research",   label: "Research",   sample: "Brokerage research, white papers" },
+  { key: "national",   label: "National",   sources: ["HousingWire", "Inman", "RISMedia"] },
+  { key: "regional",   label: "Regional",   sources: ["TRD New York", "TRD Miami", "TRD LA"] },
+  { key: "blogs",      label: "Blogs",      sources: ["Notorious R.O.B.", "Miller Samuel", "Calculated Risk"] },
+  { key: "data",       label: "Data",       sources: ["Realtor.com Research", "Redfin", "Eye on Housing"] },
+  { key: "mortgage",   label: "Mortgage",   sources: ["Mortgage News Daily", "HousingWire Mortgage"] },
+  { key: "commentary", label: "Commentary", sources: [], sample: "Member essays, market notes" },
+  { key: "podcasts",   label: "Podcasts",   sources: ["BiggerPockets", "Tom Ferry", "Buffini"] },
+  { key: "research",   label: "Research",   sources: [], sample: "Brokerage research, white papers" },
 ];
 
 function IntelligenceNetworkSection() {
@@ -631,15 +692,15 @@ function IntelligenceNetworkSection() {
           </p>
           <ul className="mt-10 grid grid-cols-3 gap-6 max-w-md" data-testid="landing-network-stats">
             <li>
-              <p className="font-display font-semibold text-[34px] text-ink leading-none">38+</p>
+              <p className="font-display font-semibold text-[34px] text-ink leading-none">40+</p>
               <p className="font-sans text-[11px] uppercase tracking-[0.18em] text-ink/55 mt-1 font-semibold">Sources</p>
             </li>
             <li>
-              <p className="font-display font-semibold text-[34px] text-ink leading-none">28</p>
+              <p className="font-display font-semibold text-[34px] text-ink leading-none">30</p>
               <p className="font-sans text-[11px] uppercase tracking-[0.18em] text-ink/55 mt-1 font-semibold">Publishers</p>
             </li>
             <li>
-              <p className="font-display font-semibold text-[34px] text-ink leading-none">10</p>
+              <p className="font-display font-semibold text-[34px] text-ink leading-none">17</p>
               <p className="font-sans text-[11px] uppercase tracking-[0.18em] text-ink/55 mt-1 font-semibold">Podcasts</p>
             </li>
           </ul>
@@ -661,7 +722,20 @@ function IntelligenceNetworkSection() {
                 className="block bg-cream-soft border border-gold/25 rounded-sm p-5 hover:border-gold transition-colors group"
               >
                 <p className="font-display font-semibold text-[18px] text-ink group-hover:text-gold transition-colors">{c.label}</p>
-                <p className="font-serif text-[13px] italic text-ink/55 mt-1">{c.sample}</p>
+                {c.sources && c.sources.length > 0 ? (
+                  <div className="mt-2.5 flex items-center gap-2 flex-wrap">
+                    <div className="flex -space-x-1.5">
+                      {c.sources.map((s) => (
+                        <SourceFavicon key={s} source={s} size={22} className="ring-2 ring-cream-soft" />
+                      ))}
+                    </div>
+                    <p className="font-serif text-[13px] italic text-ink/55">
+                      {c.sources.join(", ")}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="font-serif text-[13px] italic text-ink/55 mt-1">{c.sample}</p>
+                )}
               </Link>
             </li>
           ))}

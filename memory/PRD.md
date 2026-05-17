@@ -667,6 +667,32 @@ the newsfeed". Three changes:
   - Post-auth callback now sends approved users with a profile to `/today`
     instead of `/feed`.
 
+## Phase 24 — Member Directory + Landing favicons (2026-02-17)
+
+### Member Directory (`/members`)
+- New `GET /api/profile/directory` returns approved non-suspended members
+  with name, market, bio, avatar, current role + company (auto-imported
+  from LinkedIn cache when available), essay count, and LinkedIn URL.
+  Server-side text filter on name / market / bio / role / company.
+- New `pages/Directory.jsx` renders a searchable grid, split into a
+  "Writers" section (members with approved essays) followed by everyone
+  else. "Editor" badge on admin accounts. Deep-links to `/m/{user_id}`.
+- "Members" link already exists in the main nav menu — now points to a
+  real page instead of a 404.
+
+### Landing-page favicons
+- New `SourceFavicon` helper in Landing.jsx maps editorial source names
+  (HousingWire, Inman, TRD, BiggerPockets, etc.) to canonical hostnames
+  and renders Google's favicon service (`/s2/favicons?domain=...&sz=64`)
+  with a single-letter monogram fallback on load error.
+- `MiniDailyCard` (hero mockup) now shows real brand marks instead of
+  generic letter squares.
+- `IntelligenceNetworkSection` categories restructured: each card now
+  carries a `sources[]` array, and the card renders a stacked row of
+  favicons under the title.
+- Network stat tiles updated to current real counts: 40+ Sources, 30
+  Publishers, 17 Podcasts (was 38+/28/10).
+
 ## Phase 23 — MCP server + Moderation patterns + audit-trail tuning (2026-02-17)
 
 ### MCP server for Claude Desktop (replaces prompt-engineering recipe)

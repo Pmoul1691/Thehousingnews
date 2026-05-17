@@ -75,6 +75,87 @@ def setup(db):
         prof["is_stub"] = is_stub
         return prof
 
+    @router.get("/directory")
+    async def member_directory(
+        session_token: Optional[str] = Cookie(default=None),
+        authorization: Optional[str] = Header(default=None),
+        q: Optional[str] = None,
+        limit: int = 60,
+    ):
+        """Public-ish directory of approved members. Returns name, market,
+        bio, avatar, the current role (from LinkedIn import if available),
+        and a count of approved essays. Requires authentication so the
+        directory isn't scraped by random crawlers, but any approved member
+        can view it.
+        """
+        viewer = await get_current_user(db, session_token, authorization)
+        if viewer.get("status") != "approved":
+            raise HTTPException(status_code=403, detail="Membership not approved")
+
+        # Pull approved, non-suspended users.
+        user_match = {"status": "approved", "suspended": {"$ne": True}}
+        approved = await db.users.find(
+            user_match,
+            {"_id": 0, "user_id": 1, "name": 1, "email": 1, "is_admin": 1},
+        ).to_list(2000)
+        uid_to_user = {u["user_id"]: u for u in approved}
+        uids = list(uid_to_user.keys())
+        if not uids:
+            return {"items": [], "count": 0}
+
+        # Pull their profiles (only ones with a real market/bio show up).
+        profs = await db.profiles.find(
+            {"user_id": {"$in": uids}, "is_stub": {"$ne": True}},
+            {"_id": 0, "user_id": 1, "name": 1, "market": 1, "bio": 1,
+             "avatar_path": 1, "objectives": 1, "linkedin_data": 1,
+             "linkedin_url": 1},
+        ).to_list(2000)
+
+        # Per-user essay counts
+        essay_counts: dict = {}
+        pipeline = [
+            {"$match": {"user_id": {"$in": [p["user_id"] for p in profs]},
+                        "kind": "essay", "status": "approved"}},
+            {"$group": {"_id": "$user_id", "n": {"$sum": 1}}},
+        ]
+        async for row in db.posts.aggregate(pipeline):
+            essay_counts[row["_id"]] = row["n"]
+
+        items = []
+        for p in profs:
+            uid = p["user_id"]
+            u = uid_to_user.get(uid) or {}
+            li = p.get("linkedin_data") or {}
+            top_exp = (li.get("experiences") or [{}])[0]
+            items.append({
+                "user_id": uid,
+                "name": p.get("name") or u.get("name") or "",
+                "market": p.get("market") or li.get("location") or "",
+                "bio": (p.get("bio") or li.get("headline") or "")[:280],
+                "avatar_path": p.get("avatar_path") or li.get("profile_pic_url"),
+                "current_role": top_exp.get("title") or li.get("occupation") or "",
+                "current_company": top_exp.get("company") or "",
+                "essays_count": essay_counts.get(uid, 0),
+                "is_admin": bool(u.get("is_admin")),
+                "linkedin_url": p.get("linkedin_url"),
+            })
+
+        # Text search (client-typed)
+        if q:
+            ql = q.strip().lower()
+            items = [it for it in items if (
+                ql in (it["name"] or "").lower()
+                or ql in (it["market"] or "").lower()
+                or ql in (it["bio"] or "").lower()
+                or ql in (it["current_role"] or "").lower()
+                or ql in (it["current_company"] or "").lower()
+            )]
+
+        # Members who've written essays first, then alphabetical
+        items.sort(key=lambda x: (-x["essays_count"], (x["name"] or "").lower()))
+
+        return {"items": items[:limit], "count": len(items)}
+
     @router.put("")
     async def upsert_profile(payload: ProfileUpdate, user=Depends(_user)):
         if user.get("status") != "approved":
