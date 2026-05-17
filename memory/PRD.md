@@ -542,6 +542,24 @@ the newsfeed". Three changes:
 - Eyebrow: "What members are writing about · last 14 days". Tag pills
   display `#tag` + count.
 
+## Phase 15 — "Connect Claude" recipe card in /settings (2026-02-16)
+- Replaced the simple `<details>How to use a token` curl block with a
+  **tabbed "Quick connect" recipes panel** showing copy-pasteable snippets
+  for the four most common integrations:
+  - **Claude (Projects)** — drop-in Project Instructions that teach Claude
+    how to POST to `/api/posts` on the user's behalf with their PAT.
+  - **ChatGPT (Custom GPT Actions)** — full OpenAPI 3.0 schema ready to
+    paste into the Custom GPT Actions editor; `bearerAuth` security wired.
+  - **n8n / Zapier / Make** — HTTP-Request-node config (method, URL,
+    headers, body shape).
+  - **Curl / Script** — bash + Python `requests` snippets.
+- Each tab has its own Copy button and a 1-line note about where to paste
+  the snippet. If the user just created a token this session, the snippets
+  inline the actual raw value; otherwise a `<your-thn-pat-token>`
+  placeholder is shown with a footer hint to substitute it.
+- API base URL is auto-derived from `window.location.origin` so the
+  recipes are accurate in any deployment.
+
 ## Backlog
 - P0 (user action): DNS for thehousingnews.com.
 - P0 (user action): Newsletter provider choice + API key.

@@ -300,18 +300,161 @@ export default function Settings() {
         )}
 
         <details className="mt-6 font-sans text-sm text-muted-ink" data-testid="pat-usage-help">
-          <summary className="cursor-pointer text-ink font-semibold">How to use a token</summary>
-          <div className="mt-3 prose-serif leading-relaxed">
-            <p>Pass the token as a Bearer header on any authenticated request:</p>
-            <pre className="bg-cream-soft border hairline rounded-sm p-3 mt-2 overflow-x-auto text-xs">
-{`curl -X POST https://thehousingnews.com/api/posts \\
-  -H "Authorization: Bearer thn_pat_xxxxxxxxxxxxxxx" \\
-  -H "Content-Type: application/json" \\
-  -d '{"kind":"short","text":"Hello from Claude.","tags":["test"]}'`}
-            </pre>
+          <summary className="cursor-pointer text-ink font-semibold">Quick connect — Claude, ChatGPT, n8n, scripts</summary>
+          <div className="mt-4">
+            <PatRecipes prefilledToken={revealedToken} />
           </div>
         </details>
       </section>
+    </div>
+  );
+}
+
+// ── PAT recipes ────────────────────────────────────────────────────────────
+// Copy-pasteable snippets so a member can wire up Claude / ChatGPT / n8n / a
+// script in under 30 seconds. If we have a freshly-created token in state we
+// inline it; otherwise we show a `<your-thn-pat-token>` placeholder.
+function PatRecipes({ prefilledToken }) {
+  const [tab, setTab] = useState("claude");
+  const tokenStr = prefilledToken || "<your-thn-pat-token>";
+  // Use the current origin so dev previews still work; production resolves to
+  // https://thehousingnews.com automatically.
+  const apiBase = typeof window !== "undefined" ? window.location.origin : "https://thehousingnews.com";
+
+  const copy = (txt) => {
+    navigator.clipboard.writeText(txt).then(
+      () => toast.success("Copied"),
+      () => toast.error("Copy failed"),
+    );
+  };
+
+  const claudeProjectPrompt = `You can publish posts to my account on The Housing News on my behalf.
+
+When I ask you to "post", "publish", or "share" something to The Housing News, send a POST request to:
+  ${apiBase}/api/posts
+with these headers:
+  Authorization: Bearer ${tokenStr}
+  Content-Type: application/json
+and a body like:
+  { "kind": "short", "text": "<the post body, including any #hashtags>", "tags": [] }
+
+For longer essays, set "kind": "essay" and include a "title" and "subtitle".
+
+Before sending, always show me the final text and confirm. After publishing, share the returned post_id so I can review it on the platform.`;
+
+  const customGptYaml = `openapi: 3.0.0
+info:
+  title: The Housing News
+  version: "1.0"
+servers:
+  - url: ${apiBase}
+paths:
+  /api/posts:
+    post:
+      operationId: createPost
+      summary: Publish a post or essay to The Housing News
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [kind, text]
+              properties:
+                kind: { type: string, enum: [short, essay] }
+                title: { type: string }
+                subtitle: { type: string }
+                text: { type: string }
+                tags: { type: array, items: { type: string } }
+      responses:
+        "200":
+          description: Created
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer`;
+
+  const n8nConfig = `Method: POST
+URL: ${apiBase}/api/posts
+Authentication: Header Auth
+  Name: Authorization
+  Value: Bearer ${tokenStr}
+Headers:
+  Content-Type: application/json
+Body (JSON):
+  {
+    "kind": "short",
+    "text": "{{ $json.text }}",
+    "tags": []
+  }`;
+
+  const curlBlock = `# Bash / curl
+curl -X POST ${apiBase}/api/posts \\
+  -H "Authorization: Bearer ${tokenStr}" \\
+  -H "Content-Type: application/json" \\
+  -d '{"kind":"short","text":"Hello from my CLI.","tags":["test"]}'
+
+# Python (requests)
+import requests
+requests.post(
+  "${apiBase}/api/posts",
+  headers={"Authorization": "Bearer ${tokenStr}"},
+  json={"kind": "short", "text": "Hello from Python.", "tags": []},
+).json()`;
+
+  const recipes = [
+    { id: "claude",  label: "Claude (Projects)",  body: claudeProjectPrompt, note: "Paste into Claude → Projects → Project Instructions. Then ask Claude to post anything." },
+    { id: "gpt",     label: "ChatGPT (Actions)",  body: customGptYaml,       note: "In your Custom GPT → Configure → Actions → Add. Paste this OpenAPI schema and add the token under Authentication." },
+    { id: "n8n",     label: "n8n / Zapier / Make", body: n8nConfig,          note: "Use any HTTP Request node. Same recipe works for Zapier, Make, Pipedream, etc." },
+    { id: "curl",    label: "Curl / Script",      body: curlBlock,           note: "Drop-in snippets for any shell or backend job." },
+  ];
+
+  const active = recipes.find((r) => r.id === tab) || recipes[0];
+
+  return (
+    <div data-testid="pat-recipes" className="border hairline rounded-sm bg-cream-soft p-4">
+      <div className="flex items-center gap-1 flex-wrap mb-3" role="tablist">
+        {recipes.map((r) => (
+          <button
+            key={r.id}
+            type="button"
+            role="tab"
+            aria-selected={tab === r.id}
+            onClick={() => setTab(r.id)}
+            data-testid={`pat-recipe-tab-${r.id}`}
+            className={`font-sans text-[12px] uppercase tracking-[0.12em] font-semibold px-3 py-1.5 rounded-sm transition-colors ${
+              tab === r.id ? "bg-ink text-cream" : "text-muted-ink hover:text-ink"
+            }`}
+          >
+            {r.label}
+          </button>
+        ))}
+      </div>
+      <p className="font-serif text-[13px] text-ink/75 italic mb-3">{active.note}</p>
+      <div className="relative">
+        <pre
+          data-testid={`pat-recipe-body-${active.id}`}
+          className="bg-white border hairline rounded-sm p-3 overflow-x-auto text-[11.5px] leading-relaxed font-mono whitespace-pre-wrap break-words max-h-[360px] overflow-y-auto"
+        >
+{active.body}
+        </pre>
+        <button
+          type="button"
+          onClick={() => copy(active.body)}
+          data-testid={`pat-recipe-copy-${active.id}`}
+          className="absolute top-2 right-2 bg-ink text-cream font-sans font-semibold text-[11px] uppercase tracking-wider px-2.5 py-1 rounded-sm hover:bg-gold transition-colors"
+        >
+          Copy
+        </button>
+      </div>
+      {!prefilledToken && (
+        <p className="font-sans text-[11px] text-muted-ink mt-3">
+          Replace <code className="bg-white px-1.5 py-0.5 rounded-sm">{"<your-thn-pat-token>"}</code> with a token from the list above.
+        </p>
+      )}
     </div>
   );
 }
