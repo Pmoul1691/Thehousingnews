@@ -216,7 +216,7 @@ function HeroSection() {
             data-testid="landing-headline"
             className="font-display font-semibold tracking-tight text-[44px] sm:text-[58px] lg:text-[68px] leading-[0.96] text-ink mt-6"
           >
-            Where housing
+            Where the housing industry
             <br />
             reads.
             <br />
