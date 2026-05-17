@@ -65,6 +65,13 @@ async def build_launch_payload(db) -> dict:
 def render_launch_html(member_name: str, payload: dict) -> str:
     base = _base_url()
     greeting = _greeting_name(member_name)
+    logo_block = (
+        f'<div style="text-align:center; margin-bottom:16px;">'
+        f'<img src="{base}/brand/logo-mark.png" alt="The Housing News" '
+        f'width="80" height="80" style="display:inline-block; width:80px; height:80px; max-width:80px;" />'
+        f'</div>'
+        if base else ""
+    )
     prompt = payload.get("prompt") or {}
     prompt_block = ""
     if prompt.get("title"):
@@ -85,6 +92,7 @@ def render_launch_html(member_name: str, payload: dict) -> str:
       <div style="max-width:600px; margin:0 auto; background:#FDFAF4; border:1px solid #E8D4A0; padding:40px;">
 
         <div style="text-align:center; margin-bottom:28px;">
+          {logo_block}
           <div style="font-family:'Plus Jakarta Sans', Arial, sans-serif; font-weight:600; color:#AD893E; letter-spacing:0.22em; text-transform:uppercase; font-size:11px;">The Housing News</div>
           <div style="font-family:Georgia, serif; font-style:italic; color:#5C4A1F; font-size:13px; margin-top:6px;">A daily magazine for the real estate industry.</div>
         </div>

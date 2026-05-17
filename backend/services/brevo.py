@@ -125,13 +125,31 @@ def add_to_list(email: str, list_name: str, attributes: Optional[dict] = None) -
 
 # ---------- Email templates ----------
 
+def _logo_html(size: int = 72) -> str:
+    """Returns the gold-bloom mark as a centered <img>. Uses APP_PUBLIC_URL
+    so email clients (Gmail/Outlook/Apple Mail) can fetch the PNG. Hidden
+    gracefully (empty string) when APP_PUBLIC_URL is unset so transactional
+    emails sent from dev/CI don't render a broken-image placeholder.
+    """
+    base = os.environ.get("APP_PUBLIC_URL", "").rstrip("/")
+    if not base:
+        return ""
+    return (
+        f'<div style="text-align:center; margin:0 0 20px 0;">'
+        f'<img src="{base}/brand/logo-mark.png" alt="The Housing News" '
+        f'width="{size}" height="{size}" style="display:inline-block; width:{size}px; height:{size}px; max-width:{size}px;" />'
+        f'</div>'
+    )
+
+
 def _wrap(body_html: str) -> str:
     return f"""
     <div style="font-family: Georgia, serif; color:#2C2410; background:#FDFAF4; padding:32px;">
       <div style="max-width:560px; margin:0 auto; background:#FDFAF4; border:1px solid #E8D4A0; padding:32px;">
-        <div style="font-family:'Plus Jakarta Sans', Arial, sans-serif; font-weight:600; color:#AD893E; letter-spacing:0.12em; text-transform:uppercase; font-size:12px; margin-bottom:24px;">The Housing News</div>
+        {_logo_html(64)}
+        <div style="font-family:'Plus Jakarta Sans', Arial, sans-serif; font-weight:600; color:#AD893E; letter-spacing:0.12em; text-transform:uppercase; font-size:12px; margin-bottom:24px; text-align:center;">The Housing News</div>
         {body_html}
-        <div style="margin-top:32px; padding-top:24px; border-top:1px solid #E8D4A0; font-family:'Plus Jakarta Sans', Arial, sans-serif; font-size:12px; color:#2C2410;">Pete Moulton</div>
+        <div style="margin-top:32px; padding-top:24px; border-top:1px solid #E8D4A0; font-family:'Plus Jakarta Sans', Arial, sans-serif; font-size:12px; color:#2C2410;">The Editors</div>
       </div>
     </div>
     """
@@ -366,6 +384,7 @@ def _brief_wrap(kind: str, body_html: str, app_url: str) -> str:
     <div style="font-family: Georgia, serif; color:#2C2410; background:#FDFAF4; padding:24px 0;">
       <div style="max-width:600px; margin:0 auto; background:#FDFAF4;">
         <div style="text-align:center; padding-bottom:24px; border-bottom:2px solid #2C2410;">
+          {_logo_html(72)}
           <div style="font-family:'Plus Jakarta Sans', Arial, sans-serif; font-weight:600; color:#AD893E; letter-spacing:0.28em; text-transform:uppercase; font-size:11px;">The Housing News</div>
           <div style="font-family:'Plus Jakarta Sans', Arial, sans-serif; font-weight:600; color:#2C2410; font-size:28px; margin-top:8px;">{label}</div>
           <div style="font-family:Georgia, serif; font-style:italic; color:#AD893E; font-size:13px; margin-top:4px;">{today} · {time_str}</div>

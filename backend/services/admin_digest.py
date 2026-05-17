@@ -232,8 +232,9 @@ def render_admin_digest_html(data: dict) -> str:
     return f"""
     <div style="font-family: Georgia, serif; color:#2C2410; background:#FDFAF4; padding:32px 0;">
       <div style="max-width:600px; margin:0 auto; background:#FDFAF4; border:1px solid #E8D4A0; padding:32px;">
-        <div style="font-family:'Plus Jakarta Sans', Arial, sans-serif; font-weight:600; color:#AD893E; letter-spacing:0.12em; text-transform:uppercase; font-size:11px; margin-bottom:8px;">Editors' Sunday brief</div>
-        <h1 style="font-family:'Plus Jakarta Sans', Arial, sans-serif; font-weight:600; font-size:24px; color:#2C2410; margin:0 0 24px 0;">The last seven days, in numbers.</h1>
+        {('<div style="text-align:center; margin-bottom:16px;"><img src="' + base + '/brand/logo-mark.png" alt="The Housing News" width="64" height="64" style="display:inline-block; width:64px; height:64px; max-width:64px;" /></div>') if base else ''}
+        <div style="font-family:'Plus Jakarta Sans', Arial, sans-serif; font-weight:600; color:#AD893E; letter-spacing:0.12em; text-transform:uppercase; font-size:11px; margin-bottom:8px; text-align:center;">Editors' Sunday brief</div>
+        <h1 style="font-family:'Plus Jakarta Sans', Arial, sans-serif; font-weight:600; font-size:24px; color:#2C2410; margin:0 0 24px 0; text-align:center;">The last seven days, in numbers.</h1>
 
         <table cellpadding="0" cellspacing="0" border="0" style="width:100%; border-collapse:collapse; border-top:1px solid #E8D4A0;">
           <tr><td colspan="2" style="padding:14px 0 6px 0;"><div style="font-family:'Plus Jakarta Sans', Arial, sans-serif; font-weight:600; font-size:11px; letter-spacing:0.18em; text-transform:uppercase; color:#AD893E;">Applications</div></td></tr>
