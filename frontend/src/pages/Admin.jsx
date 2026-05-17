@@ -164,12 +164,12 @@ export default function Admin() {
         {[
           { k: "dashboard", l: "Dashboard" },
           { k: "membership", l: "Membership" },
-          { k: "analytics", l: "Analytics" },
+          { k: "analytics", l: "Site Analytics" },
           { k: "aimod", l: "AI Review" },
           { k: "apps", l: "Applications" },
           { k: "mod", l: "Moderation" },
           { k: "subjects", l: "Subjects" },
-          { k: "stats", l: "Analytics" },
+          { k: "stats", l: "Member Analytics" },
           { k: "invite", l: "Invite" },
           { k: "orphans", l: "Orphans" },
         ].map((t) => (

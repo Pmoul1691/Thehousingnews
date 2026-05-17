@@ -18,6 +18,8 @@ export default function Settings() {
   const [newPatBusy, setNewPatBusy] = useState(false);
   const [revealedToken, setRevealedToken] = useState(null);
   const [scopeCatalog, setScopeCatalog] = useState([]);
+  const [profile, setProfile] = useState(null);
+  const [linkedinBusy, setLinkedinBusy] = useState(false);
 
   useEffect(() => {
     if (loading) return;
@@ -33,8 +35,22 @@ export default function Settings() {
       api.get("/me/invites").then((r) => setInvites(r.data)).catch(() => setInvites(null)),
       api.get("/pats").then((r) => setPats(r.data.items || [])).catch(() => setPats([])),
       api.get("/pats/scopes").then((r) => setScopeCatalog(r.data.items || [])).catch(() => setScopeCatalog([])),
+      api.get(`/profile/${user.user_id}`).then((r) => setProfile(r.data)).catch(() => setProfile(null)),
     ]).finally(() => setFetching(false));
   }, [user, loading, navigate]);
+
+  const resyncLinkedin = async () => {
+    setLinkedinBusy(true);
+    try {
+      const r = await api.post("/profile/linkedin-import", { linkedin_url: profile?.linkedin_url || "" });
+      // Refresh the cached profile so the synced_at timestamp updates
+      const fresh = await api.get(`/profile/${user.user_id}`);
+      setProfile(fresh.data);
+      toast.success(`Resynced from LinkedIn${r.data?.suggested?.name ? ` — ${r.data.suggested.name}` : ""}`);
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || "Could not resync");
+    } finally { setLinkedinBusy(false); }
+  };
 
   const save = async (next) => {
     setSaving(true);
@@ -140,6 +156,55 @@ export default function Settings() {
             <ToggleRow label="Evening Brief" hint="5:30pm Chicago — top 8 articles + 24h trending topics." checked={prefs.brief_evening !== false} disabled={saving} onChange={(v) => save({ ...prefs, brief_evening: v })} testid="toggle-brief-pm" />
           </div>
         </>
+      )}
+
+      {invites && (
+        <section className="mt-16" data-testid="linkedin-section">
+          <p className="uppercase-label mb-3">LinkedIn</p>
+          <h2 className="font-display font-semibold text-2xl ink mb-2">Career profile.</h2>
+          <p className="prose-serif text-base ink/80 leading-relaxed max-w-prose mb-6">
+            We pulled your headline, location, work history, and education from LinkedIn when you joined. Re-sync if your role or location has changed and you want the network to see it.
+          </p>
+
+          <div className="border hairline rounded-sm bg-cream p-5 flex items-center justify-between gap-4 flex-wrap" data-testid="linkedin-card">
+            <div className="min-w-0">
+              {profile?.linkedin_url ? (
+                <>
+                  <div className="font-sans text-xs uppercase tracking-wider text-muted-ink font-semibold">Connected</div>
+                  <a
+                    href={profile.linkedin_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-display font-semibold text-base ink mt-1 hover:text-gold transition-colors break-all"
+                    data-testid="linkedin-url"
+                  >
+                    {profile.linkedin_url}
+                  </a>
+                  <div className="font-sans text-xs text-muted-ink mt-1">
+                    {profile.linkedin_data?.synced_at
+                      ? <>Last synced {new Date(profile.linkedin_data.synced_at).toLocaleString()}</>
+                      : <>Not yet synced</>}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="font-sans text-xs uppercase tracking-wider text-muted-ink font-semibold">Not connected</div>
+                  <div className="font-serif text-sm ink/80 mt-1 italic">
+                    Add your LinkedIn URL from your profile page first, then re-sync here.
+                  </div>
+                </>
+              )}
+            </div>
+            <button
+              onClick={resyncLinkedin}
+              disabled={linkedinBusy || !profile?.linkedin_url}
+              data-testid="linkedin-resync-btn"
+              className="bg-gold text-cream font-sans font-semibold text-sm px-5 py-2 rounded-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+            >
+              {linkedinBusy ? "Syncing…" : "Re-sync from LinkedIn"}
+            </button>
+          </div>
+        </section>
       )}
 
       {invites && (

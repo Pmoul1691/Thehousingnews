@@ -237,6 +237,21 @@ of teams.
 
 
 
+## Phase 26 — LinkedIn re-sync + Admin tab rename (2026-02-17)
+- **Settings page** (`pages/Settings.jsx`): added "Career profile" section that
+  shows the member's connected LinkedIn URL, last-sync timestamp (from
+  `profiles.linkedin_data.synced_at`), and a gold "Re-sync from LinkedIn"
+  button. The button hits the existing `POST /api/profile/linkedin-import`
+  endpoint (EnrichLayer), which refreshes the cached headline/location/work
+  history/education without overwriting user-edited fields (market/bio/
+  objectives). Disabled when no LinkedIn URL is on file with a hint to add
+  one from the profile page first.
+- **Admin tab disambiguation**: `/admin` previously rendered two tabs both
+  labeled "Analytics" (the new Phase 24 Site Analytics + the legacy Phase 4a
+  Member Analytics panel). Renamed to **Site Analytics** (new — pageviews,
+  acquisition, engagement, retention/churn, traffic) and **Member Analytics**
+  (legacy — membership counts, application funnel, posts/week).
+
 ## Phase 25 — P2 sweep: trending strip, members filter, preview-DB reset, ToS stamping (2026-02-15)
 - **Trending topics strip** (`services/trending.py`, `GET /api/agg/trending`): n-gram extraction from aggregator headline titles, returns bigrams and trigrams with count >= 2 in the last `hours` window (default 24h, max 168h). Trigrams ranked first, then bigrams that aren't already contained in a chosen trigram. Stopword + generic real-estate filler list applied. Frontend `AggTrendingStrip.jsx` renders the chips above the river on `/`; clicking a chip drops the `?topic=` URL param which widens the river fetch to a 168-hour / 100-item window so the chip count and the in-memory filter agree. Active filter shows a clear "Filtering · {topic} ✕ · N of M items" banner.
 - **Admin members directory filter** (`routes/users.py::list_members`): new optional `?filter=comped|supporter|free` query param (admin-only, returns 403 otherwise). Each row now carries an `entitlement` object for admin viewers (`{tier, partner_tier, is_supporter, supporter_until, source, email}`). Filter logic: comped → `partner_tier` truthy or `source=partners_auto_grant`; supporter → `supporter_until > now` and not comped; free → neither. Frontend `/members` page shows the 4-chip filter strip only when `user.is_admin`, and renders an `EntitlementChip` next to each member's name.
