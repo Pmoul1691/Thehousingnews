@@ -11,6 +11,7 @@ import AdminOverview from "@/components/AdminOverview";
 import AdminMembership from "@/components/AdminMembership";
 import AdminAiModeration from "@/components/AdminAiModeration";
 import AdminAnalytics from "@/components/AdminAnalytics";
+import AdminLaunchPanel from "@/components/AdminLaunchPanel";
 
 function RssImportButton() {
   const [busy, setBusy] = useState(false);
@@ -171,6 +172,7 @@ export default function Admin() {
           { k: "subjects", l: "Subjects" },
           { k: "stats", l: "Member Analytics" },
           { k: "invite", l: "Invite" },
+          { k: "launch", l: "Launch" },
           { k: "orphans", l: "Orphans" },
         ].map((t) => (
           <button
@@ -198,6 +200,8 @@ export default function Admin() {
         <AdminPromptsPanel />
       ) : section === "invite" ? (
         <AdminInvitePanel />
+      ) : section === "launch" ? (
+        <AdminLaunchPanel />
       ) : section === "orphans" ? (
         <>
           <p className="prose-serif text-sm text-muted-ink mb-6 max-w-prose">

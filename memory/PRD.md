@@ -237,6 +237,30 @@ of teams.
 
 
 
+## Phase 27 — Welcome wagon launch broadcast (2026-02-17)
+- **`services/launch_broadcast.py`**: one-time public-launch email builder
+  + dispatcher. Magazine-aesthetic HTML (cream/gold/ink, serif body,
+  uppercase gold eyebrows) with personalized greeting, 3 CTAs (The Daily /
+  Open the desk / Open the directory), Subject-of-the-week call-out when
+  active, dynamic publisher + podcast counts. Idempotent via
+  `email_dispatches.kind="launch_broadcast"` — every member receives it
+  once unless `force=True` is passed.
+- **`routes/admin_launch.py`** (`/api/admin/launch/*`):
+  - `GET /preview` — returns rendered HTML + eligibility counts (total /
+    already_sent / remaining).
+  - `POST /send` — fires the broadcast. Requires `{"confirm":"LAUNCH"}`
+    body to guard against fat-finger triggers. Optional `force` flag.
+  - `POST /send-test {email}` — single test copy with `[TEST]` subject
+    prefix. No dispatch row recorded.
+- **`components/AdminLaunchPanel.jsx`** mounted as a new "Launch" tab in
+  `/admin`: eligibility tiles, test-send input, typed-confirmation broadcast
+  button (with optional Force-resend toggle), and live iframe preview of
+  the rendered email.
+- **End-to-end verified** with the real Brevo API: test send returned a
+  `messageId`; idempotency confirmed (second `/send` returned sent=0
+  skipped=4); dispatch table cleaned post-test so the real Pete can fire
+  it fresh from the UI on launch day.
+
 ## Phase 26 — LinkedIn re-sync + Career block + Directory headlines + Admin tab rename (2026-02-17)
 - **Settings page** (`pages/Settings.jsx`): added "Career profile" section
   with connected LinkedIn URL, last-sync timestamp, and a gold "Re-sync from

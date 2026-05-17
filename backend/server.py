@@ -48,6 +48,7 @@ from routes.pats import setup as setup_pats
 from routes.podcasts import setup as setup_podcasts
 from routes.today import setup as setup_today
 from routes.admin_moderation import setup as setup_admin_moderation
+from routes.admin_launch import setup as setup_admin_launch
 from routes.mcp import setup as setup_mcp
 from routes.events import setup as setup_events
 from routes.admin_analytics import setup as setup_admin_analytics
@@ -325,3 +326,4 @@ app.include_router(setup_admin_moderation(db))
 app.include_router(setup_mcp(db))
 app.include_router(setup_events(db))
 app.include_router(setup_admin_analytics(db))
+app.include_router(setup_admin_launch(db))
