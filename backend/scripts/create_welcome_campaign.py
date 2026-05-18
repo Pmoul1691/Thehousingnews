@@ -1,0 +1,136 @@
+"""
+One-shot script: create a DRAFT Brevo email campaign for the Chicago Nurtured 0526 list.
+Pete will review in Brevo dashboard and click Send.
+"""
+import os
+import requests
+from dotenv import load_dotenv
+
+load_dotenv("/app/backend/.env")
+
+API_KEY = os.environ["BREVO_API_KEY"]
+LIST_ID = 2  # "Chicago Nurtured 0526"
+SENDER_NAME = "Peter Moulton"
+SENDER_EMAIL = "peter@thehousingnews.com"
+REPLY_TO = "peter@thehousingnews.com"
+SUBJECT = "Welcome to The Housing News. Free forever."
+CAMPAIGN_NAME = "Chicago Nurtured 0526 — Welcome (Free forever)"
+HEADER_IMG = "https://customer-assets.emergentagent.com/job_58b0e722-6ed4-44a2-898f-d2ea7ee81145/artifacts/9tgdg7gl_Therealestatenewslogofinal.png"
+
+HTML = """<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<title>Welcome to The Housing News</title>
+<style>
+  body { margin:0; padding:0; background:#F5EDD6; font-family: Georgia, 'Times New Roman', serif; color:#1a1a1a; }
+  a { color:#B8860B; text-decoration: none; }
+  .wrap { width:100%; background:#F5EDD6; padding:24px 0; }
+  .card { max-width:600px; margin:0 auto; background:#FFFCF2; }
+  .header { background:#000; }
+  .header img { display:block; width:100%; height:auto; }
+  .content { padding:36px 36px 28px 36px; font-family: Georgia, 'Times New Roman', serif; font-size:17px; line-height:1.7; color:#1a1a1a; }
+  .content p { margin:0 0 18px 0; }
+  .btn-wrap { text-align:center; margin:28px 0; }
+  .btn { display:inline-block; background:#B8860B; color:#fff !important; padding:14px 28px; font-family: Helvetica, Arial, sans-serif; font-size:15px; font-weight:600; letter-spacing:0.3px; border-radius:2px; }
+  .footer { padding:24px 36px 32px 36px; font-family: Helvetica, Arial, sans-serif; font-size:12px; color:#777; line-height:1.6; border-top:1px solid #E6DDC4; }
+  .footer a { color:#777; text-decoration: underline; }
+  .sig { font-family: Georgia, serif; font-size:16px; color:#1a1a1a; }
+  .small { font-family: Helvetica, Arial, sans-serif; font-size:13px; color:#666; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+      <tr><td align="center">
+        <table role="presentation" class="card" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;background:#FFFCF2;">
+          <tr>
+            <td class="header" style="background:#000;">
+              <a href="https://thehousingnews.com" target="_blank">
+                <img src="__HEADER_IMG__" alt="The Housing News" width="600" style="display:block;width:100%;height:auto;" />
+              </a>
+            </td>
+          </tr>
+          <tr>
+            <td class="content">
+              <p>{% if contact.FIRSTNAME %}{{ contact.FIRSTNAME }}{% else %}There{% endif %},</p>
+
+              <p>Welcome to The Housing News.</p>
+
+              <p>You have spent years in this business. You've closed the deals that nearly fell apart, learned the lessons nobody teaches, and built a point of view the industry almost never hears. That voice deserves an audience. I built The Housing News to give it one. This is your platform. Use it.</p>
+
+              <p>You're among the first agents anywhere to get this, and that's deliberate. I launched in Chicagoland before anywhere else because Chicago is home. I've spent 28 years in this business, most of them right here, selling homes and helping lead five brokerages through every kind of market. I started where I know the ground best, with the agents I've known the longest. You're my people, so you're my first invitation.</p>
+
+              <p>Here's the problem. No agent has time to read The Real Deal, Inman, Curbed, HousingWire, the regional trades, and the podcasts. There aren't enough hours in a showing day.</p>
+
+              <p><em>So our editors read them for you.</em></p>
+
+              <p>Twice a day, at 7:30 a.m. and 5:30 p.m. Central, you get eight stories the industry is actually talking about, plus one podcast worth your time. Forty sources. No algorithm. One of our editors, someone who has worked in this business, picks the eight that matter and cuts the rest. Sized to read in ninety seconds.</p>
+
+              <p>It's free, and it stays free. No paywall. No premium tier. No upsell. Free forever for everyone in housing. That's a promise, not an introductory rate. Consider The Housing News my gift to an industry that has been good to me.</p>
+
+              <p>Your seat is one click away.</p>
+
+              <div class="btn-wrap">
+                <a class="btn" href="https://thehousingnews.com/subscribe" target="_blank" style="background:#B8860B;color:#ffffff;display:inline-block;padding:14px 28px;font-family:Helvetica,Arial,sans-serif;font-size:15px;font-weight:600;letter-spacing:0.3px;border-radius:2px;text-decoration:none;">Claim your spot &nbsp;&rarr;</a>
+              </div>
+
+              <p>The Housing News is more than a brief. It's a network, and you're part of it. Because you're early, you're also among the first to publish here. The agents who write now set the tone for everyone who comes after.</p>
+
+              <p>Real estate writing comes in two flavors: corporate press releases and clickbait. Almost none of it comes from the people doing the work. We're changing that.</p>
+
+              <p>You can publish here. The deal that fell apart and what it taught you. A note on your market. The thing nobody warned you about in year one. You've done this job, so you have something worth saying. Think of it as a Substack built for housing, where every voice has been in the room.</p>
+
+              <p>No gatekeepers. The daily feed and every post on the site are open to anyone who visits, no account and no login required. When you want to add your own voice, sign in. That one step makes you a contributor: listed in the directory and free to post. No application, no approval queue. No one decides whether your voice belongs here. You do.</p>
+
+              <p>One more ask, and it matters to me. We're new, and you're seeing us early. Tell me what we get wrong. What's missing from the brief? What would sharpen the site? Reply to this email and tell me directly. The feedback you send in these first weeks will shape what The Housing News becomes. You're helping build it, not just reading it.</p>
+
+              <p>So, welcome. Read today's edition, skip what you don't want, and forward this to the agents who belong here too. The bigger the network, the sharper the brief, and the louder the working agent's voice.</p>
+
+              <p class="small">Today's edition: <a href="https://thehousingnews.com/news" target="_blank" style="color:#B8860B;">thehousingnews.com/news</a></p>
+
+              <p class="sig" style="margin-top:28px;">Pete Moulton<br/>
+              <span class="small" style="color:#666;">Founder &amp; Editor, The Housing News</span></p>
+            </td>
+          </tr>
+          <tr>
+            <td class="footer">
+              You're on my list. Not for you? Ignore this, and I won't write again.<br/><br/>
+              <a href="https://thehousingnews.com" target="_blank">thehousingnews.com</a>
+              &nbsp;·&nbsp;
+              <a href="{{ unsubscribe }}">Unsubscribe</a>
+            </td>
+          </tr>
+        </table>
+      </td></tr>
+    </table>
+  </div>
+</body>
+</html>
+"""
+
+html = HTML.replace("__HEADER_IMG__", HEADER_IMG)
+
+payload = {
+    "name": CAMPAIGN_NAME,
+    "subject": SUBJECT,
+    "sender": {"name": SENDER_NAME, "email": SENDER_EMAIL},
+    "replyTo": REPLY_TO,
+    "htmlContent": html,
+    "recipients": {"listIds": [LIST_ID]},
+    "inlineImageActivation": False,
+    "mirrorActive": True,
+    "footer": "The Housing News · Chicago · {{ unsubscribe }}",
+    "header": "If this email does not display correctly, view it in your browser.",
+}
+
+r = requests.post(
+    "https://api.brevo.com/v3/emailCampaigns",
+    headers={"accept": "application/json", "content-type": "application/json", "api-key": API_KEY},
+    json=payload,
+    timeout=30,
+)
+print("status:", r.status_code)
+print("body:", r.text)
