@@ -16,6 +16,7 @@ REPLY_TO = "peter@thehousingnews.com"
 SUBJECT = "Welcome to The Housing News. Free forever."
 CAMPAIGN_NAME = "Chicago Nurtured 0526 — Welcome (Free forever)"
 HEADER_IMG = "https://customer-assets.emergentagent.com/job_58b0e722-6ed4-44a2-898f-d2ea7ee81145/artifacts/9tgdg7gl_Therealestatenewslogofinal.png"
+SIGNATURE_IMG = "https://customer-assets.emergentagent.com/job_58b0e722-6ed4-44a2-898f-d2ea7ee81145/artifacts/yct8hskj_prm%20signature.png"
 
 HTML = """<!doctype html>
 <html lang="en">
@@ -91,7 +92,9 @@ HTML = """<!doctype html>
 
               <p class="small">Today's edition: <a href="https://thehousingnews.com/news" target="_blank" style="color:#B8860B;">thehousingnews.com/news</a></p>
 
-              <p class="sig" style="margin-top:28px;">Pete Moulton<br/>
+              <p class="sig" style="margin-top:28px;margin-bottom:6px;">
+                <img src="__SIGNATURE_IMG__" alt="Pete Moulton signature" width="180" style="display:block;width:180px;height:auto;margin:0 0 6px 0;border:0;outline:none;" />
+                Pete Moulton<br/>
               <span class="small" style="color:#666;">Founder &amp; Editor, The Housing News</span></p>
             </td>
           </tr>
@@ -111,8 +114,9 @@ HTML = """<!doctype html>
 </html>
 """
 
-html = HTML.replace("__HEADER_IMG__", HEADER_IMG)
+html = HTML.replace("__HEADER_IMG__", HEADER_IMG).replace("__SIGNATURE_IMG__", SIGNATURE_IMG)
 
+CAMPAIGN_ID = 5  # existing draft to update; set to None to create a new one
 payload = {
     "name": CAMPAIGN_NAME,
     "subject": SUBJECT,
@@ -126,11 +130,21 @@ payload = {
     "header": "If this email does not display correctly, view it in your browser.",
 }
 
-r = requests.post(
-    "https://api.brevo.com/v3/emailCampaigns",
-    headers={"accept": "application/json", "content-type": "application/json", "api-key": API_KEY},
-    json=payload,
-    timeout=30,
-)
-print("status:", r.status_code)
-print("body:", r.text)
+if CAMPAIGN_ID:
+    r = requests.put(
+        f"https://api.brevo.com/v3/emailCampaigns/{CAMPAIGN_ID}",
+        headers={"accept": "application/json", "content-type": "application/json", "api-key": API_KEY},
+        json=payload,
+        timeout=30,
+    )
+    print("UPDATE status:", r.status_code)
+    print("body:", r.text or f"(updated campaign {CAMPAIGN_ID})")
+else:
+    r = requests.post(
+        "https://api.brevo.com/v3/emailCampaigns",
+        headers={"accept": "application/json", "content-type": "application/json", "api-key": API_KEY},
+        json=payload,
+        timeout=30,
+    )
+    print("CREATE status:", r.status_code)
+    print("body:", r.text)
