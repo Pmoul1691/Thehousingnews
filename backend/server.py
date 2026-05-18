@@ -178,7 +178,7 @@ async def on_startup():
 
     # Seed publishers (idempotent — only inserts missing slugs).
     try:
-        from services.agg_seed import SEED_PUBLISHERS
+        from services.agg_seed import SEED_PUBLISHERS, KEYWORD_FILTERS
         from datetime import datetime as _dt
         import uuid as _uuid
         _now = _dt.utcnow().isoformat()
@@ -196,6 +196,13 @@ async def on_startup():
                     "created_at": _now, "updated_at": _now,
                 }},
                 upsert=True,
+            )
+        # Apply per-publisher keyword filters (always overwrite so config in
+        # agg_seed.py is the source of truth).
+        for slug, kws in KEYWORD_FILTERS.items():
+            await db.agg_publishers.update_one(
+                {"slug": slug},
+                {"$set": {"keyword_filter": kws, "updated_at": _now}},
             )
     except Exception as _e:
         logger.warning("aggregator seed failed: %s", _e)

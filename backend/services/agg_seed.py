@@ -45,7 +45,28 @@ SEED_PUBLISHERS = [
     # 2026-02-16: Additional newsletter sources seeded for the newsletter category.
     ("Real Estate News",        "realestatenews",   "newsletter",     "https://www.realestatenews.com/feed",                  "https://www.realestatenews.com",     "headline_and_snippet", "pending"),
     ("Notebook by Brad Inman",  "brad-inman",       "newsletter",     "https://www.inman.com/category/brad-inman/feed/",      "https://www.inman.com/category/brad-inman", "headline_and_snippet", "pending"),
+    # 2026-05-18: Major mainstream publisher. TheStreet's full feed is mixed-topic; the housing-specific feed is blocked. We use the full feed and rely on downstream filtering.
+    ("TheStreet",               "thestreet",        "national_trade", "https://www.thestreet.com/.rss/full/",                  "https://www.thestreet.com/real-estate", "headline_and_snippet", "pending"),
 ]
 
 
 CATEGORIES = ["national_trade", "regional", "industry_blog", "data_research", "mortgage", "newsletter", "commercial_re"]
+
+
+# Per-publisher keyword filters — applied to article TITLES at ingest time so
+# that mixed-topic feeds only contribute housing-relevant items. Slug → list.
+KEYWORD_FILTERS: dict[str, list[str]] = {
+    "thestreet": [
+        "housing", "mortgage", "mortgages", "real estate", "home price",
+        "home prices", "home sales", "homebuyer", "homebuyers", "homeowner",
+        "homeowners", "renter", "renters", "rental", "rentals", "landlord",
+        "landlords", "apartment", "apartments", "condo", "condos", "listing",
+        "listings", "realtor", "realtors", "builder", "builders", "homebuilding",
+        "homebuilders", "construction", "property", "properties", "zillow",
+        "redfin", "compass", "fannie mae", "freddie mac", "hud", "fha", "mls",
+        "foreclosure", "foreclosures", "refinance", "refinancing", "refi",
+        "interest rate", "interest rates", "fed rate", "fed cut", "fed hike",
+        "house", "houses", "single-family", "multifamily", "multi-family",
+        "affordability",
+    ],
+}

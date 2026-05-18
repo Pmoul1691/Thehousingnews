@@ -267,6 +267,24 @@ async def ingest_publisher(db, publisher: dict) -> dict:
         )
         return {"publisher_id": pub_id, "ok": False, "reason": "parse_error", "inserted": 0}
 
+    # Optional per-publisher keyword filter — used for mixed-topic feeds (e.g.
+    # TheStreet's full firehose) where we only want housing-relevant items.
+    # Matches on word boundaries so short keywords don't trigger false positives.
+    keywords = publisher.get("keyword_filter") or []
+    if keywords:
+        import re
+        pattern = re.compile(
+            r"\b(?:" + "|".join(re.escape(k) for k in keywords) + r")\b",
+            re.IGNORECASE,
+        )
+        def _matches(e):
+            # Title-only match — snippets contain too many incidental
+            # mentions of "house"/"property"/etc. and produce false positives.
+            return bool(pattern.search(e.get("title", "")))
+        before = len(entries)
+        entries = [e for e in entries if _matches(e)]
+        logger.info("keyword filter for %s: %d/%d kept", pub_id, len(entries), before)
+
     inserted = 0
     skipped = 0
     fetched_at = _now_iso()
