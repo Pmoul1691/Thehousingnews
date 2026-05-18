@@ -70,7 +70,7 @@ export default function Layout({ children }) {
 
           {/* Primary nav — visible on desktop only. Keeps the burger menu as a
               full sitemap, but exposes the four most-trafficked surfaces inline. */}
-          <nav className="hidden md:flex items-center gap-6 mx-auto" aria-label="Primary">
+          <nav className="hidden md:flex items-center gap-6 flex-1 justify-center" aria-label="Primary">
             {authed ? (
               <>
                 <Link to="/feed" data-testid="primary-nav-feed" className={`font-sans text-sm font-medium transition-colors ${loc.pathname === "/feed" ? "text-gold" : "ink hover:text-gold"}`}>Feed</Link>

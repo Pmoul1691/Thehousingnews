@@ -1243,3 +1243,45 @@ Three small but high-leverage follow-ups to the email auth ship:
 - Screenshots confirm the banner renders on `/join` with the user's email +
   Resend button, and the admin badge displays `5` (matching the
   `db.improvements` count_documents result).
+
+
+## 2026-02-18 — Flow audit batch (7 UI improvements + improvement auto-replies)
+
+### Improvement auto-reply emails (Brevo)
+- `POST /api/improvements` now fires a thank-you email to the submitter
+  (when they provided an email) — echoes their text back as a blockquote.
+- `POST /api/admin/improvements/{id}/status` fires a status email when the
+  improvement transitions to **reviewing** or **done** (skips `dismissed` and
+  same-state re-marks). Logged with the Brevo `messageId` for audit.
+
+### Site-flow improvements (all 7 from the audit)
+1. **Header primary nav** (`Layout.jsx`) — desktop-only `Feed/Essays/Members/News`
+   (signed in) or `News/Essays/Subscribe/About` (anonymous). Active route is
+   highlighted gold. Centred via `flex-1 justify-center`.
+2. **`/signin` redesign** — defaults to Email+Password form with
+   signin/signup sub-tabs. Google + magic-link demoted to a row of secondary
+   buttons below the form ("Continue with Google" + "Email me a link" toggle).
+   Honors `?next=` for round-trip auth.
+3. **Today's brief strip on `/feed`** — gold-bordered row right under the
+   greeting, links to `/today` (data-testid=`feed-today-strip`).
+4. **Back-to-Feed moved into header** — small chevron-left next to the
+   wordmark on signed-in routes other than `/feed`. The floating
+   `BackToFeedButton` component was deleted.
+5. **Verify > Welcome banner priority** — `Feed.jsx` welcome banner now
+   requires `user.email_verified !== false` so unverified users only see the
+   verify banner.
+6. **`/join` redirects unauthed visitors** to `/signin?next=/join` via
+   `useEffect`. AuthCallback honours `?next=` for the round-trip.
+7. **Empty-state CTAs** — Directory now shows "Invite a member →" when a
+   search returns nothing and "The room is still small / Invite someone"
+   when no members exist at all. Essays shows "Open the editor" for
+   signed-in users or "Get the daily brief →" for anonymous.
+
+### Testing
+- iter25: backend 33/33 + 1 skip; frontend 13/13 spec items + regressions.
+- Test files: `/app/backend/tests/test_iter25_verify_gate.py`,
+  `test_iter22_improvements_admin.py`, `test_iter24_email_auth.py`.
+- Note: the email_verified gate on `POST /api/posts` is shadowed by the
+  membership-approval gate for fresh signups (both return 403). Functionally
+  identical — left as-is since post-signup users would also need to be
+  approved before the verify message could ever surface.
