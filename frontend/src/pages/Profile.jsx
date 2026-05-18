@@ -3,7 +3,6 @@ import { Link, useParams } from "react-router-dom";
 import api, { API } from "@/lib/api";
 import PostItem from "@/components/PostItem";
 import PageMeta from "@/components/PageMeta";
-import EntitlementBadge from "@/components/EntitlementBadge";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 
@@ -138,8 +137,6 @@ export default function Profile() {
             )}
           </h1>
           {profile.bio && <p className="prose-serif text-base ink/80 leading-relaxed mb-4 max-w-prose">{profile.bio}</p>}
-
-          {isSelf && <EntitlementBadge />}
 
           <div className="flex items-center gap-4 mt-3">
             {isSelf ? (

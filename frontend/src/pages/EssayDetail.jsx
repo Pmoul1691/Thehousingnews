@@ -209,7 +209,6 @@ export default function EssayDetail() {
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
               <Link to={`/profile/${author.user_id}`} className="font-display font-semibold text-base ink hover:text-gold transition-colors">{author.name}</Link>
-              {author.is_supporter && <span className="text-gold text-sm leading-none">✦</span>}
             </div>
             <div className="font-sans text-xs text-muted-ink">
               {author.market ? `${author.market} . ` : ""}{formatWhen(essay.release_at || essay.created_at)}

@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 BREVO_API_KEY = os.environ.get("BREVO_API_KEY")
 SENDER_EMAIL = os.environ.get("BREVO_SENDER_EMAIL", "peter@1691inc.com")
-SENDER_NAME = os.environ.get("BREVO_SENDER_NAME", "Peter Moulton")
+SENDER_NAME = os.environ.get("BREVO_SENDER_NAME", "The Housing News")
 API_BASE = "https://api.brevo.com/v3"
 
 

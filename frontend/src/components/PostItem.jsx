@@ -125,7 +125,6 @@ function EssayCard({ post, user, onChange }) {
               <Link to={`/profile/${author.user_id}`} className="font-sans text-sm font-semibold ink hover:text-gold transition-colors truncate">
                 {author.name || "Member"}
               </Link>
-              {author.is_supporter && <span className="text-gold text-sm leading-none">✦</span>}
             </div>
             {author.market && <div className="font-sans text-xs text-muted-ink">{author.market}</div>}
           </div>
@@ -195,9 +194,6 @@ export default function PostItem({ post, showReplies = true, compact = false, on
             <Link to={`/profile/${author.user_id}`} data-testid={`post-author-${post.post_id}`} className="font-sans text-sm font-semibold ink hover:text-gold transition-colors">
               {author.name || "Member"}
             </Link>
-            {author.is_supporter && (
-              <span data-testid={`supporter-badge-${post.post_id}`} title="Network supporter" className="text-gold text-sm leading-none">✦</span>
-            )}
           </div>
           {author.market && <div className="font-sans text-xs text-muted-ink mt-0.5">{author.market}</div>}
         </div>

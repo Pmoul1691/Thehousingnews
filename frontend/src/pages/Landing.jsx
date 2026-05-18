@@ -332,7 +332,7 @@ function HeroSection() {
           </div>
 
           <p className="mt-3 font-sans text-[12px] text-ink/55" data-testid="landing-pricing-note">
-            Free 30-day trial when you sign up now.
+            Free forever for everyone in housing.
           </p>
 
           <p className="mt-8 font-sans text-[12.5px] text-ink/55 tracking-wide">
@@ -1188,7 +1188,7 @@ function FinalCtaSection() {
             data-testid="landing-final-apply"
             className="inline-flex items-center justify-center bg-gold text-ink font-sans font-semibold text-[14px] px-8 py-3 rounded-sm hover:bg-cream transition-colors"
           >
-            Start 30-day free trial
+            Join the network
           </Link>
           <Link
             to="/news"
@@ -1198,7 +1198,7 @@ function FinalCtaSection() {
           </Link>
         </div>
         <p className="mt-6 font-sans text-[12px] text-cream/50" data-testid="landing-final-pricing">
-          $12.50/mo or $100/yr after trial.
+          Free forever for everyone in housing.
         </p>
       </div>
     </section>

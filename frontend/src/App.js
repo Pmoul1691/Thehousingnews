@@ -20,10 +20,9 @@ import Onboarding from "@/pages/Onboarding";
 import Feed from "@/pages/Feed";
 import PublicFeed from "@/pages/PublicFeed";
 import Profile from "@/pages/Profile";
-import Members from "@/pages/Members";
+import Directory from "@/pages/Directory";
+import Referrals from "@/pages/Referrals";
 import Settings from "@/pages/Settings";
-import Upgrade from "@/pages/Upgrade";
-import UpgradeSuccess from "@/pages/UpgradeSuccess";
 import EssayDetail from "@/pages/EssayDetail";
 import Essays from "@/pages/Essays";
 import Library from "@/pages/Library";
@@ -33,12 +32,9 @@ import EmailHealth from "@/pages/EmailHealth";
 import Prompts from "@/pages/Prompts";
 import PromptDetail from "@/pages/PromptDetail";
 import Search from "@/pages/Search";
-import Pricing from "@/pages/Pricing";
 import Tag from "@/pages/Tag";
 import Claim from "@/pages/Claim";
 import Today from "@/pages/Today";
-import Directory from "@/pages/Directory";
-import Referrals from "@/pages/Referrals";
 import usePageviewTracker from "@/hooks/usePageviewTracker";
 
 // Aggregator pages
@@ -86,11 +82,8 @@ function Router() {
         <Route path="/public" element={<PublicFeed />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/profile/:id" element={<Profile />} />
-        <Route path="/members" element={<Members />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/referrals" element={<Referrals />} />
-        <Route path="/upgrade" element={<Upgrade />} />
-        <Route path="/upgrade/success" element={<UpgradeSuccess />} />
         <Route path="/essays" element={<Essays />} />
         <Route path="/essays/:id" element={<EssayDetail />} />
         <Route path="/library" element={<Library />} />
@@ -100,7 +93,6 @@ function Router() {
         <Route path="/prompts" element={<Prompts />} />
         <Route path="/prompts/:id" element={<PromptDetail />} />
         <Route path="/search" element={<Search />} />
-        <Route path="/pricing" element={<Pricing />} />
         <Route path="/tag/:tag" element={<Tag />} />
         <Route path="/claim" element={<Claim />} />
 

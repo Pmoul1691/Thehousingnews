@@ -1,7 +1,7 @@
 """Morning + Evening housing-news brief dispatchers.
 
-Curated digest emails sent at 7:30 AM and 5:30 PM America/Chicago to all
-approved and invited (30-day trial) members.
+Curated digest emails sent at 7:30 AM and 5:30 PM America/Chicago to every
+approved member. The Housing News is free forever for everyone in housing.
 
 - Morning Brief: top 8 publisher articles from last 14h + 1 podcast pick + 1
   recent member essay.

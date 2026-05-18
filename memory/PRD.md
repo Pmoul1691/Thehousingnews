@@ -237,6 +237,41 @@ of teams.
 
 
 
+## Phase 30 — Strip paid scaffolding + personal branding (2026-02-17)
+**Positioning pivot**: The Housing News is now explicitly "Free forever for
+everyone in housing." Pete's name appears only on his own essays/posts
+(natural bylines) and admin curation labels — never as a brand center.
+
+- **Deleted**: `pages/Upgrade.jsx`, `pages/UpgradeSuccess.jsx`,
+  `pages/Pricing.jsx`, `pages/Members.jsx` (duplicate route, was unreachable
+  behind `Directory`), `components/EntitlementBadge.jsx`.
+- **Routes removed**: `/upgrade`, `/upgrade/success`, `/pricing`,
+  duplicate `/members → Members`.
+- **Copy changes**:
+  - Landing hero subnote: "Free 30-day trial when you sign up now." →
+    "Free forever for everyone in housing."
+  - Landing final CTA: "Start 30-day free trial" → "Join the network",
+    pricing line: "$12.50/mo or $100/yr after trial." → "Free forever for
+    everyone in housing."
+  - `/claim` (partner-invite landing): removed "30 days, free" +
+    "$12.50/mo or $100/yr" → "Free forever for everyone in housing."
+  - `/about` editors block: dropped Ultradian Partners + Ultradia.io
+    cross-promo paragraph → "The Housing News is free forever for
+    everyone in housing."
+- **UI scaffolding removed**:
+  - Gold ✦ supporter badge next to author names on `PostItem.jsx` and
+    `EssayDetail.jsx`.
+  - "Supporters" stat tile on `AdminAnalyticsPanel.jsx`.
+  - "Stripe supporter" filter on the (now-deleted) Members page.
+  - "Paying or trial" / "In 30-day trial" hints on `AdminOverview.jsx`.
+- **Email defaults**: `services/brevo.py` default `SENDER_NAME` changed
+  from `"Peter Moulton"` to `"The Housing News"`. `.env` already
+  overrides to `"The Housing News"` so no behavior change in prod.
+- **Backend left intact** (dormant): `routes/payments.py`,
+  `routes/partners.py`, the legacy `users.entitlement` filter. Nothing
+  in the frontend calls them. Kept the code so the admin team can audit
+  historical Stripe charges if needed; surfaces are gone.
+
 ## Phase 29 — Top Connectors: 20 lifetime invites + badge + leaderboard (2026-02-17)
 - **Invites bumped from 2/quarter → 20 lifetime** per member
   (`routes/invites.py`). Each code is still single-use, 60-day expiry.

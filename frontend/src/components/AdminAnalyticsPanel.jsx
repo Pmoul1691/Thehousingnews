@@ -32,11 +32,10 @@ export default function AdminAnalyticsPanel() {
     <div data-testid="admin-analytics" className="space-y-12">
       <section>
         <p className="uppercase-label mb-4">Members</p>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <Stat label="Approved" value={data.members.total_approved} />
           <Stat label="Active 14d" value={data.members.active_14d} hint="Posted in the last 14 days" />
           <Stat label="With profile" value={data.members.with_profile} />
-          <Stat label="Supporters" value={data.members.supporters} />
           <Stat label="Suspended" value={data.members.suspended} />
         </div>
       </section>
