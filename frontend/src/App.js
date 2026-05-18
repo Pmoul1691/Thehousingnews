@@ -36,6 +36,10 @@ import Tag from "@/pages/Tag";
 import Claim from "@/pages/Claim";
 import Today from "@/pages/Today";
 import Subscribe from "@/pages/Subscribe";
+import SignIn from "@/pages/SignIn";
+import VerifyEmail from "@/pages/VerifyEmail";
+import MagicLinkConsume from "@/pages/MagicLinkConsume";
+import ResetPassword from "@/pages/ResetPassword";
 import usePageviewTracker from "@/hooks/usePageviewTracker";
 import FloatingWriteButton from "@/components/FloatingWriteButton";
 import FloatingSuggestButton from "@/components/FloatingSuggestButton";
@@ -78,6 +82,10 @@ function Router() {
         <Route path="/members" element={<Directory />} />
         <Route path="/about" element={<About />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
+        <Route path="/signin" element={<SignIn />} />
+        <Route path="/auth/verify-email" element={<VerifyEmail />} />
+        <Route path="/auth/magic" element={<MagicLinkConsume />} />
+        <Route path="/auth/reset-password" element={<ResetPassword />} />
         <Route path="/join" element={<Join />} />
         <Route path="/subscribe" element={<Subscribe />} />
         <Route path="/pending" element={<PendingReview />} />

@@ -53,6 +53,7 @@ from routes.newsletter import setup as setup_newsletter
 from routes.improvements import setup as setup_improvements
 from routes.admin_users import setup as setup_admin_users
 from routes.admin_posts import setup as setup_admin_posts
+from routes.auth_email import setup as setup_auth_email
 from routes.mcp import setup as setup_mcp
 from routes.events import setup as setup_events
 from routes.admin_analytics import setup as setup_admin_analytics
@@ -224,6 +225,15 @@ async def on_startup():
     except Exception as _e:
         logger.warning("improvements indexes not created: %s", _e)
 
+    # Email auth — single-use tokens + brute-force counters
+    try:
+        await db.auth_tokens.create_index("token", unique=True)
+        await db.auth_tokens.create_index([("email", 1), ("kind", 1), ("created_at", -1)])
+        await db.auth_tokens.create_index("expires_at")
+        await db.login_attempts.create_index("identifier", unique=True)
+    except Exception as _e:
+        logger.warning("auth_tokens / login_attempts indexes not created: %s", _e)
+
     # Load DB-stored APP_PUBLIC_URL override into the process env so tracking links use it
     try:
         row = await db.app_settings.find_one({"key": "APP_PUBLIC_URL"}, {"_id": 0})
@@ -343,3 +353,4 @@ app.include_router(setup_newsletter(db))
 app.include_router(setup_improvements(db))
 app.include_router(setup_admin_users(db))
 app.include_router(setup_admin_posts(db))
+app.include_router(setup_auth_email(db))

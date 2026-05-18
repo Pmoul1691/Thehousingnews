@@ -70,17 +70,13 @@ export default function Layout({ children }) {
                 >
                   Join
                 </Link>
-                <button
+                <Link
+                  to="/signin"
                   data-testid="nav-signin"
-                  onClick={() => {
-                    // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
-                    const redirectUrl = window.location.origin + "/auth/callback";
-                    window.location.href = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(redirectUrl)}`;
-                  }}
                   className="hidden sm:inline font-sans text-sm font-medium ink hover:text-gold transition-colors"
                 >
                   Sign in
-                </button>
+                </Link>
               </>
             )}
             {user && !authed && (
@@ -127,17 +123,14 @@ export default function Layout({ children }) {
                   {!authed && !user && (
                     <>
                       <Link to="/join" onClick={closeMenu} data-testid="menu-apply" className="font-display text-xl ink px-4 py-3 rounded-sm hover:bg-[#F5EDD6]/60 hover:text-gold transition-colors">Join</Link>
-                      <button
-                        onClick={() => {
-                          closeMenu();
-                          const redirectUrl = window.location.origin + "/auth/callback";
-                          window.location.href = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(redirectUrl)}`;
-                        }}
+                      <Link
+                        to="/signin"
+                        onClick={closeMenu}
                         data-testid="menu-signin"
                         className="text-left font-display text-xl ink px-4 py-3 rounded-sm hover:bg-[#F5EDD6]/60 hover:text-gold transition-colors"
                       >
                         Sign in
-                      </button>
+                      </Link>
                     </>
                   )}
                   <Link to="/about" onClick={closeMenu} data-testid="menu-about" className="font-display text-xl ink px-4 py-3 rounded-sm hover:bg-[#F5EDD6]/60 hover:text-gold transition-colors">About</Link>

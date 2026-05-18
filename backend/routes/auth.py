@@ -69,6 +69,10 @@ def setup(db):
             user_id = existing["user_id"]
             # Refresh picture/name only if blank
             update = {"last_login_at": now_iso}
+            # Google sign-in implicitly verifies the email (Google did the work).
+            if not existing.get("email_verified"):
+                update["email_verified"] = True
+                update["email_verified_at"] = now_iso
             if not existing.get("picture") and picture:
                 update["picture"] = picture
             if not existing.get("name") and (partner_name or name):
@@ -142,6 +146,8 @@ def setup(db):
                     else ("profile_recovery" if existing_profile else "google")
                 ),
                 "partner_tier": bridge.get("subscription_tier"),
+                "email_verified": True,  # Google sign-in verifies the email
+                "email_verified_at": now_iso,
                 "created_at": now_iso,
                 "last_login_at": now_iso,
             }
@@ -204,6 +210,8 @@ def setup(db):
             "is_admin": user.get("is_admin", False),
             "status": user.get("status", "needs_application"),
             "has_profile": bool(profile),
+            "email_verified": bool(user.get("email_verified")),
+            "has_password": bool(user.get("password_hash")),
         }
 
     @router.post("/logout")

@@ -1,0 +1,30 @@
+{
+  "summary": "Iter24 email-auth tested end-to-end. Backend: 19/19 pytest cases pass covering signup (success/duplicate/weak-pw/non-admin status), signin (success/wrong-pw/5-fail lockout=>429), magic-link (request/consume/verify-flip/invalid/reuse), email verify (no-enum/consume/reuse-fails/invalid), password reset (no-enum/no-token-for-passwordless/full-flow with session invalidation+weak-pw 422), /auth/me returns has_password+email_verified, admin regression with tok_smoke_admin_v2 still works, account-linking simulation verifies same user_id and flag stickiness. Frontend: /signin renders Google + Magic-link + Email+password options (magic default); email+password signup creates user (POST /api/auth/email/signup returns 200) and redirects to /join (needs_application path), /api/auth/me returns has_password:true email_verified:false; signin returns to /join (same user, approved path would be /feed); Forgot password fires (toast-based - silent in DOM but no errors); Magic-link 'Check your inbox' card renders with data-testid=signin-magic-sent; /auth/verify-email?token=invalid shows verify-err; /auth/magic?token=invalid shows magic-err; /auth/reset-password?token=... renders reset-form, reset-pw, reset-pw-confirm, reset-submit. data-testids from spec all present.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter24_email_auth.py",
+    "/app/test_reports/pytest/pytest_iter24.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "backend/.env defines APP_PUBLIC_URL TWICE (lines 12 and 18). Line 18 (https://thehousingnews.com) wins, so verify/magic/reset emails will point at the production domain not the preview env. Functionally fine in prod but confusing in preview/testing — recommend deduping and keeping the env-appropriate value.",
+    "routes/auth_email.py:341 calls clear_attempts(db, f\"{user['email']}:*\") but record_failed_attempt keys by exact identifier `<email>:<ip>` — the wildcard suffix won't match anything. Comment correctly notes 'best-effort, harmless if no match', but if the intent was to clear ALL IPs after a password reset, this needs a $regex query. Low priority.",
+    "auth_email.signup auto-issues a session even when email is not verified (line 200-201). This is intentional per spec but gating for posting/joining must remain in downstream routes — verified /join page still gates correctly (status=needs_application sends user through application form).",
+    "Note: SignIn page does not surface a toast for /api/auth/password/reset/request via DOM text — Sonner toasts are ephemeral. data-testid=signin-forgot exists and triggers the call (200 response inferred from absence of error). For deterministic UI assertion consider rendering a persistent inline confirmation."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter24_email_auth.py"
+  ],
+  "success_rate": { "backend": "100% (19/19)", "frontend": "100%" },
+  "test_credentials": "Smoke admin: Authorization: Bearer tok_smoke_admin_v2 (peter@1691inc.com). Fresh emails generated per-test (Test1234!). Tokens read directly from db.auth_tokens (pymongo).",
+  "seed_data_creation": "Several throwaway users created (e2e.signup.*, e2e.signin.*, e2e.magic.*, etc.); brute-force counters wiped per-test by deleting login_attempts row.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Tests in /app/backend/tests/test_iter24_email_auth.py are self-contained (load .env, talk to PUBLIC URL, peek Mongo for tokens). Backend regression file test_iter22_improvements_admin.py still passes the smoke admin path. Brevo is best-effort — endpoints return 200 even when emails are skipped, and the auth_tokens collection is the source of truth for verify/magic/reset.",
+  "rca of the issue": "No defects found. Implementation matches the playbook: Mongo-backed session_token cookies, bcrypt $2b hashes, 5-fail 15-min lockout per <email>:<ip>, urlsafe(32) single-use tokens with kind+expiry+used_at."
+}
