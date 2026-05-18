@@ -61,7 +61,7 @@ function AggHero() {
 
       <ul className="mt-10 flex gap-10 sm:gap-14 flex-wrap" data-testid="agg-hero-stats">
         <li>
-          <p className="font-display font-semibold text-[34px] text-agg-navy leading-none">38+</p>
+          <p className="font-display font-semibold text-[34px] text-agg-navy leading-none">40+</p>
           <p className="font-sans text-[10px] uppercase tracking-[0.22em] font-semibold text-slate-500 mt-1">Sources</p>
         </li>
         <li>

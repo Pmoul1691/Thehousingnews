@@ -1,0 +1,33 @@
+{
+  "summary": "Re-tested iter22 AggLayout gap fix. All 3 floating components (FloatingSuggestButton, FloatingWriteButton, BackToFeedButton) are now hoisted into App.js after <Routes> inside <ChromeLayout> and render on BOTH /news (AggLayout) and / (Layout) routes. Verified single-mount (no duplicates), correct gating (write/back only when authed approved; back hidden on /feed). Aggregator hero now shows '40+ SOURCES'. Anonymous Suggest modal submission to POST /api/improvements returned 200 and modal closed cleanly. Frontend-only test as requested.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "verification_matrix": {
+    "/news anon": { "floating-suggest-btn": 1, "floating-write-btn": 0, "back-to-feed-btn": 0, "hero_40plus_sources": true, "pass": true },
+    "/news/latest anon": { "floating-suggest-btn": 1, "pass": true },
+    "/news/podcasts anon": { "floating-suggest-btn": 1, "pass": true },
+    "/news admin (tok_smoke_admin_v2)": { "floating-suggest-btn": 1, "floating-write-btn": 1, "back-to-feed-btn": 1, "back_click_navigates_to_feed": true, "pass": true },
+    "/ (Landing) admin": { "floating-suggest-btn": 1, "floating-write-btn": 1, "back-to-feed-btn": 1, "back_click_navigates_to_feed": true, "pass": true },
+    "/feed admin": { "back-to-feed-btn_hidden": true, "floating-suggest-btn": 1, "floating-write-btn": 1, "pass": true },
+    "no_duplicates_check": "every page returned exactly ONE [data-testid='floating-suggest-btn'] — no double mount",
+    "suggest_modal_submit_anon": { "POST_/api/improvements_status": 200, "modal_closed_after_submit": true, "pass": true }
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Note: FloatingSuggestButton uses sonner toast (duration 2200ms). Test captured the closed modal + 200 response as success signal; toast string was not asserted because it disappeared before assertion. No functional issue, but if future tests want to assert the toast, capture it within ~1.5s of submit or extend Toaster duration in test mode.",
+    "Mild design observation: FloatingSuggestButton appears slightly tight against the AggLayout footer on short pages. AggLayout now has pb-24 sm:pb-8 which is fine on mobile but on small desktop the footer is closer to the pill than on Layout (cream). Not a blocker."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "skipped", "frontend": "100%" },
+  "test_credentials": "Admin session cookie session_token=tok_smoke_admin_v2 (worked as Cookie, no Bearer needed for SSR-rendered floats).",
+  "seed_data_creation": "One improvement record POSTed anonymously from /news/about as part of integration check.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "iter22 gap is fully closed. All three floating components live in App.js AFTER <Routes> inside <ChromeLayout>. Gating logic (authed/onFeed/onWrite) is inside each component, so a single mount is safe across both layouts. AggHero stat correctly reads '40+ SOURCES'. Backend untouched; previous iter22 backend report is still valid.",
+  "rca of the issue": "iter22 root cause was that Layout.jsx alone rendered the floats — /news/* uses AggLayout, so the buttons disappeared. Fix: hoist <BackToFeedButton/>, <FloatingWriteButton/>, <FloatingSuggestButton/> from Layout.jsx into App.js right after <Routes/> inside the dynamically-chosen <ChromeLayout>. Verified — singleton mounts, correct route gating, correct auth gating."
+}
