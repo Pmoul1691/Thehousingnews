@@ -16,7 +16,7 @@ REPLY_TO = "peter@thehousingnews.com"
 SUBJECT = "Welcome to The Housing News. Free forever."
 CAMPAIGN_NAME = "Chicago Nurtured 0526 — Welcome (Free forever)"
 HEADER_IMG = "https://housing-news-free.preview.emergentagent.com/brand/email-header-thn-cream.png"
-SIGNATURE_IMG = "https://customer-assets.emergentagent.com/job_58b0e722-6ed4-44a2-898f-d2ea7ee81145/artifacts/yct8hskj_prm%20signature.png"
+SIGNATURE_IMG = "https://housing-news-free.preview.emergentagent.com/brand/signature-pete.png"
 
 HTML = """<!doctype html>
 <html lang="en">
