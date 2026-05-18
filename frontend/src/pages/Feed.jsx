@@ -5,6 +5,7 @@ import PostItem from "@/components/PostItem";
 import FeedCompose from "@/components/FeedCompose";
 import NextReleaseTimer from "@/components/NextReleaseTimer";
 import VerifyEmailBanner from "@/components/VerifyEmailBanner";
+import OnboardingChecklist from "@/components/OnboardingChecklist";
 import { useAuth } from "@/context/AuthContext";
 
 function PendingChip({ post }) {
@@ -37,20 +38,22 @@ export default function Feed() {
   const [currentPrompt, setCurrentPrompt] = useState(null);
   const [fetching, setFetching] = useState(true);
   const [scope, setScope] = useState(() => localStorage.getItem("feed_scope") || "everyone");
+  const [regionFilter, setRegionFilter] = useState(() => localStorage.getItem("feed_regions") || "all");
+  const [myRegions, setMyRegions] = useState([]);
 
-  const load = useCallback(async (currentScope) => {
+  const load = useCallback(async (currentScope, currentRegion) => {
     setFetching(true);
     try {
-      // /api/posts/feed already returns both essays + short posts, scope-filtered
-      const [feedRes, mineRes, picksRes, promptRes, profRes] = await Promise.all([
-        api.get(`/posts/feed?scope=${currentScope}`),
+      const regionParam = currentRegion === "mine" ? "&regions=mine" : "";
+      const [feedRes, mineRes, picksRes, promptRes, profRes, regRes] = await Promise.all([
+        api.get(`/posts/feed?scope=${currentScope}${regionParam}`),
         api.get("/posts/mine"),
         api.get("/posts/picks?limit=4"),
         api.get("/prompts/current").catch(() => ({ data: {} })),
         api.get("/profile").catch(() => ({ data: {} })),
+        api.get("/users/me/regions").catch(() => ({ data: { regions: [] } })),
       ]);
       const items = feedRes.data.items || [];
-      // Sort defensively in case the backend orders different kinds independently
       const mixed = items.slice().sort((a, b) => {
         const at = new Date(a.release_at || a.created_at).getTime();
         const bt = new Date(b.release_at || b.created_at).getTime();
@@ -62,10 +65,16 @@ export default function Feed() {
       setPicks(picksRes.data.items || []);
       setCurrentPrompt(promptRes.data && promptRes.data.prompt_id ? promptRes.data : null);
       setProfile(profRes.data || null);
+      setMyRegions(regRes.data?.regions || []);
     } finally {
       setFetching(false);
     }
   }, []);
+
+  const setRegionFilterAndSave = (r) => {
+    setRegionFilter(r);
+    localStorage.setItem("feed_regions", r);
+  };
 
   useEffect(() => {
     if (loading) return;
@@ -74,8 +83,8 @@ export default function Feed() {
     if (user.status === "pending") { navigate("/pending", { replace: true }); return; }
     if (user.status === "declined") { navigate("/declined", { replace: true }); return; }
     if (!user.has_profile) { navigate("/onboarding", { replace: true }); return; }
-    load(scope);
-  }, [user, loading, navigate, load, scope]);
+    load(scope, regionFilter);
+  }, [user, loading, navigate, load, scope, regionFilter]);
 
   const setScopeAndSave = (s) => {
     setScope(s);
@@ -94,6 +103,7 @@ export default function Feed() {
         {/* Main column */}
         <div className="lg:col-span-2 min-w-0">
           <VerifyEmailBanner />
+          <OnboardingChecklist />
           {/* Welcome banner for invite-claimed members whose profile is still
               a stub. Soft prompt — they can read the feed, just can't post yet. */}
           {showWelcome && (
@@ -154,7 +164,7 @@ export default function Feed() {
           </Link>
 
           {/* Compose (collapsed by default, expands on click) */}
-          <FeedCompose user={user} profile={profile} onPosted={() => load(scope)} />
+          <FeedCompose user={user} profile={profile} onPosted={() => load(scope, regionFilter)} />
 
           {/* Subject of the week - thin hairline-only row, no colored box */}
           {currentPrompt && (
@@ -181,18 +191,42 @@ export default function Feed() {
             </section>
           )}
 
-          {/* Scope tabs */}
-          <div className="mt-10 flex items-center gap-6 border-b hairline">
-            {[{k: "everyone", l: "Everyone"}, {k: "following", l: "Following"}].map((t) => (
-              <button
-                key={t.k}
-                data-testid={`scope-${t.k}`}
-                onClick={() => setScopeAndSave(t.k)}
-                className={`pb-3 font-sans text-sm font-medium transition-colors ${scope === t.k ? "text-gold border-b-2 border-gold" : "text-muted-ink hover:text-ink"}`}
-              >
-                {t.l}
-              </button>
-            ))}
+          {/* Scope tabs + region filter row */}
+          <div className="mt-10 flex items-center justify-between gap-6 border-b hairline flex-wrap">
+            <div className="flex items-center gap-6">
+              {[{k: "everyone", l: "Everyone"}, {k: "following", l: "Following"}].map((t) => (
+                <button
+                  key={t.k}
+                  data-testid={`scope-${t.k}`}
+                  onClick={() => setScopeAndSave(t.k)}
+                  className={`pb-3 font-sans text-sm font-medium transition-colors ${scope === t.k ? "text-gold border-b-2 border-gold" : "text-muted-ink hover:text-ink"}`}
+                >
+                  {t.l}
+                </button>
+              ))}
+            </div>
+            {/* Region toggle — only shows if the user has saved regions. */}
+            {myRegions.length > 0 && (
+              <div className="flex items-center gap-1 pb-2.5" data-testid="feed-region-toggle">
+                <button
+                  type="button"
+                  data-testid="feed-region-all"
+                  onClick={() => setRegionFilterAndSave("all")}
+                  className={`font-sans text-[11px] uppercase tracking-[0.18em] font-semibold px-3 py-1.5 rounded-full transition-colors ${regionFilter === "all" ? "bg-ink text-cream" : "text-muted-ink hover:text-ink"}`}
+                >
+                  All
+                </button>
+                <button
+                  type="button"
+                  data-testid="feed-region-mine"
+                  onClick={() => setRegionFilterAndSave("mine")}
+                  className={`font-sans text-[11px] uppercase tracking-[0.18em] font-semibold px-3 py-1.5 rounded-full transition-colors ${regionFilter === "mine" ? "bg-gold text-cream" : "text-muted-ink hover:text-ink"}`}
+                  title={`Filtering to: ${myRegions.join(", ")}`}
+                >
+                  My regions ({myRegions.length})
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Main stream - mixed essays + shorts, chronological */}

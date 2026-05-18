@@ -1,0 +1,28 @@
+{
+  "summary": "Iter26 — regional feed personalization + onboarding checklist + inbox deep-links. Backend: 12/12 pytest pass (taxonomy shape, GET/PUT round-trip, invalid-slug dropping, 8-cap, auth gate, author vs pending_ai source on POST /api/posts, feed?regions=mine filtering with user prefs, feed?regions=<slug> explicit override, no-filter default, AI tagger live smoke). Regression: iter22 + iter25 = 33 passed, 1 skipped. Frontend: /settings 'Your regions' section visible with all 54 chips across 5 tier groups, chip click fires PUT /api/users/me/regions returning {regions:[...]}, 'Reset checklist' button clears both onboarding localStorage keys; /feed onboarding-checklist renders 5 steps with auto-marking (admin user gets regions/profile/write checked, verify open), region toggle (ALL / MY REGIONS (N)) visible and click fires /api/posts/feed?regions=mine; checklist 'Hide this' sets thn_onboarding_dismissed_v1=1 and hides; VerifyEmailBanner for peter@1691inc.com (custom domain) shows ONLY Resend (no open-inbox CTA), and for an @gmail.com user shows 'Open Gmail' link with href https://mail.google.com/mail/u/0/#inbox; Composer 'Regions' collapsed block + toggle works, expanding reveals RegionPicker with all 54 chips, chips toggle.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_iter26_regions.py",
+    "/app/test_reports/pytest/pytest_iter26.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Feed filter logic in routes/posts.py: the `$or` clause `[{regions:{$in:filter}},{regions:{$exists:false}},{regions:[]}]` correctly includes both tagged-matching posts AND legacy/untagged posts (regions=[] or missing). This matches the spec.",
+    "POST /api/posts: regions_source is 'author' if payload.regions is a truthy list, otherwise 'pending_ai'. The BackgroundTask updates the doc to source='ai' after Claude tagging. Verified in mongo immediately post-creation; the race between the create response and the tagger settling is harmless because the API returns the post_id and the doc is patched in place.",
+    "services/regions.py normalise() correctly caps at 8 and silently drops unknown slugs. Verified with payload of 4 slugs (2 invalid) → returns just the 2 valid; with payload of 10 slugs → returns 8.",
+    "AI moderation aggressively flags repeated-text essays as 'flagged_by_ai' (`'x'*200` style content). Real test content (varied prose) is not flagged. Worth noting for future feed tests — use realistic strings or seed posts directly in mongo with status='approved'.",
+    "Composer regions block ships exactly as designed: collapsed by default, toggle expands a RegionPicker with all 54 chips. Multi-select state is controlled, and chips include the data-testid='composer-region-chip-<slug>'."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter26_regions.py"],
+  "success_rate": {
+    "backend": "100% (12/12 new + 33 regression pass, 1 skip)",
+    "frontend": "100% on all 6 spec areas (settings regions, settings tour reset, feed checklist, feed region toggle, verify-email banner gmail vs custom domain, composer regions block)"
+  },
+  "test_credentials": "Smoke admin: Cookie session_token=tok_smoke_admin_v2 (peter@1691inc.com). Gmail-user banner test used a throwaway TEST_user_gmail (cleaned up).",
+  "seed_data_creation": "All `TEST_user_*` users + sessions + profiles and `TEST_post_*` documents have been cleaned up after the run (28 docs deleted).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All region/onboarding/inbox-deep-link pieces are stable. New regression test file: /app/backend/tests/test_iter26_regions.py. Re-run with `pytest /app/backend/tests/test_iter26_regions.py -v`. Note: test_feed_regions_mine and test_feed_regions_explicit_override seed posts directly via mongosh rather than POST /api/posts because the AI moderation pipeline flags synthetic/repeated test text as flagged_by_ai (status). For end-to-end POST-then-feed verification with real content, use varied prose.",
+  "rca of the issue": "No defects found. One observability note: AI moderation aggressively flags repeated/synthetic test text — this is correct behavior but worth knowing when writing seed tests."
+}

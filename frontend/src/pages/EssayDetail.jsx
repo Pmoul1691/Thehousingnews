@@ -10,6 +10,7 @@ import MediaBlock from "@/components/MediaBlock";
 import ShareButtons from "@/components/ShareButtons";
 import PageMeta from "@/components/PageMeta";
 import { useAuth } from "@/context/AuthContext";
+import { markEssayReadOnce } from "@/components/OnboardingChecklist";
 import { toast } from "sonner";
 
 // Extend default sanitize schema to allow inline video/audio/iframe inserted via rich-text editor.
@@ -119,6 +120,7 @@ export default function EssayDetail() {
       setProgress(pct);
       if (pct >= 80 && !markedReadRef.current && user && user.status === "approved") {
         markedReadRef.current = true;
+        markEssayReadOnce();  // local heuristic for the onboarding checklist
         api.post(`/me/reads/${essay.post_id}`).catch(() => {});
       }
     };

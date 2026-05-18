@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import api from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
+import RegionPicker from "@/components/RegionPicker";
+import { resetOnboarding } from "@/components/OnboardingChecklist";
 import { toast } from "sonner";
 
 export default function Settings() {
@@ -157,6 +159,35 @@ export default function Settings() {
           </div>
         </>
       )}
+
+      {invites && (
+        <section id="regions" className="mt-16" data-testid="regions-section">
+          <p className="uppercase-label mb-3">Your regions</p>
+          <h2 className="font-display font-semibold text-2xl ink mb-2">Personalise your feed.</h2>
+          <p className="prose-serif text-base ink/80 leading-relaxed max-w-prose mb-6">
+            Pick the cities, metros, states, or regions you care about. We'll
+            filter your feed to posts our editors (or Claude) tagged with any
+            of these. Leave it empty to see everything — that's the default.
+          </p>
+          <RegionPicker />
+        </section>
+      )}
+
+      <section className="mt-16" data-testid="onboarding-section">
+        <p className="uppercase-label mb-3">Tour</p>
+        <h2 className="font-display font-semibold text-2xl ink mb-2">Show me around again.</h2>
+        <p className="prose-serif text-base ink/80 leading-relaxed max-w-prose mb-4">
+          Reset the "Getting started" checklist on your feed.
+        </p>
+        <button
+          type="button"
+          data-testid="reset-onboarding-btn"
+          onClick={() => { resetOnboarding(); toast.success("Checklist reset — head back to your feed."); }}
+          className="font-sans text-xs uppercase tracking-wider font-semibold border hairline px-4 py-2 rounded-sm hover:bg-gold hover:text-cream hover:border-gold transition-colors"
+        >
+          Reset checklist
+        </button>
+      </section>
 
       {invites && (
         <section className="mt-16" data-testid="linkedin-section">

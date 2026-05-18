@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field, model_validator
 from services.auth_helpers import get_current_user
 from services.release_window import next_window, CHICAGO
 from services.essay_dispatch import dispatch_essay_to_followers
+from services.regions import normalise as normalise_regions
 
 logger = logging.getLogger(__name__)
 
@@ -80,6 +81,7 @@ class PostCreate(BaseModel):
     media: List[MediaItem] = Field(default_factory=list)
     scheduled_at: Optional[str] = None  # ISO UTC, only valid for essays
     prompt_id: Optional[str] = Field(default=None, max_length=40)  # Subject of the Week link
+    regions: Optional[List[str]] = Field(default=None, description="Manual region tags from the taxonomy. If omitted, the post will be auto-tagged by Claude.")
 
     @model_validator(mode="after")
     def _validate_kind(self):
@@ -277,8 +279,24 @@ def setup(db):
             "created_at": now_iso,
             "release_at": release_at,
             "prompt_id": payload.prompt_id if prompt_snapshot else None,
+            # Author-set regions (validated against the taxonomy). If empty,
+            # we run the AI tagger in the background and patch the doc.
+            "regions": normalise_regions(payload.regions or []),
+            "regions_source": "author" if payload.regions else "pending_ai",
         }
         await db.posts.insert_one(doc)
+
+        # If the author didn't set regions, run the Claude tagger in the
+        # background and update the post in-place. Never blocks the request.
+        if not doc["regions"]:
+            async def _tag_and_save(_post_id: str, _text: str):
+                from services.region_tagger import tag_post
+                tags = await tag_post(_text)
+                await db.posts.update_one(
+                    {"post_id": _post_id},
+                    {"$set": {"regions": tags, "regions_source": "ai"}},
+                )
+            background_tasks.add_task(_tag_and_save, post_id, payload.text or "")
 
         # Claude moderation review (async, never blocks the response).
         from services.moderation import moderate_and_record
@@ -375,6 +393,7 @@ def setup(db):
     async def home_feed(
         limit: int = Query(50, le=100),
         scope: str = Query("everyone"),
+        regions: Optional[str] = Query(None, description="Comma-separated region slugs. 'mine' = use the user's preferences."),
         user=Depends(_user),
     ):
         if user.get("status") != "approved":
@@ -392,10 +411,27 @@ def setup(db):
             followed_ids = [f["followed_id"] for f in follows]
             followed_ids.append(user["user_id"])
             query["user_id"] = {"$in": followed_ids, "$nin": list(suspended)}
+        # Regional filter — explicit slugs override the user's saved prefs.
+        # 'mine' resolves to the user's saved preferences. Empty/absent
+        # means "see everything" (the default).
+        region_filter: list[str] = []
+        if regions:
+            region_filter = normalise_regions([r for r in regions.split(",") if r.strip()])
+        if regions == "mine":
+            region_filter = list(user.get("regions") or [])
+        if region_filter:
+            # Match posts that touch ANY of the chosen regions OR posts that
+            # have no region tag at all (so we don't silently hide
+            # author-less-tagged or pre-feature content).
+            query["$or"] = [
+                {"regions": {"$in": region_filter}},
+                {"regions": {"$exists": False}},
+                {"regions": []},
+            ]
         cur = db.posts.find(query, {"_id": 0}).sort("release_at", -1).limit(limit)
         items = await cur.to_list(limit)
         items = await _attach_meta(items, viewer_id=user["user_id"])
-        return {"items": items, "scope": scope}
+        return {"items": items, "scope": scope, "regions": region_filter}
 
     @router.get("/mine")
     async def my_posts(user=Depends(_user)):

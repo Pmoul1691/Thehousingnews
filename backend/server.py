@@ -54,6 +54,7 @@ from routes.improvements import setup as setup_improvements
 from routes.admin_users import setup as setup_admin_users
 from routes.admin_posts import setup as setup_admin_posts
 from routes.auth_email import setup as setup_auth_email
+from routes.regions import setup as setup_regions
 from routes.mcp import setup as setup_mcp
 from routes.events import setup as setup_events
 from routes.admin_analytics import setup as setup_admin_analytics
@@ -354,3 +355,4 @@ app.include_router(setup_improvements(db))
 app.include_router(setup_admin_users(db))
 app.include_router(setup_admin_posts(db))
 app.include_router(setup_auth_email(db))
+app.include_router(setup_regions(db))

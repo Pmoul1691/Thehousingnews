@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import api, { API } from "@/lib/api";
 import { toast } from "sonner";
 import RichTextEditor from "@/components/RichTextEditor";
+import RegionPicker from "@/components/RegionPicker";
 
 function formatLocal(iso) {
   if (!iso) return "";
@@ -39,6 +40,8 @@ export default function Composer({ onPosted }) {
   const [draftLoaded, setDraftLoaded] = useState(false);
   const [currentPrompt, setCurrentPrompt] = useState(null);
   const [linkPrompt, setLinkPrompt] = useState(false);
+  const [regions, setRegions] = useState([]);
+  const [showRegions, setShowRegions] = useState(false);
   const draftDirty = useRef(false);
 
   const images = media.filter((m) => m.kind === "image");
@@ -256,6 +259,7 @@ export default function Composer({ onPosted }) {
         media: cleanMedia,
         scheduled_at: scheduledIso,
         prompt_id: linkPrompt && currentPrompt ? currentPrompt.prompt_id : null,
+        regions: regions.length > 0 ? regions : undefined,
       });
       if (mode === "essay") {
         if (r.data.status === "scheduled") toast.success("Essay scheduled");
@@ -461,6 +465,35 @@ export default function Composer({ onPosted }) {
           </label>
         </div>
       )}
+
+      {/* Regions — collapsed by default. Leave empty to let Claude auto-tag. */}
+      <div className="mt-3 border hairline rounded-sm bg-cream" data-testid="composer-regions">
+        <button
+          type="button"
+          onClick={() => setShowRegions((v) => !v)}
+          data-testid="composer-regions-toggle"
+          className="w-full flex items-center justify-between px-3 py-2.5 text-left hover:bg-gold/5 transition-colors"
+        >
+          <span className="flex items-center gap-2 min-w-0">
+            <span className="font-sans text-[11px] uppercase tracking-wider font-semibold text-gold">Regions</span>
+            <span className="font-serif text-xs text-muted-ink truncate">
+              {regions.length > 0 ? `${regions.length} picked` : "Leave empty — Claude will tag it"}
+            </span>
+          </span>
+          <svg viewBox="0 0 24 24" className={`w-4 h-4 text-muted-ink transition-transform ${showRegions ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9" /></svg>
+        </button>
+        {showRegions && (
+          <div className="border-t hairline px-3 py-3">
+            <RegionPicker
+              controlled
+              value={regions}
+              onChange={setRegions}
+              emptyLabel="Pick which cities or regions this is about. We'll auto-tag if you skip."
+              testidPrefix="composer-region"
+            />
+          </div>
+        )}
+      </div>
 
       <div className="flex items-center justify-between mt-4 pt-3 border-t hairline gap-3 flex-wrap">
         <div className="flex items-center gap-4 flex-wrap">
