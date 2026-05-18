@@ -237,6 +237,40 @@ of teams.
 
 
 
+## Phase 31 — Free Daily Brief opt-in + erase Pete-Ultradian content (2026-02-17)
+- **Erased Pete/Ultradian content**: deleted 2 demo seed essays
+  ("Ultradian Rhythms", "The Ultradian Podcast - S1E2") attributed to
+  `user_pete_demo`. Verified no other Pete/Moulton/Ultradian references
+  exist in posts, podcasts directory, or aggregated articles.
+- **Newsletter (free brief opt-in)** — `routes/newsletter.py`,
+  `newsletter_subscribers` collection. Double-opt-in:
+  1. `POST /api/newsletter/subscribe {email, source?}` — creates a
+     `pending` row, sends a confirmation email.
+  2. `GET /api/newsletter/confirm?token=...` — flips row to `confirmed`,
+     clears the token, renders a styled cream landing page.
+  3. `GET /api/newsletter/unsubscribe?token=...` — one-click unsub.
+  4. `GET /api/newsletter/status` — public counts of confirmed
+     subscribers + approved members + total readers.
+- **Brief dispatcher now fans out to confirmed subscribers**
+  (`services/briefings.py`). De-duped against member emails so members
+  who also subscribed don't get the email twice. Each subscriber gets
+  their own `unsubscribe_token` threaded into the brief footer for
+  one-click opt-out without login.
+- **Brief footer differentiates**: members see "Manage your email
+  preferences" linking to /profile; subscribers see a direct
+  "Unsubscribe" link.
+- **`/subscribe` page** (new `pages/Subscribe.jsx`): clean opt-in form
+  with morning/evening/free tiles, live social-proof "Joined by N
+  professionals" copy, post-submit confirmation state, "already
+  subscribed" state.
+- **Landing hero CTA**: added "Get the brief" (gold, primary) →
+  /subscribe. "Join the network" demoted to secondary. The free brief
+  is now the primary acquisition path.
+- **Existing `NewsletterBand.jsx`** repointed from the old single-opt-in
+  `/agg/newsletter/signup` endpoint to the new double-opt-in
+  `/newsletter/subscribe` so the inline bands on `/news` and elsewhere
+  share the same confirmed-subscriber pipeline.
+
 ## Phase 30 — Strip paid scaffolding + personal branding (2026-02-17)
 **Positioning pivot**: The Housing News is now explicitly "Free forever for
 everyone in housing." Pete's name appears only on his own essays/posts

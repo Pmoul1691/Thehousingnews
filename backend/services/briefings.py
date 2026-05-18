@@ -171,6 +171,26 @@ async def send_brief(db, kind: str, dry_run: bool = False) -> dict:
         },
         {"_id": 0, "user_id": 1, "email": 1, "name": 1},
     ).to_list(5000)
+    # De-dup against member emails
+    member_emails = {r["email"].lower() for r in recipients if r.get("email")}
+
+    # Newsletter (non-member) subscribers — Phase 31 free-brief launch.
+    # Each row carries its own unsubscribe_token so the brief footer can
+    # one-click unsubscribe without needing to log in.
+    sub_recipients = await db.newsletter_subscribers.find(
+        {"status": "confirmed"},
+        {"_id": 0, "email": 1, "unsubscribe_token": 1},
+    ).to_list(20000)
+    for s in sub_recipients:
+        if (s.get("email") or "").lower() in member_emails:
+            continue  # never double-send to a member who also subscribed
+        recipients.append({
+            "user_id": None,
+            "email": s["email"],
+            "name": "",
+            "unsubscribe_token": s.get("unsubscribe_token"),
+            "is_subscriber": True,
+        })
 
     try:
         from services.release_window import CHICAGO
@@ -200,8 +220,9 @@ async def send_brief(db, kind: str, dry_run: bool = False) -> dict:
             await db.brief_dispatches.insert_one({
                 "dispatch_id": dispatch_id,
                 "kind": f"brief_{kind}",
-                "recipient_user_id": r["user_id"],
+                "recipient_user_id": r.get("user_id"),
                 "recipient_email": r["email"],
+                "is_subscriber": bool(r.get("is_subscriber")),
                 "articles_count": len(payload["articles"]),
                 "first_opened_at": None,
                 "first_clicked_at": None,
@@ -217,6 +238,7 @@ async def send_brief(db, kind: str, dry_run: bool = False) -> dict:
                 kind=kind,
                 payload=payload,
                 dispatch_id=dispatch_id,
+                unsubscribe_token=r.get("unsubscribe_token"),
             )
             sent += 1
         except Exception:

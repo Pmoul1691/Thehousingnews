@@ -16,9 +16,9 @@ export default function NewsletterBand({ compact = false }) {
     if (!email.trim()) return;
     setState("submitting");
     try {
-      await api.post("/agg/newsletter/signup", {
+      await api.post("/newsletter/subscribe", {
         email: email.trim(),
-        source_page: window.location.pathname,
+        source: window.location.pathname,
       });
       setState("ok");
     } catch (e2) {
@@ -43,7 +43,7 @@ export default function NewsletterBand({ compact = false }) {
         </div>
         {state === "ok" ? (
           <p data-testid="agg-newsletter-success" className="font-sans text-sm text-agg-orange">
-            Got it. Check your inbox for a confirmation.
+            Check your inbox for a confirmation link.
           </p>
         ) : (
           <form onSubmit={onSubmit} className="flex gap-2 shrink-0">

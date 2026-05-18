@@ -35,6 +35,7 @@ import Search from "@/pages/Search";
 import Tag from "@/pages/Tag";
 import Claim from "@/pages/Claim";
 import Today from "@/pages/Today";
+import Subscribe from "@/pages/Subscribe";
 import usePageviewTracker from "@/hooks/usePageviewTracker";
 
 // Aggregator pages
@@ -75,6 +76,7 @@ function Router() {
         <Route path="/about" element={<About />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/apply" element={<Apply />} />
+        <Route path="/subscribe" element={<Subscribe />} />
         <Route path="/pending" element={<PendingReview />} />
         <Route path="/declined" element={<Declined />} />
         <Route path="/onboarding" element={<Onboarding />} />

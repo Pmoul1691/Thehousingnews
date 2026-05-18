@@ -309,18 +309,18 @@ function HeroSection() {
 
           <div className="flex items-center gap-6 flex-wrap mt-9">
             <Link
-              to="/apply"
-              data-testid="landing-apply-btn"
-              className="inline-flex items-center justify-center bg-ink text-cream font-sans font-semibold text-[14px] tracking-wide px-7 py-3 rounded-sm hover:bg-gold transition-colors"
+              to="/subscribe"
+              data-testid="landing-subscribe-btn"
+              className="inline-flex items-center justify-center bg-gold text-ink font-sans font-semibold text-[14px] tracking-wide px-7 py-3 rounded-sm hover:bg-ink hover:text-cream transition-colors"
             >
-              Join the network
+              Get the brief
             </Link>
             <Link
-              to="/essays"
-              data-testid="landing-essays-btn"
+              to="/apply"
+              data-testid="landing-apply-btn"
               className="inline-flex items-center font-sans font-semibold text-[14px] text-ink hover:text-gold transition-colors"
             >
-              Read member essays →
+              Join the network →
             </Link>
             <Link
               to="/news/latest"

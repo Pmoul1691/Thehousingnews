@@ -375,11 +375,25 @@ def _brief_essay_block(essay: dict, app_url: str) -> str:
     """
 
 
-def _brief_wrap(kind: str, body_html: str, app_url: str) -> str:
-    """Brief-specific shell. Uses cream/gold/ink palette."""
+def _brief_wrap(kind: str, body_html: str, app_url: str, unsubscribe_url: str = "") -> str:
+    """Brief-specific shell. Uses cream/gold/ink palette.
+    `unsubscribe_url` is passed for non-member newsletter subscribers and
+    swaps the footer to a one-click unsubscribe link instead of the
+    member-only "manage preferences" link.
+    """
     label = "Morning Brief" if kind == "morning" else "Evening Brief"
     time_str = "7:30 AM CT" if kind == "morning" else "5:30 PM CT"
     today = datetime_now_label()
+    if unsubscribe_url:
+        footer_html = (
+            'You receive these briefs because you subscribed at thehousingnews.com.<br/>'
+            f'<a href="{unsubscribe_url}" style="color:#AD893E; text-decoration:underline;">Unsubscribe</a>'
+        )
+    else:
+        footer_html = (
+            'You receive these briefs because you are a member of The Housing News.<br/>'
+            f'<a href="{app_url}/profile" style="color:#AD893E; text-decoration:underline;">Manage your email preferences</a>'
+        )
     return f"""
     <div style="font-family: Georgia, serif; color:#2C2410; background:#FDFAF4; padding:24px 0;">
       <div style="max-width:600px; margin:0 auto; background:#FDFAF4;">
@@ -396,8 +410,7 @@ def _brief_wrap(kind: str, body_html: str, app_url: str) -> str:
           <a href="{app_url}/news" style="display:inline-block; background:#2C2410; color:#FDFAF4; padding:12px 28px; text-decoration:none; font-family:'Plus Jakarta Sans', Arial, sans-serif; font-weight:600; font-size:13px; letter-spacing:0.05em;">Open The Daily →</a>
         </div>
         <div style="margin-top:24px; padding-top:16px; border-top:1px solid #E8D4A0; text-align:center; font-family:'Plus Jakarta Sans', Arial, sans-serif; font-size:11px; color:#2C2410;">
-          You receive these briefs because you are a member of The Housing News.<br/>
-          <a href="{app_url}/profile" style="color:#AD893E; text-decoration:underline;">Manage your email preferences</a>
+          {footer_html}
         </div>
       </div>
     </div>
@@ -423,6 +436,7 @@ def send_brief_email(
     kind: str,
     payload: dict,
     dispatch_id: Optional[str] = None,
+    unsubscribe_token: Optional[str] = None,
 ) -> dict:
     """Send a Morning or Evening Brief to one recipient."""
     app_url = os.environ.get("APP_PUBLIC_URL", "")
@@ -435,7 +449,8 @@ def send_brief_email(
         extras_html += _brief_trending_block(payload["trending"])
     essay_html = _brief_essay_block(payload.get("essay"), app_url)
     body = items_html + extras_html + essay_html
-    html = _brief_wrap(kind, body, app_url)
+    unsub_url = f"{app_url}/api/newsletter/unsubscribe?token={unsubscribe_token}" if unsubscribe_token else ""
+    html = _brief_wrap(kind, body, app_url, unsubscribe_url=unsub_url)
     return send_email(
         to_email,
         to_name,
