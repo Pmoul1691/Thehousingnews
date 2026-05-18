@@ -1285,3 +1285,26 @@ Three small but high-leverage follow-ups to the email auth ship:
   membership-approval gate for fresh signups (both return 403). Functionally
   identical — left as-is since post-signup users would also need to be
   approved before the verify message could ever surface.
+
+
+## 2026-02-18 — Today's-brief cross-promo on /news
+
+Added a single navy/orange `TodayBriefPromoRow` between "What everyone is
+reading" and the article grid on `/news` (`AggHome.jsx`). Visually distinct
+from the rest of the orange-on-white aggregator chrome so it reads as "this
+is the other side of the house, not another news card".
+
+Behaviour:
+- **Anonymous** → href `/signin?next=/today`, copy "The editor's daily recap —
+  for members." with CTA "Sign in to read →". Funnels the aggregator
+  audience into the auth flow with a clear value prop.
+- **Signed-in approved member** → href `/today`, copy "The day in housing,
+  distilled by our editors." with CTA "Read today's brief →". One-tap jump
+  to the daily digest.
+- **Signed-in but not approved** → falls through to the anon variant so we
+  don't dead-end them on `/today`.
+
+Smoke-tested both states via Playwright; both render correctly. Data-testid:
+`agg-today-brief-row`.
+
+Slack notification roadmap item dropped at user's request (no Slack in use).

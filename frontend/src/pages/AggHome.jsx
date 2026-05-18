@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import api from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
 import NewsletterBand from "@/components/NewsletterBand";
 import AggTrendingStrip from "@/components/AggTrendingStrip";
 import DailyCard from "@/components/DailyCard";
@@ -19,6 +20,56 @@ function compareTopics(prev, current) {
     ...t,
     direction: t.count >= 4 ? "up" : t.count >= 2 ? "up" : "flat",
   }));
+}
+
+/**
+ * Cross-promo row pointing the aggregator audience at /today (the daily
+ * editor's brief — our highest-intent content). Anonymous visitors hit a
+ * sign-in gate; signed-in members get a one-tap "Read" jump.
+ *
+ * Visually distinct from the rest of the orange-on-white aggregator chrome —
+ * navy fill + cream text — so the cross-promo reads as "this is the other
+ * side of the house, not another news card".
+ */
+function TodayBriefPromoRow({ authed }) {
+  const to = authed ? "/today" : "/signin?next=/today";
+  const cta = authed ? "Read today's brief →" : "Sign in to read →";
+  return (
+    <Link
+      to={to}
+      data-testid="agg-today-brief-row"
+      className="group block bg-agg-navy text-white rounded-sm px-5 sm:px-6 py-4 sm:py-5 hover:bg-agg-orange transition-colors mb-10 sm:mb-14"
+    >
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-4 min-w-0">
+          <span
+            aria-hidden="true"
+            className="hidden sm:inline-flex items-center justify-center w-9 h-9 rounded-sm bg-agg-orange group-hover:bg-white text-white group-hover:text-agg-orange transition-colors shrink-0"
+          >
+            <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="8" y1="13" x2="16" y2="13" />
+              <line x1="8" y1="17" x2="13" y2="17" />
+            </svg>
+          </span>
+          <div className="min-w-0">
+            <p className="font-sans text-[10px] uppercase tracking-[0.22em] font-semibold text-agg-orange group-hover:text-white transition-colors mb-1">
+              Today's brief
+            </p>
+            <p className="font-display font-semibold text-base sm:text-lg leading-snug text-white truncate">
+              {authed
+                ? "The day in housing, distilled by our editors."
+                : "The editor's daily recap — for members."}
+            </p>
+          </div>
+        </div>
+        <span className="font-sans font-semibold text-sm text-white/90 group-hover:text-white group-hover:translate-x-0.5 transition-all whitespace-nowrap">
+          {cta}
+        </span>
+      </div>
+    </Link>
+  );
 }
 
 // ── Hero ──────────────────────────────────────────────────────────────────
@@ -175,6 +226,7 @@ function MemberCommentaryCard({ essay }) {
 }
 
 export default function AggHome() {
+  const { user } = useAuth();
   const [pubs, setPubs] = useState([]);
   const [pods, setPods] = useState([]);
   const [essays, setEssays] = useState([]);
@@ -308,6 +360,8 @@ export default function AggHome() {
           {totalSources} sources · {pubs.length} publishers · {pods.length} podcasts
         </p>
       </header>
+
+      <TodayBriefPromoRow authed={!!user && user.status === "approved"} />
 
       {decorated.length === 0 && topic ? (
         <div className="py-16 text-center border-t border-slate-100" data-testid="agg-topic-empty">
