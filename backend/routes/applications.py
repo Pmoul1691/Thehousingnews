@@ -53,6 +53,12 @@ def setup(db):
     async def submit_application(payload: ApplicationCreate, user=Depends(_user)):
         if user.get("status") == "approved":
             return {"status": "approved", "note": "already approved"}
+        # Email must be verified before joining (Google sign-ins are auto-verified).
+        if not user.get("email_verified"):
+            raise HTTPException(
+                status_code=403,
+                detail="Verify your email before submitting — check your inbox for the link.",
+            )
         # Require Terms of Service acceptance.
         if not payload.tos_accepted:
             raise HTTPException(status_code=400, detail="You must accept the Terms of Service to apply.")

@@ -52,6 +52,23 @@ export default function Admin() {
   const [orphans, setOrphans] = useState([]);
   const [fetching, setFetching] = useState(false);
   const [actingId, setActingId] = useState(null);
+  const [improvementsNew, setImprovementsNew] = useState(0);
+
+  // Poll the lightweight counts endpoint every 60s so admins see new
+  // improvements without manually refreshing the page.
+  useEffect(() => {
+    if (!user?.is_admin) return undefined;
+    let cancelled = false;
+    const tick = async () => {
+      try {
+        const r = await api.get("/admin/improvements/counts");
+        if (!cancelled) setImprovementsNew(r.data?.counts?.new || 0);
+      } catch (_e) { /* silent */ }
+    };
+    tick();
+    const t = setInterval(tick, 60000);
+    return () => { cancelled = true; clearInterval(t); };
+  }, [user?.is_admin]);
 
   const loadApps = useCallback(async (status) => {
     setFetching(true);
@@ -185,9 +202,18 @@ export default function Admin() {
             key={t.k}
             data-testid={`admin-section-${t.k}`}
             onClick={() => setSection(t.k)}
-            className={`pb-3 font-display font-semibold text-base transition-colors whitespace-nowrap ${section === t.k ? "text-gold border-b-2 border-gold" : "text-muted-ink hover:text-ink"}`}
+            className={`pb-3 font-display font-semibold text-base transition-colors whitespace-nowrap inline-flex items-center gap-1.5 ${section === t.k ? "text-gold border-b-2 border-gold" : "text-muted-ink hover:text-ink"}`}
           >
             {t.l}
+            {t.k === "improvements" && improvementsNew > 0 && (
+              <span
+                data-testid="improvements-tab-badge"
+                aria-label={`${improvementsNew} new improvements`}
+                className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-deepred text-cream font-sans font-semibold text-[10px] leading-none"
+              >
+                {improvementsNew > 99 ? "99+" : improvementsNew}
+              </span>
+            )}
           </button>
         ))}
       </div>

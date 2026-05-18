@@ -89,6 +89,7 @@ export default function Feed() {
       <div className="grid lg:grid-cols-3 gap-10">
         {/* Main column */}
         <div className="lg:col-span-2 min-w-0">
+          <VerifyEmailBanner />
           {/* Welcome banner for invite-claimed members whose profile is still
               a stub. Soft prompt — they can read the feed, just can't post yet. */}
           {profileStub && (

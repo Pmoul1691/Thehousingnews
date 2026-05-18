@@ -213,6 +213,13 @@ def setup(db):
             raise HTTPException(status_code=403, detail="Membership not approved")
         if user.get("suspended"):
             raise HTTPException(status_code=403, detail="Account suspended")
+        # Email must be verified before posting. (Google sign-ins are
+        # auto-verified; email/password sign-ups must click the verify link.)
+        if not user.get("email_verified"):
+            raise HTTPException(
+                status_code=403,
+                detail="Verify your email before posting — check your inbox for the link.",
+            )
         # Block stub profiles (Brevo-invite first-time users who haven't filled
         # market + objectives yet) from posting. Reads are fine; writes need a
         # real identity attached to them.

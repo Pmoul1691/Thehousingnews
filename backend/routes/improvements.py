@@ -74,6 +74,17 @@ def setup(db):
             raise HTTPException(status_code=403, detail="Admin only")
         return user
 
+    @router.get("/admin/improvements/counts")
+    async def improvements_counts(
+        session_token: Optional[str] = Cookie(default=None),
+        authorization: Optional[str] = Header(default=None),
+    ):
+        await _admin(session_token, authorization)
+        counts = {}
+        for s in ALLOWED_STATUSES:
+            counts[s] = await db.improvements.count_documents({"status": s})
+        return {"counts": counts}
+
     @router.get("/admin/improvements")
     async def list_improvements(
         status: Optional[str] = Query(default=None),

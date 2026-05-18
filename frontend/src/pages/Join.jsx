@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
+import VerifyEmailBanner from "@/components/VerifyEmailBanner";
 import { toast } from "sonner";
 
 export default function Join() {
@@ -67,6 +68,7 @@ export default function Join() {
 
   return (
     <div className="container-prose py-20 animate-fade-up">
+      <VerifyEmailBanner />
       <p className="uppercase-label mb-4">Join the network</p>
       <h1 className="font-display font-semibold text-3xl sm:text-4xl ink mb-6">Tell us about you.</h1>
       <p className="prose-serif text-base ink/80 leading-relaxed mb-10 max-w-prose">

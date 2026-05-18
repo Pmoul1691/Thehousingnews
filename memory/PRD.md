@@ -1202,3 +1202,44 @@ options sit side-by-side on the new `/signin` page: Continue with Google
 ### Testing
 - iter24: 19/19 backend, 100% frontend pass. Test file:
   `/app/backend/tests/test_iter24_email_auth.py`.
+
+
+## 2026-02-18 — Email-verified gating + nudges
+
+Three small but high-leverage follow-ups to the email auth ship:
+
+### Backend gates
+- `POST /api/posts` now returns **403** with body `"Verify your email before
+  posting — check your inbox for the link."` when `user.email_verified` is
+  False. (Layered AFTER status=approved + suspended checks, so the message a
+  user sees is the most specific one.)
+- `POST /api/applications` returns **403** with body `"Verify your email
+  before submitting — check your inbox for the link."` when unverified —
+  layered BEFORE the TOS check so the gate fires first.
+- Existing Google-signed users are auto-marked verified at sign-in, so they
+  are unaffected. The gate only stops email/password sign-ups who haven't
+  clicked their verify link yet.
+
+### Frontend nudges
+- New `components/VerifyEmailBanner.jsx` — gold-bordered inline banner that
+  renders ONLY when a user is signed in AND `email_verified` is False.
+  Includes a **Resend** button that calls `POST /api/auth/email/verify/request`
+  and flips to "Sent" once dispatched.
+- Mounted at the top of `Feed.jsx` (member feed) and `Join.jsx` (join form),
+  i.e. exactly the two surfaces where the gate fires.
+
+### Admin: Improvements badge
+- New backend endpoint `GET /api/admin/improvements/counts` — minimal
+  response (~50 bytes), admin only, returns just the per-status counts.
+  Used for the badge poll so we don't pull the full items list every minute.
+- `Admin.jsx` polls `/admin/improvements/counts` every 60s when the user is
+  admin and renders a **red pill `N`** badge next to the "Improvements" tab
+  whenever `counts.new > 0` (caps at "99+"). New `data-testid` exposed:
+  `improvements-tab-badge`.
+
+### Verification
+- Curl smoke tests (with two freshly-signed-up unverified users) confirm both
+  403 paths fire with the new messages.
+- Screenshots confirm the banner renders on `/join` with the user's email +
+  Resend button, and the admin badge displays `5` (matching the
+  `db.improvements` count_documents result).
