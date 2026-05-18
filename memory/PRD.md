@@ -1150,3 +1150,55 @@ one batch:
 - iter22: 31/31 backend, 13/14 frontend (one gap on /news layout).
 - iter23 retest after AggLayout hoist fix: 100% pass, no duplicates,
   correct route+auth gating.
+
+
+## 2026-02-18 — Email-based authentication (alongside Google)
+
+Members can now join with ANY email — not just Gmail/Google. Three sign-in
+options sit side-by-side on the new `/signin` page: Continue with Google
+(unchanged), Magic link (passwordless, default), Email + Password.
+
+### Backend
+- `services/auth_email.py` — bcrypt password hashing (bcrypt library
+  directly; avoids the bcrypt 4.x / passlib version-mismatch trap),
+  single-use DB-lookup tokens (NOT JWTs) with kind+expiry+used_at semantics,
+  brute-force counters keyed on `<email>:<ip>` with a 5-fail / 15-min lockout,
+  and a `issue_session(db, user_id) -> (token, expires)` helper that writes
+  the SAME `user_sessions` row + sets the SAME `session_token` HttpOnly
+  cookie the Google flow uses. So all existing routes recognise email-auth
+  sessions immediately.
+- `routes/auth_email.py` — new endpoints all under `/api/auth`:
+  - `POST /email/signup` — creates user (status=needs_application unless
+    env-admin; email_verified=false), sends verification email, issues
+    session. Returns 409 on duplicate.
+  - `POST /email/signin` — verifies bcrypt hash; 5 failures => 429.
+  - `POST /email/verify/request` and `POST /email/verify` — 3-day TTL token.
+  - `POST /magic-link/request` and `POST /magic-link/consume` — 15-min TTL
+    token; clicking the link flips `email_verified=true` (Brevo did the
+    delivery — proof of inbox access).
+  - `POST /password/reset/request` and `POST /password/reset/confirm` — 1-hr
+    TTL token; on reset, all sessions for that user are invalidated and
+    brute-force counters for that email (across all IPs) are cleared via
+    regex match.
+- `routes/auth.py` — Google sign-in now sets `email_verified=true` on the
+  user doc. `/api/auth/me` returns `email_verified` and `has_password`.
+- Account linking is automatic: signing up via email creates a `users` row;
+  later Google sign-in with the same email finds the existing user_id and
+  attaches to it (the existing `find_one({email})` branch already handled
+  this). The reverse also works.
+- New collections: `auth_tokens` (indexed on token+expires_at) and
+  `login_attempts` (indexed on identifier).
+- Brevo emails use the existing `send_email()` helper with three new
+  templates (verify, magic link, password reset).
+- `backend/.env` — removed duplicate `APP_PUBLIC_URL` (production URL wins).
+
+### Frontend
+- `/signin` (`pages/SignIn.jsx`) — combined sign-in page with Google,
+  Magic link, and Email+password options.
+- `/auth/magic`, `/auth/verify-email`, `/auth/reset-password` — token
+  consumer pages.
+- `Layout.jsx` — Sign in nav goes to `/signin` (no longer direct to Google).
+
+### Testing
+- iter24: 19/19 backend, 100% frontend pass. Test file:
+  `/app/backend/tests/test_iter24_email_auth.py`.

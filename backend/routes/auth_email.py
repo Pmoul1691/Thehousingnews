@@ -338,7 +338,11 @@ def setup(db):
         )
         # Invalidate other sessions on password change.
         await db.user_sessions.delete_many({"user_id": user["user_id"]})
-        await clear_attempts(db, f"{user['email']}:*")  # best-effort, harmless if no match
+        # Clear any remaining brute-force counters for this email (all IPs).
+        try:
+            await db.login_attempts.delete_many({"identifier": {"$regex": f"^{re.escape(user['email'])}:"}})
+        except Exception:
+            pass
         return {"ok": True}
 
     return router
