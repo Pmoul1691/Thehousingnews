@@ -5,7 +5,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends, Cookie, Header, Query
 from pydantic import BaseModel, Field
 
-from services.auth_helpers import get_current_user, is_admin_email
+from services.auth_helpers import get_current_user, is_admin_email, is_user_admin
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ def setup(db):
         authorization: Optional[str] = Header(default=None),
     ):
         user = await get_current_user(db, session_token, authorization)
-        if not is_admin_email(user["email"]):
+        if not is_user_admin(user):
             raise HTTPException(status_code=403, detail="Admin only")
         return user
 
@@ -82,7 +82,7 @@ def setup(db):
             raise HTTPException(status_code=403, detail="Membership not approved")
 
         # Only admins may filter by entitlement tier.
-        if filter and not is_admin_email(user["email"]):
+        if filter and not is_user_admin(user):
             raise HTTPException(status_code=403, detail="Filter is admin-only")
 
         # Find approved, non-suspended users
@@ -93,7 +93,7 @@ def setup(db):
         pmap = {p["user_id"]: p for p in profiles}
 
         now_iso = _now_iso()
-        viewer_is_admin = is_admin_email(user["email"])
+        viewer_is_admin = is_user_admin(user)
 
         items = []
         for u in users:
@@ -217,7 +217,7 @@ def setup(db):
         target = await db.users.find_one({"user_id": user_id}, {"_id": 0})
         if not target:
             raise HTTPException(status_code=404, detail="Member not found")
-        if is_admin_email(target["email"]):
+        if is_user_admin(target):
             raise HTTPException(status_code=400, detail="Cannot suspend an admin")
         await db.users.update_one(
             {"user_id": user_id},

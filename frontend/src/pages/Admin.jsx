@@ -12,6 +12,9 @@ import AdminMembership from "@/components/AdminMembership";
 import AdminAiModeration from "@/components/AdminAiModeration";
 import AdminAnalytics from "@/components/AdminAnalytics";
 import AdminLaunchPanel from "@/components/AdminLaunchPanel";
+import AdminImprovementsPanel from "@/components/AdminImprovementsPanel";
+import AdminPostsPanel from "@/components/AdminPostsPanel";
+import AdminAdminsPanel from "@/components/AdminAdminsPanel";
 
 function RssImportButton() {
   const [busy, setBusy] = useState(false);
@@ -169,6 +172,9 @@ export default function Admin() {
           { k: "aimod", l: "AI Review" },
           { k: "apps", l: "Applications" },
           { k: "mod", l: "Moderation" },
+          { k: "posts", l: "Posts" },
+          { k: "admins", l: "Admins" },
+          { k: "improvements", l: "Improvements" },
           { k: "subjects", l: "Subjects" },
           { k: "stats", l: "Member Analytics" },
           { k: "invite", l: "Invite" },
@@ -202,6 +208,12 @@ export default function Admin() {
         <AdminInvitePanel />
       ) : section === "launch" ? (
         <AdminLaunchPanel />
+      ) : section === "improvements" ? (
+        <AdminImprovementsPanel />
+      ) : section === "posts" ? (
+        <AdminPostsPanel />
+      ) : section === "admins" ? (
+        <AdminAdminsPanel />
       ) : section === "orphans" ? (
         <>
           <p className="prose-serif text-sm text-muted-ink mb-6 max-w-prose">

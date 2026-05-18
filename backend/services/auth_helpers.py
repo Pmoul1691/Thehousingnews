@@ -16,6 +16,20 @@ def is_admin_email(email: str) -> bool:
     return (email or "").lower() in ADMIN_EMAILS
 
 
+def is_user_admin(user) -> bool:
+    """True if the user is admin via either:
+    - DB-stored `is_admin: True` flag (set by the admin promote/demote tool), OR
+    - email-based env config (`ADMIN_EMAILS`).
+
+    This is the canonical admin check for runtime-promotable admins.
+    """
+    if not user:
+        return False
+    if user.get("is_admin"):
+        return True
+    return is_admin_email(user.get("email", ""))
+
+
 async def get_current_user(
     db,
     session_token: Optional[str] = None,
@@ -75,7 +89,7 @@ def admin_dep(db):
 
     async def _dep(user=None, session_token: Optional[str] = Cookie(default=None), authorization: Optional[str] = Header(default=None)):
         user = await user_dep(session_token, authorization)
-        if not is_admin_email(user["email"]):
+        if not is_user_admin(user):
             raise HTTPException(status_code=403, detail="Admin only")
         return user
 

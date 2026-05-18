@@ -3,7 +3,7 @@ import logging
 from typing import Optional
 from fastapi import APIRouter, Cookie, Header, HTTPException
 
-from services.auth_helpers import get_current_user, is_admin_email
+from services.auth_helpers import get_current_user, is_admin_email, is_user_admin
 from services.substack_import import import_substack_feed
 
 logger = logging.getLogger(__name__)
@@ -14,7 +14,7 @@ router = APIRouter(prefix="/api/admin/rss", tags=["admin-rss"])
 def setup(db):
     async def _require_admin(session_token: Optional[str], authorization: Optional[str]):
         user = await get_current_user(db, session_token, authorization)
-        if not (user.get("is_admin") or is_admin_email(user["email"])):
+        if not (user.get("is_admin") or is_user_admin(user)):
             raise HTTPException(status_code=403, detail="Admin only")
         return user
 

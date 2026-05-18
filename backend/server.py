@@ -50,6 +50,9 @@ from routes.today import setup as setup_today
 from routes.admin_moderation import setup as setup_admin_moderation
 from routes.admin_launch import setup as setup_admin_launch
 from routes.newsletter import setup as setup_newsletter
+from routes.improvements import setup as setup_improvements
+from routes.admin_users import setup as setup_admin_users
+from routes.admin_posts import setup as setup_admin_posts
 from routes.mcp import setup as setup_mcp
 from routes.events import setup as setup_events
 from routes.admin_analytics import setup as setup_admin_analytics
@@ -214,6 +217,13 @@ async def on_startup():
     await db.pats.create_index("prefix", unique=True)
     await db.pats.create_index([("user_id", 1), ("revoked_at", 1)])
 
+    # Improvements (user-submitted feedback widget)
+    try:
+        await db.improvements.create_index("id", unique=True)
+        await db.improvements.create_index([("status", 1), ("created_at", -1)])
+    except Exception as _e:
+        logger.warning("improvements indexes not created: %s", _e)
+
     # Load DB-stored APP_PUBLIC_URL override into the process env so tracking links use it
     try:
         row = await db.app_settings.find_one({"key": "APP_PUBLIC_URL"}, {"_id": 0})
@@ -330,3 +340,6 @@ app.include_router(setup_events(db))
 app.include_router(setup_admin_analytics(db))
 app.include_router(setup_admin_launch(db))
 app.include_router(setup_newsletter(db))
+app.include_router(setup_improvements(db))
+app.include_router(setup_admin_users(db))
+app.include_router(setup_admin_posts(db))

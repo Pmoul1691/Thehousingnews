@@ -8,7 +8,7 @@ from urllib.parse import urlparse
 from fastapi import APIRouter, HTTPException, Depends, Cookie, Header
 from pydantic import BaseModel, EmailStr, AnyHttpUrl
 
-from services.auth_helpers import get_current_user, is_admin_email
+from services.auth_helpers import get_current_user, is_admin_email, is_user_admin
 from services.brevo import send_email, BREVO_API_KEY, SENDER_EMAIL, SENDER_NAME
 from services.admin_digest import send_admin_digest, build_admin_digest, render_admin_digest_html
 
@@ -74,7 +74,7 @@ def setup(db):
         authorization: Optional[str] = Header(default=None),
     ):
         user = await get_current_user(db, session_token, authorization)
-        if not is_admin_email(user["email"]):
+        if not is_user_admin(user):
             raise HTTPException(status_code=403, detail="Admin only")
         return user
 

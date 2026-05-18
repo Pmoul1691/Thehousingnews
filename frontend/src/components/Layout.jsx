@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import NextReleaseTimer from "@/components/NextReleaseTimer";
 import FloatingWriteButton from "@/components/FloatingWriteButton";
+import FloatingSuggestButton from "@/components/FloatingSuggestButton";
+import BackToFeedButton from "@/components/BackToFeedButton";
 import { useAuth } from "@/context/AuthContext";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 
@@ -172,9 +174,11 @@ export default function Layout({ children }) {
         </div>
       </header>
 
-      <main className="flex-1">{children}</main>
+      <main className="flex-1 pb-24 sm:pb-0">{children}</main>
 
+      <BackToFeedButton />
       <FloatingWriteButton />
+      <FloatingSuggestButton />
 
       <footer className="border-t hairline mt-24">
         <div className="container-wide py-12 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">

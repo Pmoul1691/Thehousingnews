@@ -6,7 +6,7 @@
 """
 from fastapi import APIRouter, Cookie, Header, HTTPException, Query
 
-from services.auth_helpers import get_current_user, is_admin_email
+from services.auth_helpers import get_current_user, is_admin_email, is_user_admin
 from services.briefings import build_brief_payload, send_brief
 from services.brevo import send_brief_email
 
@@ -16,7 +16,7 @@ def setup(db):
 
     async def _admin(session_token, authorization):
         user = await get_current_user(db, session_token, authorization)
-        if not is_admin_email(user["email"]):
+        if not is_user_admin(user):
             raise HTTPException(status_code=403, detail="Admin only")
         return user
 

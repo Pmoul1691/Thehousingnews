@@ -27,7 +27,7 @@ from typing import Optional
 from fastapi import APIRouter, Cookie, Depends, Header, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from services.auth_helpers import get_current_user, is_admin_email
+from services.auth_helpers import get_current_user, is_admin_email, is_user_admin
 from services.brevo import send_email
 from services.brevo_contacts import (
     find_list_by_name,
@@ -106,7 +106,7 @@ def setup(db):
         authorization: Optional[str] = Header(default=None),
     ):
         user = await get_current_user(db, session_token, authorization)
-        if not is_admin_email(user["email"]):
+        if not is_user_admin(user):
             raise HTTPException(status_code=403, detail="Admin only")
         return user
 
