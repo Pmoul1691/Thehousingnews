@@ -202,7 +202,7 @@ class TestTracking:
 
     def test_wrap_for_tracking_helper(self):
         # Set APP_PUBLIC_URL in this process (backend/.env is read by backend, not pytest).
-        os.environ["APP_PUBLIC_URL"] = "https://housing-news-preview.preview.emergentagent.com"
+        os.environ["APP_PUBLIC_URL"] = "https://thn-community.preview.emergentagent.com"
         import sys
         sys.path.insert(0, "/app/backend")
         # Force reload so _base_url picks up env var

@@ -1,0 +1,38 @@
+{
+  "summary": "Frontend-only verification of the Apply→Join rename pivot. 11/12 checks pass. /join route renders correctly with 'Tell us about you.', 'JOIN THE NETWORK' eyebrow (uppercase via CSS on 'Join the network'), 'We read every note personally.' body, and 'Send' submit button (not 'Send application'). /apply correctly does NOT render the join form ('No routes matched location /apply' warning, falls through to Layout chrome). Header nav-apply shows 'Join' and links to /join. landing-apply-btn ('Join the network →' → /join) and landing-final-apply ('Join the network' → /join) verified. Mobile menu-apply shows 'Join' → /join. Subscribe page subscribe-apply-link reads 'Join to write →' → /join, body uses 'by invitation' (no 'by application'). No remaining visible 'Apply'/'application' user-facing text on /, /subscribe, /join. ONE BUG FOUND: 'Joined this week' strip CTA (data-testid='joined-this-week-apply') still shows visible text 'Apply →' and triggers signIn() instead of navigating to /join — this was missed in the rename.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "Landing.jsx — Joined this week strip CTA",
+        "issue": "Button still displays 'Apply →' and uses onClick={signIn} instead of a <Link to='/join'>Join →</Link>. Per requirement: text must be 'Join →' and it should link to /join (matches the other landing CTAs). File: /app/frontend/src/pages/Landing.jsx lines 618-625.",
+        "selector": "[data-testid='joined-this-week-apply']",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Fix /app/frontend/src/pages/Landing.jsx lines 618-625: replace the <button onClick={signIn} ...>Apply →</button> with a <Link to='/join' data-testid='joined-this-week-apply' className='...'>Join →</Link> (keep the same className for visual parity). This is the only remaining 'Apply →' visible text in the user-facing pages."
+  ],
+  "critical_code_review_comments": [
+    "Landing.jsx (1295 lines) exceeds the 700-line guideline — consider splitting into section components (HeroSection, JoinedThisWeekStrip, TheNetworkSection, FinalCTASection, etc.) for maintainability. Not blocking, but worth noting given the size growth.",
+    "The 'joined-this-week-apply' CTA inconsistency (button+signIn vs Link to /join) suggests the rename was done by global search/replace and missed this one element that didn't fit the Link pattern. Recommend a final grep for /Apply\\s*&rarr;|Apply →/ across pages/ to catch any similar misses."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "not tested (out of scope)",
+    "frontend": "92% (11/12 verified checks pass; 1 visible-text bug)"
+  },
+  "test_credentials": "Not required — all flows tested anonymously per request.",
+  "seed_data_creation": "None",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Apply→Join rename is 92% done. Only remaining miss is the 'Joined this week' strip CTA in Landing.jsx lines 618-625. data-testid attributes intentionally keep 'apply' substring (nav-apply, landing-apply-btn, landing-final-apply, joined-this-week-apply, menu-apply, subscribe-apply-link) — DO NOT flag those. /apply route logs a benign React Router 'No routes matched' warning, which is expected since no redirect was requested. Eyebrow 'JOIN THE NETWORK' on /join is rendered via CSS text-transform: uppercase on source text 'Join the network' — when doing innerHTML/content() string matches, search for the lowercase form.",
+  "rca_of_the_issue": "The 'joined-this-week-apply' element in Landing.jsx is a <button onClick={signIn}> not a <Link>, so the previous agent's pattern-based rename (which presumably targeted Link `to='/apply'` strings and visible 'Apply' text inside Links) skipped it. The visible text 'Apply &rarr;' on line 624 was not updated. Reproduction: visit https://thn-community.preview.emergentagent.com/ on desktop, scroll to the 'Joined this week' hairline strip — the rightmost CTA reads 'APPLY →' (gold). Mitigation: convert the button to a Link to='/join' with text 'Join →', or at minimum update the visible text to 'Join →' and have signIn() route unauthenticated users to /join."
+}

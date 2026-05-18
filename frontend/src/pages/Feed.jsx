@@ -69,7 +69,7 @@ export default function Feed() {
   useEffect(() => {
     if (loading) return;
     if (!user) { navigate("/", { replace: true }); return; }
-    if (user.status === "needs_application") { navigate("/apply", { replace: true }); return; }
+    if (user.status === "needs_application") { navigate("/join", { replace: true }); return; }
     if (user.status === "pending") { navigate("/pending", { replace: true }); return; }
     if (user.status === "declined") { navigate("/declined", { replace: true }); return; }
     if (!user.has_profile) { navigate("/onboarding", { replace: true }); return; }

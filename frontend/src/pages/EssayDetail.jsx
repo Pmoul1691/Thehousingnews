@@ -314,7 +314,7 @@ function Paywall() {
         <p className="uppercase-label mb-3">Members only</p>
         <h3 className="font-display font-semibold text-2xl ink mb-3">The rest of this essay is for members.</h3>
         <p className="font-serif text-base ink/80 leading-relaxed max-w-prose mx-auto mb-6">
-          The Housing News is a small newsroom of working real estate producers. The editors read every application.
+          The Housing News is a small newsroom of working real estate producers. The editors read every note.
         </p>
         <div className="flex items-center justify-center gap-4 flex-wrap">
           <button

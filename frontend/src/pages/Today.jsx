@@ -243,7 +243,7 @@ export default function Today() {
       // route them to the right step in the funnel
       if (user.status === "pending") navigate("/pending", { replace: true });
       else if (user.status === "declined") navigate("/declined", { replace: true });
-      else navigate("/apply", { replace: true });
+      else navigate("/join", { replace: true });
     }
   }, [user, authLoading, navigate]);
 

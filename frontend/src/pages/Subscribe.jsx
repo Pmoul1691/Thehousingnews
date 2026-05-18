@@ -137,14 +137,14 @@ export default function Subscribe() {
             Want to write too?
           </p>
           <p className="font-serif text-base ink/85 mb-4">
-            The Housing News also publishes essays from working real-estate professionals. Reading is open; writing is by application.
+            The Housing News also publishes essays from working real-estate professionals. Reading is open; writing is by invitation.
           </p>
           <Link
-            to="/apply"
+            to="/join"
             data-testid="subscribe-apply-link"
             className="font-sans text-xs uppercase tracking-[0.18em] font-semibold text-gold hover:text-ink transition-colors"
           >
-            Apply to write &rarr;
+            Join to write &rarr;
           </Link>
         </div>
       </div>

@@ -73,10 +73,10 @@ export default function Claim() {
             Sign in
           </button>
           <Link
-            to="/apply"
+            to="/join"
             className="font-sans text-sm font-medium ink hover:text-gold transition-colors"
           >
-            Apply →
+            Join →
           </Link>
         </div>
       </div>
@@ -95,7 +95,7 @@ export default function Claim() {
       <p className="font-serif text-base text-muted-ink leading-relaxed max-w-prose mb-10">
         Sign in with Google using{" "}
         <span className="font-sans font-semibold ink bg-gold/10 px-1.5 py-0.5 rounded-sm">{invitee.email}</span>{" "}
-        and you&apos;re in. No application form, no waiting.
+        and you&apos;re in. No long form, no waiting.
       </p>
       <button
         onClick={signIn}

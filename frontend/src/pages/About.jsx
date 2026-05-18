@@ -76,7 +76,7 @@ export default function About() {
           <h2 className="font-display font-semibold text-2xl sm:text-3xl ink mb-6">A working newsroom.</h2>
           <div className="prose-serif text-base sm:text-lg leading-relaxed space-y-5 ink">
             <p>We have spent decades in real estate. We have coached thousands of agents. The teams we helped lead have closed billions in new client volume.</p>
-            <p>We want to hear from you personally. We read every new member application. We welcome all opinions, perspectives, and factual presentations.</p>
+            <p>We want to hear from you personally. We read every note from new members. We welcome all opinions, perspectives, and factual presentations.</p>
             <p>The Housing News is free forever for everyone in housing.</p>
           </div>
           <div className="mt-10 flex flex-wrap items-center gap-4">

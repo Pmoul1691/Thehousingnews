@@ -316,7 +316,7 @@ function HeroSection() {
               Get the brief
             </Link>
             <Link
-              to="/apply"
+              to="/join"
               data-testid="landing-apply-btn"
               className="inline-flex items-center font-sans font-semibold text-[14px] text-ink hover:text-gold transition-colors"
             >
@@ -714,7 +714,7 @@ function TheNetworkSection({ members }) {
       {/* Symmetric CTA pair to TheFeedSection's "Open The Daily" — but for writing */}
       <div className="mt-10 flex items-center gap-4 flex-wrap">
         <Link
-          to="/apply"
+          to="/join"
           data-testid="landing-network-join"
           className="inline-flex items-center justify-center bg-ink text-cream font-sans font-semibold text-[13px] px-6 py-2.5 rounded-sm hover:bg-gold transition-colors"
         >
@@ -878,7 +878,7 @@ function MemberCommunitySection() {
           </p>
           <div className="mt-8 flex items-center gap-5 flex-wrap">
             <Link
-              to="/apply"
+              to="/join"
               className="inline-flex items-center justify-center bg-ink text-cream font-sans font-semibold text-[14px] px-6 py-2.5 rounded-sm hover:bg-gold transition-colors"
             >
               Join now
@@ -1184,7 +1184,7 @@ function FinalCtaSection() {
         </p>
         <div className="mt-10 flex items-center gap-6 justify-center flex-wrap">
           <Link
-            to="/apply"
+            to="/join"
             data-testid="landing-final-apply"
             className="inline-flex items-center justify-center bg-gold text-ink font-sans font-semibold text-[14px] px-8 py-3 rounded-sm hover:bg-cream transition-colors"
           >

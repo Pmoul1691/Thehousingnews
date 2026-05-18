@@ -65,11 +65,11 @@ export default function Layout({ children }) {
             {!authed && !user && (
               <>
                 <Link
-                  to="/apply"
+                  to="/join"
                   data-testid="nav-apply"
                   className="inline-flex items-center bg-gold text-cream font-sans font-semibold text-sm px-4 py-1.5 rounded-full hover:opacity-90 transition-opacity"
                 >
-                  Apply
+                  Join
                 </Link>
                 <button
                   data-testid="nav-signin"
@@ -127,7 +127,7 @@ export default function Layout({ children }) {
                   )}
                   {!authed && !user && (
                     <>
-                      <Link to="/apply" onClick={closeMenu} data-testid="menu-apply" className="font-display text-xl ink px-4 py-3 rounded-sm hover:bg-[#F5EDD6]/60 hover:text-gold transition-colors">Apply</Link>
+                      <Link to="/join" onClick={closeMenu} data-testid="menu-apply" className="font-display text-xl ink px-4 py-3 rounded-sm hover:bg-[#F5EDD6]/60 hover:text-gold transition-colors">Join</Link>
                       <button
                         onClick={() => {
                           closeMenu();

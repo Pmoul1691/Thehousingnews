@@ -35,7 +35,7 @@ export default function AuthCallback() {
             navigate("/today", { replace: true, state: { user: me } });
           }
         } else if (r.data.status === "needs_application") {
-          navigate("/apply", { replace: true, state: { user: r.data } });
+          navigate("/join", { replace: true, state: { user: r.data } });
         } else if (r.data.status === "pending") {
           navigate("/pending", { replace: true, state: { user: r.data } });
         } else if (r.data.status === "declined") {

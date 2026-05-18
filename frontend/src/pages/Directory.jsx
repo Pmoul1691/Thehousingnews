@@ -119,7 +119,7 @@ export default function Directory() {
     if (authLoading) return;
     if (!user) { navigate("/", { replace: true }); return; }
     if (user.status !== "approved") {
-      navigate(user.status === "pending" ? "/pending" : "/apply", { replace: true });
+      navigate(user.status === "pending" ? "/pending" : "/join", { replace: true });
     }
   }, [user, authLoading, navigate]);
 

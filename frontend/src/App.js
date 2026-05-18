@@ -13,7 +13,7 @@ import AggLayout from "@/components/AggLayout";
 import Landing from "@/pages/Landing";
 import About from "@/pages/About";
 import AuthCallback from "@/pages/AuthCallback";
-import Apply from "@/pages/Apply";
+import Join from "@/pages/Join";
 import PendingReview from "@/pages/PendingReview";
 import Declined from "@/pages/Declined";
 import Onboarding from "@/pages/Onboarding";
@@ -75,7 +75,7 @@ function Router() {
         <Route path="/members" element={<Directory />} />
         <Route path="/about" element={<About />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
-        <Route path="/apply" element={<Apply />} />
+        <Route path="/join" element={<Join />} />
         <Route path="/subscribe" element={<Subscribe />} />
         <Route path="/pending" element={<PendingReview />} />
         <Route path="/declined" element={<Declined />} />
