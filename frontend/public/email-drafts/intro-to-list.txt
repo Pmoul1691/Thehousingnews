@@ -1,0 +1,66 @@
+SUBJECT (pick one):
+  A.  I built you a daily housing brief — and it's free.
+  B.  Something I made for you. Free forever.
+  C.  The housing news, curated. (Free.)
+  D.  A free brief for the people who close deals.
+
+PREVIEW TEXT (the inbox preview line):
+  Twice a day. Forty sources. Ninety seconds to read.
+
+FROM NAME:
+  Pete Moulton
+
+FROM EMAIL:
+  hello@thehousingnews.com   (or briefs@thehousingnews.com — both are DKIM-authenticated)
+
+REPLY-TO:
+  hello@thehousingnews.com
+
+================================================================
+PLAIN-TEXT VERSION (use as Brevo's text fallback)
+================================================================
+
+I built you a daily housing brief.
+
+Friend,
+
+Most agents I work with don't have time to read The Real Deal, Inman,
+Curbed, BiggerPockets, HousingWire, the regional trades, and the housing
+podcasts. There aren't enough hours in a showing day.
+
+So I curated them.
+
+Twice a day — 7:30 a.m. and 5:30 p.m. Central — we send eight stories the
+industry is actually talking about, plus a podcast we listened to. From
+forty sources. Edited by a human. Sized to read in ninety seconds.
+
+It's called The Housing News. It's free, and it will stay free. No
+paywall. No premium tier. No upsell.
+
+  Free forever for everyone in housing.
+
+Subscribe to the brief:
+  https://thehousingnews.com/subscribe
+
+One click. One field. Confirmation email arrives in seconds.
+
+If you want to do more than read — write essays for the network, post
+short notes, join the directory — there's an application for that side
+(https://thehousingnews.com/apply). Reading and subscribing don't
+require anything. You don't even need to log in.
+
+Take a look. Skip what you don't want. Forward to whoever's missing it.
+
+— Pete
+Editor, The Housing News
+
+----
+Want to see one first?  Read today's edition: https://thehousingnews.com/news
+
+================================================================
+
+You're receiving this because you've been on my list. If The Housing
+News isn't for you, just ignore this — I won't send another note about
+it.
+
+thehousingnews.com  ·  Unsubscribe: {{ unsubscribe }}

@@ -192,7 +192,7 @@ def _redirect_html(headline: str, sub: str = ""):
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{headline} · The Housing News</title>
-  <link rel="icon" href="{base}/brand/favicon-mono.png" />
+  <link rel="icon" href="{base}/brand/favicon-thn.png" />
   <style>
     body {{ font-family: Georgia, serif; background:#FDFAF4; color:#2C2410; margin:0; padding:64px 24px; }}
     .wrap {{ max-width:520px; margin:0 auto; text-align:center; }}
