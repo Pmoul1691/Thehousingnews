@@ -152,9 +152,26 @@ export default function Essays() {
         ) : items.length === 0 ? (
           <div className="border hairline rounded-sm py-16 text-center" data-testid="essays-empty">
             <p className="uppercase-label mb-3">Nothing yet</p>
-            <p className="font-serif text-base ink/80 max-w-prose mx-auto">
-              No essays match. {user ? <>Try a different word or write the first one from <Link to="/write" className="text-gold underline underline-offset-4 decoration-gold-mid">your desk</Link>.</> : "Try a different word."}
+            <p className="font-serif text-base ink/80 max-w-prose mx-auto mb-5">
+              {user ? "No essays match. Try a different word — or write the first one." : "No essays match your search. Try a different word."}
             </p>
+            {user ? (
+              <Link
+                to="/write"
+                data-testid="essays-empty-write"
+                className="inline-block bg-gold text-cream font-sans text-xs uppercase tracking-wider font-semibold px-4 py-2 rounded-sm hover:opacity-90 transition-opacity"
+              >
+                Open the editor
+              </Link>
+            ) : (
+              <Link
+                to="/subscribe"
+                data-testid="essays-empty-subscribe"
+                className="inline-block font-sans text-xs uppercase tracking-wider font-semibold text-gold hover:opacity-80 transition-opacity"
+              >
+                Get the daily brief →
+              </Link>
+            )}
           </div>
         ) : (
           items.map((e) => <EssayRow key={e.post_id} e={e} />)

@@ -1,0 +1,41 @@
+{
+  "summary": "Iter25 — 7-flow audit batch verified end-to-end. All 7 audit improvements ship correctly. Backend regression (admin endpoints + email-verified gating) passes 33/33 with 1 skip. Frontend covers anon nav, authed nav (active=gold), in-header back-to-feed pill (visible on /admin, hidden on /feed), the OLD floating back-to-feed-btn is gone from EVERY route checked, /signin defaults to password with sub-tabs and magic-link demoted to a toggle, /feed shows feed-today-strip and routes to /today on click, anon /join → /signin?next=/join, verify-email banner suppresses welcome banner for unverified user, Directory empty state with 'Invite a member' CTA renders correctly with bogus search, Essays empty-state code path verified by code review (no empty state in live data — page has 3+ real essays so empty branch not reachable without mocking).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/posts", "issue": "For a freshly-signed-up unverified user, the gate that fires is 'Membership not approved' (status=needs_application) rather than 'Verify your email before posting'. The verify-email gate only kicks in for users who are already approved-but-unverified — which is a narrow state. Either gate prevents posting, so the behaviour is functionally correct but the spec wording differs."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter22_improvements_admin.py",
+    "/app/backend/tests/test_iter25_verify_gate.py",
+    "/app/test_reports/pytest/pytest_iter25_admin.xml",
+    "/app/test_reports/pytest/pytest_iter25_gate.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "SignIn.jsx: googleSignIn() builds the redirect URL inline from window.location.origin + '/auth/callback' and appends ?next=<encoded>. Verified by reading the source — the next param is correctly forwarded. Could not deterministically intercept window.location.href assignment via Playwright Proxy, but code path is provably correct.",
+    "Feed.jsx line 89: 'showWelcome = profileStub && user?.email_verified !== false' uses strict !== false, which correctly suppresses the welcome banner only when verification is explicitly false. Confirmed live with fresh signup user → only verify-email-banner renders.",
+    "Layout.jsx primary-nav: nav has 'mx-auto' so it can collide visually with brand on narrow desktop widths. Not breaking, but consider 'flex-1 justify-center' for better balance. Optional polish.",
+    "Directory.jsx empty-state branches on the *committed* search query `q` (set on form submit), not on the input value `qInput`. This means typing alone won't trigger the empty state — the user must press Search or hit Enter. Behaviour is intentional but worth knowing for future test scripts.",
+    "Essays.jsx empty-state code (data-testid=essays-empty / essays-empty-write / essays-empty-subscribe at lines 153/161/169) cannot be exercised in live preview because seed data contains essays. Code-reviewed and confirmed the signed-in vs anon branching is correct."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter25_verify_gate.py"
+  ],
+  "success_rate": {
+    "backend": "100% (33/33 pass, 1 skip — env-admin demote)",
+    "frontend": "100% on the 13 spec items + regressions actually exercised"
+  },
+  "test_credentials": "Smoke admin: Cookie session_token=tok_smoke_admin_v2 (peter@1691inc.com). Fresh unverified signups via POST /api/auth/email/signup with Test1234! — used to verify the email_verified banner priority and the post/application gates.",
+  "seed_data_creation": "Several throwaway email-signup users generated (e2e.gate.<ts>@example.com, e2e.flow.<ts>@example.com).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All 7 audit items are stable. Backend regression suite: pytest /app/backend/tests/test_iter22_improvements_admin.py + test_iter25_verify_gate.py + test_iter24_email_auth.py. Frontend: use tok_smoke_admin_v2 cookie on preview URL. NOTE: Directory empty-state requires clicking Search button (or pressing Enter) — typing alone won't commit the query. NOTE: Essays empty-state requires mocking or an empty DB — not reachable in live preview. Google-CTA next-param verification couldn't be done via Proxy interception (Cannot redefine location); use API-style assertion or read button onclick handler text instead. Floating BackToFeedButton.jsx is fully deleted; grep for 'BackToFeedButton' or 'back-to-feed-btn' returns 0 hits in /app/frontend/src/.",
+  "rca of the issue": "No defects. Minor wording note: the email_verified posting gate message is shadowed by the membership-approval gate for fresh signups. Functionally identical (both 403) but not the literal 'Verify your email before posting' string. If main agent wants the exact string surfaced for fresh signups, reorder the guards in posts.py so the email_verified check runs before the status check (or relax status guard for needs_application + verified users — unlikely)."
+}

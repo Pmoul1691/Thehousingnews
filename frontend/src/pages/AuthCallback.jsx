@@ -19,15 +19,22 @@ export default function AuthCallback() {
       return;
     }
     const session_id = decodeURIComponent(match[1]);
+    // Honour an explicit ?next= override (used by /signin to round-trip the user back where they came from).
+    const sp = new URLSearchParams(window.location.search);
+    const next = sp.get("next");
     (async () => {
       try {
         const r = await api.post("/auth/session", { session_id });
         // Persist token so Authorization header works even when cookies are blocked
         if (r.data?.session_token) setSessionToken(r.data.session_token);
-        // Clear hash
+        // Clear hash + query
         window.history.replaceState(null, "", window.location.pathname);
         const me = { ...r.data, has_profile: !!r.data.has_profile };
         setUser(me);
+        if (next && next.startsWith("/") && !next.startsWith("//")) {
+          navigate(next, { replace: true, state: { user: me } });
+          return;
+        }
         if (r.data.status === "approved") {
           if (!me.has_profile) {
             navigate("/onboarding", { replace: true, state: { user: me } });

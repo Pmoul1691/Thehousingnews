@@ -43,7 +43,6 @@ import ResetPassword from "@/pages/ResetPassword";
 import usePageviewTracker from "@/hooks/usePageviewTracker";
 import FloatingWriteButton from "@/components/FloatingWriteButton";
 import FloatingSuggestButton from "@/components/FloatingSuggestButton";
-import BackToFeedButton from "@/components/BackToFeedButton";
 
 // Aggregator pages
 import AggHome from "@/pages/AggHome";
@@ -126,7 +125,6 @@ function Router() {
         <Route path="/category/:category" element={<LegacyAggRedirect to="/news/category" />} />
         <Route path="/newsletter" element={<Navigate to="/news/newsletter" replace />} />
       </Routes>
-      <BackToFeedButton />
       <FloatingWriteButton />
       <FloatingSuggestButton />
     </ChromeLayout>

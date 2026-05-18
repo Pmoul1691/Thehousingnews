@@ -4,6 +4,7 @@ import api from "@/lib/api";
 import PostItem from "@/components/PostItem";
 import FeedCompose from "@/components/FeedCompose";
 import NextReleaseTimer from "@/components/NextReleaseTimer";
+import VerifyEmailBanner from "@/components/VerifyEmailBanner";
 import { useAuth } from "@/context/AuthContext";
 
 function PendingChip({ post }) {
@@ -83,6 +84,9 @@ export default function Feed() {
 
   const firstName = (user?.name || "").split(" ")[0] || "there";
   const profileStub = !!profile?.is_stub;
+  // When the user is unverified, the VerifyEmailBanner is loud enough on its
+  // own — don't stack the Welcome banner underneath. Show ONE banner at a time.
+  const showWelcome = profileStub && user?.email_verified !== false;
 
   return (
     <div className="container-wide py-10" data-testid="magazine-feed">
@@ -92,7 +96,7 @@ export default function Feed() {
           <VerifyEmailBanner />
           {/* Welcome banner for invite-claimed members whose profile is still
               a stub. Soft prompt — they can read the feed, just can't post yet. */}
-          {profileStub && (
+          {showWelcome && (
             <section
               data-testid="feed-welcome-banner"
               className="mb-8 border border-gold/40 bg-gold/5 rounded-sm p-5 sm:p-6"
@@ -133,6 +137,21 @@ export default function Feed() {
             </div>
             <div className="sm:hidden"><NextReleaseTimer /></div>
           </header>
+
+          {/* Today's brief — quick jump to the daily digest. Lives here so
+              the conceptual difference between Feed (continuous magazine) and
+              Today (daily editorial recap) is obvious at a glance. */}
+          <Link
+            to="/today"
+            data-testid="feed-today-strip"
+            className="mb-6 flex items-center justify-between gap-3 border border-gold/30 bg-gold/5 rounded-sm px-4 py-3 hover:bg-gold/10 transition-colors group"
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <span className="font-sans text-[10px] uppercase tracking-[0.22em] font-semibold text-gold shrink-0">Today's brief</span>
+              <span className="font-serif text-sm ink/80 truncate hidden sm:inline">The daily recap from the editors.</span>
+            </div>
+            <span className="font-sans text-xs uppercase tracking-wider font-semibold text-gold group-hover:translate-x-0.5 transition-transform">Read →</span>
+          </Link>
 
           {/* Compose (collapsed by default, expands on click) */}
           <FeedCompose user={user} profile={profile} onPosted={() => load(scope)} />

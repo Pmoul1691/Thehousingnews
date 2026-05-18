@@ -203,8 +203,31 @@ export default function Directory() {
         <p className="font-serif italic text-sm text-muted-ink py-12 text-center">Loading members.</p>
       ) : items.length === 0 ? (
         <div className="bg-cream-soft border border-gold/15 rounded-sm py-16 text-center" data-testid="directory-empty">
-          <p className="font-display font-semibold text-xl ink">No members matched.</p>
-          <p className="font-serif italic text-sm text-muted-ink mt-1">Try a different search term.</p>
+          {q ? (
+            <>
+              <p className="font-display font-semibold text-xl ink">No members matched "{q}".</p>
+              <p className="font-serif italic text-sm text-muted-ink mt-1">Try a different search term, or invite someone new.</p>
+              <Link
+                to="/referrals"
+                data-testid="directory-empty-invite"
+                className="inline-block mt-4 font-sans text-xs uppercase tracking-wider font-semibold text-gold hover:opacity-80 transition-opacity"
+              >
+                Invite a member →
+              </Link>
+            </>
+          ) : (
+            <>
+              <p className="font-display font-semibold text-xl ink">The room is still small.</p>
+              <p className="font-serif italic text-sm text-muted-ink mt-1 max-w-prose mx-auto">Be the start of a real-estate writing community — invite the next member.</p>
+              <Link
+                to="/referrals"
+                data-testid="directory-empty-invite"
+                className="inline-block mt-5 bg-gold text-cream font-sans text-xs uppercase tracking-wider font-semibold px-4 py-2 rounded-sm hover:opacity-90 transition-opacity"
+              >
+                Invite someone
+              </Link>
+            </>
+          )}
         </div>
       ) : (
         <>

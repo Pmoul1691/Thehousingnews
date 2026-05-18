@@ -14,6 +14,14 @@ function MenuIcon() {
   );
 }
 
+function ChevronLeft() {
+  return (
+    <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <polyline points="15 18 9 12 15 6" />
+    </svg>
+  );
+}
+
 function WriteIcon() {
   return (
     <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
@@ -37,29 +45,60 @@ export default function Layout({ children }) {
   return (
     <div className="min-h-screen flex flex-col bg-cream ink">
       <header className="sticky top-0 z-30 backdrop-blur-md bg-cream/85 border-b hairline">
-        <div className="container-wide flex items-center justify-between py-4">
-          <Link to="/" data-testid="nav-home" className="flex items-center gap-2.5 min-w-0">
-            <img
-              src="/brand/logo-full.png"
-              alt="The Housing News"
-              className="h-7 sm:h-9 w-auto select-none max-w-[65vw] sm:max-w-none"
-              draggable={false}
-            />
-          </Link>
-          <div className="flex items-center gap-3 sm:gap-5 shrink-0">
-            {!hideHeaderTimer && <div className="hidden sm:block"><NextReleaseTimer /></div>}
-            {authed && (
+        <div className="container-wide flex items-center justify-between gap-3 py-4">
+          <div className="flex items-center gap-3 min-w-0">
+            {authed && !isFeed && (
+              <Link
+                to="/feed"
+                data-testid="header-back-to-feed"
+                aria-label="Back to feed"
+                title="Back to feed"
+                className="hidden sm:inline-flex items-center justify-center w-9 h-9 rounded-sm border hairline text-muted-ink hover:text-gold hover:border-gold transition-colors shrink-0"
+              >
+                <ChevronLeft />
+              </Link>
+            )}
+            <Link to="/" data-testid="nav-home" className="flex items-center gap-2.5 min-w-0">
+              <img
+                src="/brand/logo-full.png"
+                alt="The Housing News"
+                className="h-7 sm:h-9 w-auto select-none max-w-[55vw] sm:max-w-none"
+                draggable={false}
+              />
+            </Link>
+          </div>
+
+          {/* Primary nav — visible on desktop only. Keeps the burger menu as a
+              full sitemap, but exposes the four most-trafficked surfaces inline. */}
+          <nav className="hidden md:flex items-center gap-6 mx-auto" aria-label="Primary">
+            {authed ? (
               <>
-                <Link to="/feed" data-testid="nav-feed" className="hidden sm:inline font-sans text-sm font-medium hover:text-gold transition-colors">Feed</Link>
-                <Link
-                  to="/write"
-                  data-testid="nav-write"
-                  className="inline-flex items-center gap-1.5 bg-gold text-cream font-sans font-semibold text-sm px-4 py-1.5 rounded-full hover:opacity-90 transition-opacity"
-                >
-                  <WriteIcon />
-                  Write
-                </Link>
+                <Link to="/feed" data-testid="primary-nav-feed" className={`font-sans text-sm font-medium transition-colors ${loc.pathname === "/feed" ? "text-gold" : "ink hover:text-gold"}`}>Feed</Link>
+                <Link to="/essays" data-testid="primary-nav-essays" className={`font-sans text-sm font-medium transition-colors ${loc.pathname.startsWith("/essays") ? "text-gold" : "ink hover:text-gold"}`}>Essays</Link>
+                <Link to="/members" data-testid="primary-nav-members" className={`font-sans text-sm font-medium transition-colors ${loc.pathname.startsWith("/members") ? "text-gold" : "ink hover:text-gold"}`}>Members</Link>
+                <Link to="/news" data-testid="primary-nav-news" className={`font-sans text-sm font-medium transition-colors ${loc.pathname.startsWith("/news") ? "text-gold" : "ink hover:text-gold"}`}>News</Link>
               </>
+            ) : (
+              <>
+                <Link to="/news" data-testid="primary-nav-news" className={`font-sans text-sm font-medium transition-colors ${loc.pathname.startsWith("/news") ? "text-gold" : "ink hover:text-gold"}`}>News</Link>
+                <Link to="/essays" data-testid="primary-nav-essays" className={`font-sans text-sm font-medium transition-colors ${loc.pathname.startsWith("/essays") ? "text-gold" : "ink hover:text-gold"}`}>Essays</Link>
+                <Link to="/subscribe" data-testid="primary-nav-subscribe" className={`font-sans text-sm font-medium transition-colors ${loc.pathname.startsWith("/subscribe") ? "text-gold" : "ink hover:text-gold"}`}>Subscribe</Link>
+                <Link to="/about" data-testid="primary-nav-about" className={`font-sans text-sm font-medium transition-colors ${loc.pathname.startsWith("/about") ? "text-gold" : "ink hover:text-gold"}`}>About</Link>
+              </>
+            )}
+          </nav>
+
+          <div className="flex items-center gap-3 sm:gap-5 shrink-0">
+            {!hideHeaderTimer && <div className="hidden lg:block"><NextReleaseTimer /></div>}
+            {authed && (
+              <Link
+                to="/write"
+                data-testid="nav-write"
+                className="inline-flex items-center gap-1.5 bg-gold text-cream font-sans font-semibold text-sm px-4 py-1.5 rounded-full hover:opacity-90 transition-opacity"
+              >
+                <WriteIcon />
+                Write
+              </Link>
             )}
             {!authed && !user && (
               <>

@@ -6,8 +6,17 @@ import VerifyEmailBanner from "@/components/VerifyEmailBanner";
 import { toast } from "sonner";
 
 export default function Join() {
-  const { user, refresh } = useAuth();
+  const { user, loading, refresh } = useAuth();
   const navigate = useNavigate();
+
+  // Anonymous visitors can't fill the form — backend requires auth — so route
+  // them through /signin first and bring them back here after.
+  React.useEffect(() => {
+    if (loading) return;
+    if (!user) {
+      navigate("/signin?next=/join", { replace: true });
+    }
+  }, [user, loading, navigate]);
   const [form, setForm] = useState({
     current_role: "",
     market: "",
