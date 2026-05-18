@@ -1046,3 +1046,41 @@ the newsfeed". Three changes:
 2. Discuss Next.js / Tailwind / TS migration scope with user before kicking
    off Phase 19.
 
+
+
+## 2026-02-18 — Apply → Join rename pivot
+Softened the gating language across the public, user-facing UI in line with
+the "Free Forever" pivot. The writing community remains gated by editor
+review, but no longer leads with the word "Apply".
+
+Changes:
+- Renamed `frontend/src/pages/Apply.jsx` → `Join.jsx`; function `Apply` → `Join`.
+- Renamed route `/apply` → `/join` in `App.js`. No back-compat redirect (per
+  user choice; old `/apply` falls through to a no-route React Router warning).
+- Updated all internal navigations and `<Link to=...>` targets to `/join`:
+  `AuthCallback.jsx`, `Today.jsx`, `Directory.jsx`, `Feed.jsx`,
+  `Landing.jsx` (5 CTAs), `Subscribe.jsx`, `Claim.jsx`, `Layout.jsx`
+  (header button + mobile menu).
+- Replaced visible button/heading copy: "Apply" → "Join", "Apply →" → "Join →",
+  "Apply to write →" → "Join to write →", "Send application" → "Send".
+- Softened surrounding copy: "Application" eyebrow → "Join the network";
+  "We read every application personally" → "We read every note personally";
+  "Application received" → "Request received"; "Application decision" →
+  "Membership decision"; "Thanks for applying" → "Thanks for asking to join";
+  "You can apply again" → "You can try again"; "writing is by application" →
+  "writing is by invitation"; "every new member application" → "every note
+  from new members"; "every application" (Settings invite blurb) → "every
+  request"; "No application form, no waiting" → "No long form, no waiting".
+- Converted the `joined-this-week-apply` `<button onClick={signIn}>` on
+  Landing to a `<Link to="/join">Join →</Link>` for consistency with the
+  other join CTAs.
+- `data-testid` attributes containing "apply" (nav-apply, menu-apply,
+  landing-apply-btn, landing-final-apply, joined-this-week-apply,
+  subscribe-apply-link, paywall-apply-btn) are intentionally retained to
+  avoid breaking downstream test fixtures.
+- Admin-facing copy ("Application funnel", "Applications" tab, etc.) was
+  left untouched — internal nomenclature only.
+
+Verified via testing agent (iteration_21.json) — 12/12 checks pass after
+the joined-this-week-apply fix. Backend untouched (still uses
+`/api/applications/*` endpoints and `needs_application` user status).

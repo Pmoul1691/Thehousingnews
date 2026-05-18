@@ -615,14 +615,13 @@ function JoinedThisWeekStrip({ members }) {
               </li>
             ))}
           </ul>
-          <button
-            type="button"
-            onClick={signIn}
+          <Link
+            to="/join"
             data-testid="joined-this-week-apply"
             className="shrink-0 hidden md:inline-flex font-sans text-[11px] uppercase tracking-[0.18em] font-semibold text-gold hover:text-ink transition-colors"
           >
-            Apply &rarr;
-          </button>
+            Join &rarr;
+          </Link>
         </div>
       </div>
     </section>
