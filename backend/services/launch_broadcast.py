@@ -65,13 +65,7 @@ async def build_launch_payload(db) -> dict:
 def render_launch_html(member_name: str, payload: dict) -> str:
     base = _base_url()
     greeting = _greeting_name(member_name)
-    logo_block = (
-        f'<div style="text-align:center; margin-bottom:16px;">'
-        f'<img src="{base}/brand/bloom-gold.png" alt="The Housing News" '
-        f'width="80" height="80" style="display:inline-block; width:80px; height:80px; max-width:80px;" />'
-        f'</div>'
-        if base else ""
-    )
+    logo_block = ""
     prompt = payload.get("prompt") or {}
     prompt_block = ""
     if prompt.get("title"):

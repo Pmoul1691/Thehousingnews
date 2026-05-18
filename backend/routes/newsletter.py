@@ -50,17 +50,9 @@ class SubscribePayload(BaseModel):
 
 
 def _confirmation_html(email: str, confirm_url: str) -> str:
-    base = _base()
-    logo = (
-        f'<div style="text-align:center; margin-bottom:20px;">'
-        f'<img src="{base}/brand/bloom-gold.png" alt="The Housing News" '
-        f'width="64" height="64" style="display:inline-block; width:64px; height:64px; max-width:64px;" />'
-        f'</div>'
-    )
     return f"""
     <div style="font-family: Georgia, serif; color:#2C2410; background:#FDFAF4; padding:32px 0;">
       <div style="max-width:560px; margin:0 auto; background:#FDFAF4; border:1px solid #E8D4A0; padding:36px;">
-        {logo}
         <div style="font-family:'Plus Jakarta Sans', Arial, sans-serif; font-weight:600; color:#AD893E; letter-spacing:0.22em; text-transform:uppercase; font-size:11px; text-align:center; margin-bottom:24px;">The Housing News</div>
         <h1 style="font-family:'Plus Jakarta Sans', Arial, sans-serif; font-weight:600; font-size:26px; line-height:1.25; color:#2C2410; margin:0 0 16px 0; text-align:center;">Confirm your subscription.</h1>
         <p style="font-family:Georgia, serif; font-size:16px; line-height:1.6; color:#2C2410; margin:0 0 24px 0;">
@@ -200,7 +192,7 @@ def _redirect_html(headline: str, sub: str = ""):
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{headline} · The Housing News</title>
-  <link rel="icon" href="{base}/brand/favicon-gold.svg" />
+  <link rel="icon" href="{base}/brand/favicon-mono.png" />
   <style>
     body {{ font-family: Georgia, serif; background:#FDFAF4; color:#2C2410; margin:0; padding:64px 24px; }}
     .wrap {{ max-width:520px; margin:0 auto; text-align:center; }}
@@ -208,12 +200,10 @@ def _redirect_html(headline: str, sub: str = ""):
     h1 {{ font-family:'Plus Jakarta Sans', system-ui, sans-serif; font-weight:600; font-size:36px; line-height:1.15; margin:0 0 16px 0; color:#2C2410; }}
     p {{ font-size:17px; line-height:1.6; color:#2C2410; margin:0 0 24px 0; }}
     .cta {{ display:inline-block; background:#AD893E; color:#FDFAF4; font-family:'Plus Jakarta Sans', system-ui, sans-serif; font-weight:600; font-size:14px; padding:12px 24px; border-radius:2px; text-decoration:none; letter-spacing:0.04em; }}
-    img.mark {{ width:64px; height:64px; margin-bottom:12px; }}
     .small {{ font-size:13px; color:#5C4A1F; margin-top:32px; }}
   </style>
 </head><body>
   <div class="wrap">
-    <img class="mark" src="{base}/brand/bloom-gold.png" alt="The Housing News" />
     <div class="eyebrow">The Housing News</div>
     <h1>{headline}</h1>
     {f'<p>{sub}</p>' if sub else ''}

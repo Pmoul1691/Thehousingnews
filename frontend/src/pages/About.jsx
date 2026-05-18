@@ -1,6 +1,5 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import BloomMark from "@/components/BloomMark";
 
 export default function About() {
   const signIn = () => {
@@ -12,7 +11,6 @@ export default function About() {
   return (
     <div data-testid="about-page">
       <section className="container-prose pt-20 pb-16 animate-fade-up">
-        <div className="mb-8"><BloomMark size={72} /></div>
         <p data-testid="about-eyebrow" className="uppercase-label mb-5">The masthead</p>
         <h1 data-testid="about-headline" className="font-display font-semibold tracking-tight text-4xl sm:text-5xl ink leading-[1.05]">
           Two release windows a day. The rest is quiet.

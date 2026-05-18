@@ -126,20 +126,12 @@ def add_to_list(email: str, list_name: str, attributes: Optional[dict] = None) -
 # ---------- Email templates ----------
 
 def _logo_html(size: int = 72) -> str:
-    """Returns the gold-bloom mark as a centered <img>. Uses APP_PUBLIC_URL
-    so email clients (Gmail/Outlook/Apple Mail) can fetch the PNG. Hidden
-    gracefully (empty string) when APP_PUBLIC_URL is unset so transactional
-    emails sent from dev/CI don't render a broken-image placeholder.
+    """Legacy helper — the gold bloom mark has been removed from all email
+    templates. Returns an empty string so existing call sites continue to
+    work without rendering anything.
     """
-    base = os.environ.get("APP_PUBLIC_URL", "").rstrip("/")
-    if not base:
-        return ""
-    return (
-        f'<div style="text-align:center; margin:0 0 20px 0;">'
-        f'<img src="{base}/brand/bloom-gold.png" alt="The Housing News" '
-        f'width="{size}" height="{size}" style="display:inline-block; width:{size}px; height:{size}px; max-width:{size}px;" />'
-        f'</div>'
-    )
+    _ = size
+    return ""
 
 
 def _wrap(body_html: str) -> str:

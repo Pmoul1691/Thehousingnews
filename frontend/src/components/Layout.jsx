@@ -41,16 +41,9 @@ export default function Layout({ children }) {
         <div className="container-wide flex items-center justify-between py-4">
           <Link to="/" data-testid="nav-home" className="flex items-center gap-2.5 min-w-0">
             <img
-              src="/brand/favicon-gold.svg"
-              alt=""
-              aria-hidden="true"
-              className="h-8 sm:h-9 w-auto select-none shrink-0"
-              draggable={false}
-            />
-            <img
               src="/brand/logo-full.png"
               alt="The Housing News"
-              className="h-7 sm:h-9 w-auto select-none max-w-[55vw] sm:max-w-none"
+              className="h-7 sm:h-9 w-auto select-none max-w-[65vw] sm:max-w-none"
               draggable={false}
             />
           </Link>
@@ -186,13 +179,6 @@ export default function Layout({ children }) {
       <footer className="border-t hairline mt-24">
         <div className="container-wide py-12 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
           <div className="flex items-center gap-3">
-            <img
-              src="/brand/favicon-gold.svg"
-              alt=""
-              aria-hidden="true"
-              className="h-10 w-auto select-none"
-              draggable={false}
-            />
             <img
               src="/brand/logo-full.png"
               alt="The Housing News"
