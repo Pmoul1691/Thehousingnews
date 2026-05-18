@@ -11,8 +11,66 @@ from fastapi import APIRouter, HTTPException, Cookie, Header, Query
 from pydantic import BaseModel, Field
 
 from services.auth_helpers import get_current_user, is_user_admin
+from services.brevo import send_email
 
 logger = logging.getLogger(__name__)
+
+
+def _esc(s: str) -> str:
+    """Minimal HTML escape for the user-supplied text we echo back in emails."""
+    return (
+        (s or "")
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace('"', "&quot;")
+    )
+
+
+def _send_thank_you(email: str, name: str, text: str) -> None:
+    if not email:
+        return
+    quote = _esc(text)[:600]
+    if len(text) > 600:
+        quote += "…"
+    html = f"""
+<p>Hi {_esc(name) or 'there'},</p>
+<p>Thanks for the suggestion — we read every note personally.</p>
+<blockquote style="margin:18px 0;padding:12px 16px;border-left:3px solid #B89F3D;background:#F8F2DD;font-family:Georgia,serif;color:#2C2410;white-space:pre-wrap">{quote}</blockquote>
+<p>We'll get back to you if it goes somewhere useful.</p>
+<p style="font-size:12px;color:#7A6E4F">— The editors at The Housing News</p>
+"""
+    try:
+        result = send_email(email, name or email, "Got your note — thanks", html, tags=["thn_improvement", "received"])
+        logger.info("improvement thank-you sent to %s: %s", email, (result or {}).get("messageId") or result)
+    except Exception:
+        logger.exception("thank-you send failed for %s", email)
+
+
+def _send_status_update(email: str, name: str, text: str, status: str) -> None:
+    if not email or status not in ("reviewing", "done"):
+        return
+    quote = _esc(text)[:600]
+    if len(text) > 600:
+        quote += "…"
+    if status == "reviewing":
+        subject = "We're looking at your suggestion"
+        line = "<p>Quick update — we're actively reviewing this. No action needed on your end.</p>"
+    else:
+        subject = "We shipped your suggestion"
+        line = "<p>Good news — we acted on this. Thanks for taking the time to write in.</p>"
+    html = f"""
+<p>Hi {_esc(name) or 'there'},</p>
+{line}
+<blockquote style="margin:18px 0;padding:12px 16px;border-left:3px solid #B89F3D;background:#F8F2DD;font-family:Georgia,serif;color:#2C2410;white-space:pre-wrap">{quote}</blockquote>
+<p style="font-size:12px;color:#7A6E4F">— The editors at The Housing News</p>
+"""
+    try:
+        result = send_email(email, name or email, subject, html, tags=["thn_improvement", status])
+        logger.info("improvement %s update sent to %s: %s", status, email, (result or {}).get("messageId") or result)
+    except Exception:
+        logger.exception("status-update send failed for %s (%s)", email, status)
+
 
 ALLOWED_STATUSES = {"new", "reviewing", "done", "dismissed"}
 
@@ -65,6 +123,9 @@ def setup(db):
         await db.improvements.insert_one(doc)
         # Drop _id from echo (Mongo mutates the doc on insert)
         doc.pop("_id", None)
+        # Fire-and-forget thank-you email if we have an address to reply to.
+        if doc.get("submitter_email"):
+            _send_thank_you(doc["submitter_email"], doc.get("submitter_name") or "", doc["text"])
         return {"ok": True, "id": doc["id"]}
 
     # ── Admin ──────────────────────────────────────────────────────────
@@ -115,6 +176,12 @@ def setup(db):
         admin = await _admin(session_token, authorization)
         if body.status not in ALLOWED_STATUSES:
             raise HTTPException(status_code=400, detail="Invalid status")
+        # Read the current doc so we can: (a) detect a real status change and
+        # (b) email the submitter when we move them to reviewing/done.
+        before = await db.improvements.find_one({"id": imp_id}, {"_id": 0})
+        if not before:
+            raise HTTPException(status_code=404, detail="Improvement not found")
+
         update = {
             "status": body.status,
             "updated_at": _now_iso(),
@@ -125,9 +192,21 @@ def setup(db):
         else:
             update["resolved_at"] = None
             update["resolved_by"] = None
-        r = await db.improvements.update_one({"id": imp_id}, {"$set": update})
-        if r.matched_count == 0:
-            raise HTTPException(status_code=404, detail="Improvement not found")
+        await db.improvements.update_one({"id": imp_id}, {"$set": update})
+
+        # Notify submitter on meaningful status transitions only (skip same-state
+        # re-marks and the dismissed path — we don't tell people we ignored them).
+        if (
+            body.status != before.get("status")
+            and body.status in ("reviewing", "done")
+            and before.get("submitter_email")
+        ):
+            _send_status_update(
+                before["submitter_email"],
+                before.get("submitter_name") or "",
+                before.get("text") or "",
+                body.status,
+            )
         return {"ok": True, "status": body.status}
 
     @router.delete("/admin/improvements/{imp_id}")
