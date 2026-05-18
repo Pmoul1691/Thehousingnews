@@ -1,24 +1,4 @@
-"""
-One-shot script: create a DRAFT Brevo email campaign for the Chicago Nurtured 0526 list.
-Pete will review in Brevo dashboard and click Send.
-"""
-import os
-import requests
-from dotenv import load_dotenv
-
-load_dotenv("/app/backend/.env")
-
-API_KEY = os.environ["BREVO_API_KEY"]
-LIST_ID = 2  # "Chicago Nurtured 0526"
-SENDER_NAME = "Peter Moulton"
-SENDER_EMAIL = "peter@thehousingnews.com"
-REPLY_TO = "peter@thehousingnews.com"
-SUBJECT = "Welcome to The Housing News. Free forever."
-CAMPAIGN_NAME = "Chicago Nurtured 0526 — Welcome (Free forever)"
-HEADER_IMG = "https://housing-news-free.preview.emergentagent.com/brand/email-header-thn-cream.png"
-SIGNATURE_IMG = "https://housing-news-free.preview.emergentagent.com/brand/signature-pete.png"
-
-HTML = """<!doctype html>
+<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
@@ -62,7 +42,7 @@ HTML = """<!doctype html>
           <tr>
             <td class="header" style="background:#FFFCF2;">
               <a href="https://thehousingnews.com" target="_blank">
-                <img src="__HEADER_IMG__" alt="The Housing News" width="600" style="display:block;width:100%;max-width:600px;height:auto;border:0;" />
+                <img src="https://housing-news-free.preview.emergentagent.com/brand/email-header-thn-cream.png" alt="The Housing News" width="600" style="display:block;width:100%;max-width:600px;height:auto;border:0;" />
               </a>
             </td>
           </tr>
@@ -105,7 +85,7 @@ HTML = """<!doctype html>
               <p class="small">Today's edition: <a href="https://thehousingnews.com/news" target="_blank" style="color:#B8860B;">thehousingnews.com/news</a></p>
 
               <p class="sig" style="margin-top:28px;margin-bottom:6px;">
-                <img src="__SIGNATURE_IMG__" alt="Pete Moulton signature" width="180" style="display:block;width:180px;height:auto;margin:0 0 6px 0;border:0;outline:none;" />
+                <img src="https://housing-news-free.preview.emergentagent.com/brand/signature-pete.png" alt="Pete Moulton signature" width="180" style="display:block;width:180px;height:auto;margin:0 0 6px 0;border:0;outline:none;" />
                 Pete Moulton<br/>
               <span class="small" style="color:#666;">Founder &amp; Editor, The Housing News</span></p>
             </td>
@@ -124,39 +104,3 @@ HTML = """<!doctype html>
   </div>
 </body>
 </html>
-"""
-
-html = HTML.replace("__HEADER_IMG__", HEADER_IMG).replace("__SIGNATURE_IMG__", SIGNATURE_IMG)
-
-CAMPAIGN_ID = 5  # existing draft to update; set to None to create a new one
-payload = {
-    "name": CAMPAIGN_NAME,
-    "subject": SUBJECT,
-    "sender": {"name": SENDER_NAME, "email": SENDER_EMAIL},
-    "replyTo": REPLY_TO,
-    "htmlContent": html,
-    "recipients": {"listIds": [LIST_ID]},
-    "inlineImageActivation": False,
-    "mirrorActive": True,
-    "footer": "The Housing News · Chicago · {{ unsubscribe }}",
-    "header": "If this email does not display correctly, view it in your browser.",
-}
-
-if CAMPAIGN_ID:
-    r = requests.put(
-        f"https://api.brevo.com/v3/emailCampaigns/{CAMPAIGN_ID}",
-        headers={"accept": "application/json", "content-type": "application/json", "api-key": API_KEY},
-        json=payload,
-        timeout=30,
-    )
-    print("UPDATE status:", r.status_code)
-    print("body:", r.text or f"(updated campaign {CAMPAIGN_ID})")
-else:
-    r = requests.post(
-        "https://api.brevo.com/v3/emailCampaigns",
-        headers={"accept": "application/json", "content-type": "application/json", "api-key": API_KEY},
-        json=payload,
-        timeout=30,
-    )
-    print("CREATE status:", r.status_code)
-    print("body:", r.text)
