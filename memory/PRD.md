@@ -1308,3 +1308,65 @@ Smoke-tested both states via Playwright; both render correctly. Data-testid:
 `agg-today-brief-row`.
 
 Slack notification roadmap item dropped at user's request (no Slack in use).
+
+
+## 2026-02-18 — Regional feed personalization + Onboarding checklist + Inbox deep-links
+
+### Regional personalization
+- **Fixed taxonomy** in `services/regions.py` — 54 slugs across 5 tiers
+  (city/metro/state/region/national). Cities: 18, Metros: 14, States: 17,
+  Regions: 4, National: 1.
+- **AI tagger** in `services/region_tagger.py` — Claude Haiku 4.5 via
+  `emergentintegrations.LlmChat`. System prompt constrains to JSON array of
+  allowed slugs only; safe-parse with regex fallback; errors swallowed.
+- **Endpoints** (`routes/regions.py`):
+  - `GET  /api/regions` — public taxonomy (items + tier-grouped)
+  - `GET  /api/users/me/regions` — current user's saved picks
+  - `PUT  /api/users/me/regions` — body `{regions: [...]}`, validates +
+    caps at 8 + drops unknowns
+- **`POST /api/posts`** — accepts optional `regions: [...]` in payload. If
+  empty, schedules a FastAPI BackgroundTask that calls Claude and patches
+  the doc in place (`regions_source: pending_ai` → `ai`). Never blocks the
+  request.
+- **`GET /api/posts/feed`** — new `regions` query param. `?regions=mine`
+  uses the user's saved prefs; `?regions=chicago,nyc` overrides explicitly.
+  Match logic: `regions $in filter` OR `regions $exists:false` OR
+  `regions: []` (so legacy/untagged posts still surface — no silent hiding).
+- **Default behaviour preserved**: no `regions` param = see everything. The
+  user must opt-in to filtering by picking regions in Settings.
+
+### Onboarding checklist (1c from the audit)
+- Sticky `components/OnboardingChecklist.jsx` on `/feed` for approved
+  members. 5 steps: verify email, complete profile, pick regions, read
+  first essay, write first take.
+- Auto-marks done from `/auth/me` + `/users/me/regions` + `/posts/mine`.
+  "Read first essay" is tracked client-side via localStorage
+  (`thn_onboarding_read_essay_v1`) set when `/essays/:id` scrolls past 80%.
+- Dismissible via "Hide this" → `localStorage.thn_onboarding_dismissed_v1`.
+- Auto-hides when all 5 are complete (no "all done" celebration screen
+  yet — kept it minimal).
+- **Reset from Settings** (`reset-onboarding-btn`) clears both localStorage
+  keys so the checklist re-fires.
+
+### Composer regions multi-select
+- `Composer.jsx` now has a collapsible "Regions" block under the editor.
+  Powered by `RegionPicker` in controlled mode. If the author skips,
+  payload omits regions and the AI tagger fills them in.
+
+### Inbox provider deep-links
+- `VerifyEmailBanner` detects the email domain and shows a one-click
+  "Open Gmail / Outlook / Yahoo / iCloud / Proton / Fastmail / AOL"
+  button next to "Resend". Custom domains fall through to Resend-only.
+
+### Testing
+- iter26: **12/12 new backend tests + 33 regression pass, 1 skip**.
+  Frontend: **100% on 6 spec areas**.
+- Test file: `/app/backend/tests/test_iter26_regions.py`.
+- Note: synthetic/repeated-text essays trip AI moderation
+  (flagged_by_ai). For e2e feed tests, seed posts directly in mongo with
+  status=approved.
+
+### Deferred from this batch
+- **React-joyride tooltip tour (1a)** — punted to a follow-up so we could
+  ship the higher-leverage checklist + regional filter first. Adds a new
+  dependency; safer to validate the checklist UX with real users first.
