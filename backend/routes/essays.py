@@ -5,6 +5,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Cookie, Header
 
 from services.auth_helpers import get_current_user
+from services.regions import normalise as normalise_regions
 
 logger = logging.getLogger(__name__)
 
@@ -31,10 +32,14 @@ def setup(db):
         q: Optional[str] = None,
         market: Optional[str] = None,
         writer_id: Optional[str] = None,
+        regions: Optional[str] = None,
         before: Optional[str] = None,
         limit: int = 30,
     ):
-        """Browse essays. Public. Returns title/subtitle/preview/author for each."""
+        """Browse essays. Public. Returns title/subtitle/preview/author for each.
+        `regions=<slug>,<slug>` filters to essays whose tags overlap any of
+        the passed slugs. Untagged essays still pass (so legacy content
+        remains visible)."""
         limit = min(max(1, limit), 60)
         now_iso = _now_iso()
         query = {
@@ -42,6 +47,16 @@ def setup(db):
             "status": {"$nin": ["declined", "hidden"]},
             "release_at": {"$lte": before or now_iso},
         }
+        # Region filter
+        region_filter: list[str] = []
+        if regions:
+            region_filter = normalise_regions([r for r in regions.split(",") if r.strip()])
+        if region_filter:
+            query["$or"] = [
+                {"regions": {"$in": region_filter}},
+                {"regions": {"$exists": False}},
+                {"regions": []},
+            ]
         # Exclude suspended authors
         sus_rows = await db.users.find({"suspended": True}, {"_id": 0, "user_id": 1}).to_list(2000)
         sus = [s["user_id"] for s in sus_rows]
@@ -94,6 +109,7 @@ def setup(db):
                 "media": p.get("media") or ([{"kind": "image", "path": p["image_path"]}] if p.get("image_path") else []),
                 "created_at": p.get("created_at"),
                 "release_at": p.get("release_at"),
+                "regions": p.get("regions") or [],
                 "is_pete_pick": bool(p.get("is_pete_pick")),
                 "author": {
                     "user_id": p["user_id"],

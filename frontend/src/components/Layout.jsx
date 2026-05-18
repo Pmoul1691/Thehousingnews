@@ -173,7 +173,6 @@ export default function Layout({ children }) {
                     </>
                   )}
                   <Link to="/about" onClick={closeMenu} data-testid="menu-about" className="font-display text-xl ink px-4 py-3 rounded-sm hover:bg-[#F5EDD6]/60 hover:text-gold transition-colors">About</Link>
-                  <Link to="/pricing" onClick={closeMenu} data-testid="menu-pricing" className="font-display text-xl ink px-4 py-3 rounded-sm hover:bg-[#F5EDD6]/60 hover:text-gold transition-colors">Pricing</Link>
                   <Link to="/news" onClick={closeMenu} data-testid="menu-news" className="font-display text-xl ink px-4 py-3 rounded-sm hover:bg-[#F5EDD6]/60 hover:text-gold transition-colors">News aggregator</Link>
                   <a
                     href="/legal/terms-of-service.pdf"

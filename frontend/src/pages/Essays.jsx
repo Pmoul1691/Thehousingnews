@@ -56,11 +56,28 @@ function EssayRow({ e }) {
   );
 }
 
+// Quick-pick chips: the 6 highest-value region filters as a one-tap
+// navigation primitive. Anything else lives in Settings (or the full
+// taxonomy via the existing market field).
+const QUICK_REGIONS = [
+  { slug: "national",       label: "National" },
+  { slug: "northeast",      label: "Northeast" },
+  { slug: "midwest",        label: "Midwest" },
+  { slug: "south",          label: "South" },
+  { slug: "west",           label: "West" },
+  { slug: "nyc",            label: "NYC" },
+  { slug: "chicago",        label: "Chicago" },
+  { slug: "la",             label: "LA" },
+  { slug: "miami",          label: "Miami" },
+  { slug: "bay-area",       label: "Bay Area" },
+];
+
 export default function Essays() {
   const { user } = useAuth();
   const [params, setParams] = useSearchParams();
   const [q, setQ] = useState(params.get("q") || "");
   const [market, setMarket] = useState(params.get("market") || "");
+  const [region, setRegion] = useState(params.get("regions") || "");
   const [items, setItems] = useState([]);
   const [picks, setPicks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -71,6 +88,7 @@ export default function Essays() {
       const qs = new URLSearchParams();
       if (q.trim()) qs.set("q", q.trim());
       if (market.trim()) qs.set("market", market.trim());
+      if (region.trim()) qs.set("regions", region.trim());
       const [list, p] = await Promise.all([
         api.get(`/essays${qs.toString() ? `?${qs.toString()}` : ""}`),
         api.get("/posts/picks?limit=3"),
@@ -81,15 +99,24 @@ export default function Essays() {
     } finally {
       setLoading(false);
     }
-  }, [q, market]);
+  }, [q, market, region]);
 
   useEffect(() => { load(); }, [load]);
+
+  const setRegionAndPush = (slug) => {
+    const next = region === slug ? "" : slug;
+    setRegion(next);
+    const sp = new URLSearchParams(params);
+    if (next) sp.set("regions", next); else sp.delete("regions");
+    setParams(sp);
+  };
 
   const onSearch = (e) => {
     e.preventDefault();
     const next = new URLSearchParams();
     if (q.trim()) next.set("q", q.trim());
     if (market.trim()) next.set("market", market.trim());
+    if (region.trim()) next.set("regions", region.trim());
     setParams(next);
   };
 
@@ -122,6 +149,39 @@ export default function Essays() {
           Search
         </button>
       </form>
+
+      {/* Quick region filters — one-tap nav by region. Click again to clear. */}
+      <div className="flex items-center gap-2 flex-wrap mb-10" data-testid="essays-region-chips">
+        <span className="font-sans text-[10px] uppercase tracking-[0.22em] font-semibold text-muted-ink mr-1 shrink-0">Browse by region</span>
+        {QUICK_REGIONS.map((r) => {
+          const on = region === r.slug;
+          return (
+            <button
+              key={r.slug}
+              type="button"
+              onClick={() => setRegionAndPush(r.slug)}
+              data-testid={`essays-region-${r.slug}`}
+              className={`font-sans text-xs font-medium px-3 py-1.5 rounded-full transition-colors ${
+                on
+                  ? "bg-gold text-cream"
+                  : "border hairline text-muted-ink hover:text-ink hover:border-gold/50"
+              }`}
+            >
+              {r.label}
+            </button>
+          );
+        })}
+        {region && (
+          <button
+            type="button"
+            onClick={() => setRegionAndPush(region)}
+            data-testid="essays-region-clear"
+            className="font-sans text-[11px] uppercase tracking-wider font-semibold text-muted-ink hover:text-deepred transition-colors ml-1"
+          >
+            Clear
+          </button>
+        )}
+      </div>
 
       {picks.length > 0 && !q && !market && (
         <section className="mb-12" data-testid="essays-picks">
