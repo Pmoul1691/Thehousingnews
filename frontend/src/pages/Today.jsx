@@ -95,7 +95,7 @@ function BriefingCard({ briefing }) {
           <div className="flex flex-wrap gap-2">
             {briefing.trending.slice(0, 6).map((t, i) => (
               <span key={i} data-testid={`today-trending-${i}`} className="font-mono text-[11px] bg-white border border-gold/20 rounded-sm px-2 py-1 text-ink/80">
-                {t.term || t.word || t.label || t}
+                {typeof t === "string" ? t : (t.topic || t.term || t.word || t.label || "")}
               </span>
             ))}
           </div>
