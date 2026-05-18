@@ -1084,3 +1084,69 @@ Changes:
 Verified via testing agent (iteration_21.json) — 12/12 checks pass after
 the joined-this-week-apply fix. Backend untouched (still uses
 `/api/applications/*` endpoints and `needs_application` user status).
+
+
+## 2026-02-18 — Feedback widget + admin tools (Improvements, Posts takedown, Admin promotion)
+
+Four new user-visible affordances and two admin tooling additions shipped in
+one batch:
+
+### Frontend (App-level floats)
+- **Back-to-Feed pill** (`BackToFeedButton.jsx`): top-left, shown to approved
+  signed-in members on every page EXCEPT `/feed`. Mobile shows compact "Feed"
+  label, desktop "Back to feed".
+- **Floating "Suggest an improvement"** (`FloatingSuggestButton.jsx`):
+  bottom-left on every screen (anon + authed). Opens a modal with category
+  chips (idea/bug/copy/design/other), textarea, optional email (for
+  anonymous users), Send/Cancel. Submits to `POST /api/improvements`.
+- All three floating components (Back-to-Feed, Write, Suggest) are mounted
+  **once** in `App.js` after `<Routes>` inside the dynamic `<ChromeLayout>`.
+  This guarantees they render on BOTH `Layout` (members chrome) and
+  `AggLayout` (`/news/*` chrome) without duplication.
+- Added `pb-24 sm:pb-0` (Layout) and `pb-24 sm:pb-8` (AggLayout) bottom
+  padding so the floating buttons never occlude bottom CTAs on mobile.
+- Bumped `AggHome` hero stat `38+ SOURCES` → `40+ SOURCES` to match the
+  current publisher count.
+
+### Backend
+- New `routes/improvements.py`:
+  - `POST /api/improvements` (anonymous OR authed; auto-attaches user).
+  - `GET /api/admin/improvements?status=` (admin; items + counts by status).
+  - `POST /api/admin/improvements/{id}/status` (admin).
+  - `DELETE /api/admin/improvements/{id}` (admin).
+- New `routes/admin_users.py`:
+  - `GET /api/admin/users/search?q=` — search by email/name.
+  - `POST /api/admin/users/{user_id}/promote` body `{is_admin: bool}`.
+  - Guards: cannot demote self; cannot demote env-listed admins.
+- New `routes/admin_posts.py`:
+  - `GET /api/admin/posts/recent?status=&q=&kind=&limit=` — list/search
+    posts for the admin takedown UI. Hide/unhide reuses the existing
+    `POST /api/admin/posts/{id}/hide|unhide` from `routes/moderation.py`.
+- New Mongo collection `improvements` with indexes on `id` and
+  `(status, created_at)`.
+
+### Admin promotion refactor (`is_user_admin`)
+- Added `services/auth_helpers.is_user_admin(user)` that returns True if
+  EITHER `user.is_admin` is set on the user doc OR the email is in the
+  `ADMIN_EMAILS` env list.
+- Bulk-refactored 15 admin route files to use `is_user_admin(user)` instead
+  of `is_admin_email(user["email"])`. Files touched:
+  `admin_briefings, admin_invite, picks, aggregator_suggestions, users,
+   applications, admin_rss, admin_dashboard, analytics, aggregator_admin,
+   admin_orphans, email_health, admin_reset, moderation, prompts`. The
+  `admin_dep` factory in `services/auth_helpers.py` was also updated.
+- Effect: a runtime-promoted user is recognised by EVERY admin endpoint,
+  not just the new ones.
+
+### Admin panel
+- Three new tabs added to `/admin`:
+  - **Improvements** (`AdminImprovementsPanel.jsx`): triage by status, delete.
+  - **Posts** (`AdminPostsPanel.jsx`): filter by status/kind, search,
+    take-down/restore.
+  - **Admins** (`AdminAdminsPanel.jsx`): search users, promote/demote;
+    env-admins show a 'Locked via env' badge.
+
+### Testing
+- iter22: 31/31 backend, 13/14 frontend (one gap on /news layout).
+- iter23 retest after AggLayout hoist fix: 100% pass, no duplicates,
+  correct route+auth gating.
