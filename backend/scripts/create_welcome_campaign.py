@@ -15,7 +15,7 @@ SENDER_EMAIL = "peter@thehousingnews.com"
 REPLY_TO = "peter@thehousingnews.com"
 SUBJECT = "Welcome to The Housing News. Free forever."
 CAMPAIGN_NAME = "Chicago Nurtured 0526 — Welcome (Free forever)"
-HEADER_IMG = "https://customer-assets.emergentagent.com/job_58b0e722-6ed4-44a2-898f-d2ea7ee81145/artifacts/9tgdg7gl_Therealestatenewslogofinal.png"
+HEADER_IMG = "https://housing-news-free.preview.emergentagent.com/brand/email-header-thn-cream.png"
 SIGNATURE_IMG = "https://customer-assets.emergentagent.com/job_58b0e722-6ed4-44a2-898f-d2ea7ee81145/artifacts/yct8hskj_prm%20signature.png"
 
 HTML = """<!doctype html>
@@ -30,7 +30,7 @@ HTML = """<!doctype html>
   a { color:#B8860B; text-decoration: none; }
   .wrap { width:100%; background:#F5EDD6; padding:24px 0; }
   .card { max-width:600px; margin:0 auto; background:#FFFCF2; }
-  .header { background:#000; }
+  .header { background:#FFFCF2; }
   .header img { display:block; width:100%; height:auto; }
   .content { padding:36px 36px 28px 36px; font-family: Georgia, 'Times New Roman', serif; font-size:17px; line-height:1.7; color:#1a1a1a; }
   .content p { margin:0 0 18px 0; }
@@ -48,7 +48,7 @@ HTML = """<!doctype html>
       <tr><td align="center">
         <table role="presentation" class="card" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;background:#FFFCF2;">
           <tr>
-            <td class="header" style="background:#000;">
+            <td class="header" style="background:#FFFCF2;">
               <a href="https://thehousingnews.com" target="_blank">
                 <img src="__HEADER_IMG__" alt="The Housing News" width="600" style="display:block;width:100%;height:auto;" />
               </a>
