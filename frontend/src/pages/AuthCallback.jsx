@@ -39,7 +39,9 @@ export default function AuthCallback() {
           if (!me.has_profile) {
             navigate("/onboarding", { replace: true, state: { user: me } });
           } else {
-            navigate("/today", { replace: true, state: { user: me } });
+            // Approved members land on /news (read-first). The floating
+            // Read/Write toggle lets them switch to /feed to compose.
+            navigate("/news", { replace: true, state: { user: me } });
           }
         } else if (r.data.status === "needs_application") {
           navigate("/join", { replace: true, state: { user: r.data } });

@@ -5,7 +5,9 @@ import { useAuth } from "@/context/AuthContext";
 
 /**
  * Floating Write pill rendered on every authenticated page.
- * Hidden on the /write page itself and for unauthenticated visitors.
+ * Hidden on the /write page itself, on /news and /feed (where the
+ * Read/Write toggle takes over the bottom-right slot), and for
+ * unauthenticated visitors.
  * Polls /drafts/mine on mount + route change. If a draft exists, shows a
  * tiny indicator dot.
  */
@@ -16,9 +18,13 @@ export default function FloatingWriteButton() {
 
   const authed = user && user.status === "approved";
   const onWrite = loc.pathname.startsWith("/write");
+  // Hide on /news and /feed — the ReadWriteToggle owns that surface there.
+  const ownedByToggle =
+    loc.pathname === "/news" || loc.pathname.startsWith("/news/") ||
+    loc.pathname === "/feed" || loc.pathname.startsWith("/feed/");
 
   useEffect(() => {
-    if (!authed || onWrite) return;
+    if (!authed || onWrite || ownedByToggle) return;
     let alive = true;
     api
       .get("/drafts/mine")
@@ -39,9 +45,9 @@ export default function FloatingWriteButton() {
         if (alive) setHasDraft(false);
       });
     return () => { alive = false; };
-  }, [authed, onWrite, loc.pathname]);
+  }, [authed, onWrite, ownedByToggle, loc.pathname]);
 
-  if (!authed || onWrite) return null;
+  if (!authed || onWrite || ownedByToggle) return null;
 
   return (
     <Link

@@ -22,7 +22,7 @@ export default function SignIn() {
   const { refresh } = useAuth();
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const next = params.get("next") || "/feed";
+  const next = params.get("next") || "/news";
   const initialMode = params.get("mode") === "signup" ? "signup" : "signin";
   const [pwMode, setPwMode] = useState(initialMode); // signin | signup
   const [showMagic, setShowMagic] = useState(false);

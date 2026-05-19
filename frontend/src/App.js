@@ -42,6 +42,7 @@ import MagicLinkConsume from "@/pages/MagicLinkConsume";
 import ResetPassword from "@/pages/ResetPassword";
 import usePageviewTracker from "@/hooks/usePageviewTracker";
 import FloatingWriteButton from "@/components/FloatingWriteButton";
+import ReadWriteToggle from "@/components/ReadWriteToggle";
 import FloatingSuggestButton from "@/components/FloatingSuggestButton";
 
 // Aggregator pages
@@ -126,6 +127,7 @@ function Router() {
         <Route path="/newsletter" element={<Navigate to="/news/newsletter" replace />} />
       </Routes>
       <FloatingWriteButton />
+      <ReadWriteToggle />
       <FloatingSuggestButton />
     </ChromeLayout>
   );

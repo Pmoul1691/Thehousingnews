@@ -19,7 +19,7 @@ export default function MagicLinkConsume() {
         if (!alive) return;
         await refresh();
         setState("ok");
-        setTimeout(() => navigate("/feed", { replace: true }), 150);
+        setTimeout(() => navigate("/news", { replace: true }), 150);
       })
       .catch((e) => {
         if (!alive) return;

@@ -19,7 +19,7 @@ export default function VerifyEmail() {
         if (!alive) return;
         await refresh();
         setState("ok");
-        setTimeout(() => navigate("/feed", { replace: true }), 600);
+        setTimeout(() => navigate("/news", { replace: true }), 600);
       })
       .catch((e) => {
         if (!alive) return;
