@@ -11,6 +11,21 @@ Hard guardrails: no chat widget, no popups, no follower counts, no stock photogr
 of teams.
 
 
+## 2026-02-19 — Outbound email URL guardrails (DONE)
+Root-cause of the "old version of the site" mobile complaint: production had
+`APP_PUBLIC_URL` set to a stale Emergent preview URL, so the daily brief's
+"Open The Daily" button pointed to a pre-pivot snapshot. Code hardened in
+`services/brevo.py` so this can never happen again:
+- New `app_url()` helper hard-defaults to `https://thehousingnews.com` when
+  `APP_PUBLIC_URL` is missing or empty. `admin_summary.py` and
+  `essay_dispatch.py` now use the same helper instead of reading env directly.
+- `send_email()` refuses to send any email whose HTML body contains
+  `preview.emergentagent.com` and logs a loud error.
+- Regression locked in by `tests/test_brevo_app_url_guards.py` (6 tests, all
+  passing).
+NOTE: prod env var still needs to be corrected on the production server
+(`APP_PUBLIC_URL=https://thehousingnews.com`) before the next brief send.
+
 ## 2026-02-19 — Skeleton min-display window (DONE)
 - `AggHome.jsx` and `Feed.jsx` now wrap their primary fetch in
   `Promise.all([api.get(...), 200ms delay])` so the skeleton state stays

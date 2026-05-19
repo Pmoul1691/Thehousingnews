@@ -11,7 +11,7 @@ import logging
 import os
 from datetime import datetime, timedelta, timezone
 
-from services.brevo import send_email
+from services.brevo import send_email, app_url as _brevo_app_url
 
 logger = logging.getLogger(__name__)
 
@@ -140,7 +140,7 @@ async def send_admin_summary(db) -> dict:
     prev = await db.admin_summary_history.find_one(
         {}, {"_id": 0}, sort=[("captured_at", -1)],
     )
-    app_url = os.environ.get("APP_PUBLIC_URL", "")
+    app_url = _brevo_app_url()
     html = _render_html(snap, prev, app_url)
     today_label = datetime.now(timezone.utc).astimezone().strftime("%a %b %-d")
     subject = f"Housing News · Operator Summary · {today_label}"

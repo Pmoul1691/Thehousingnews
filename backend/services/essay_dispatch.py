@@ -1,10 +1,9 @@
 """Essay dispatch: send a per-essay email to each of the writer's followers."""
 import logging
-import os
 import uuid
 from datetime import datetime, timezone
 
-from services.brevo import send_essay_email
+from services.brevo import send_essay_email, app_url as _brevo_app_url
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +42,7 @@ async def dispatch_essay_to_followers(db, post_id: str) -> dict:
         {"_id": 0},
     ).to_list(5000)
 
-    app_url = os.environ.get("APP_PUBLIC_URL", "")
+    app_url = _brevo_app_url()
     sent = 0
     skipped = 0
     for f in followers:

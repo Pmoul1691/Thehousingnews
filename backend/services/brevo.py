@@ -11,6 +11,30 @@ SENDER_EMAIL = os.environ.get("BREVO_SENDER_EMAIL", "peter@1691inc.com")
 SENDER_NAME = os.environ.get("BREVO_SENDER_NAME", "The Housing News")
 API_BASE = "https://api.brevo.com/v3"
 
+# Production canonical host. The email-button URL is read from
+# APP_PUBLIC_URL but we hard-default to the production host so a missing /
+# empty env never silently stamps a relative or empty URL into the email.
+PROD_APP_URL = "https://thehousingnews.com"
+
+
+def app_url() -> str:
+    """Return the canonical site URL used to build links inside emails.
+
+    Falls back to the production host when APP_PUBLIC_URL is missing or empty.
+    Use this everywhere instead of reading APP_PUBLIC_URL directly so we
+    have a single chokepoint to enforce production URLs in outbound mail.
+    """
+    return (os.environ.get("APP_PUBLIC_URL") or "").rstrip("/") or PROD_APP_URL
+
+
+def _email_body_has_stale_preview_url(html: str) -> bool:
+    """Guardrail: refuse to send anything whose body links back to an
+    Emergent preview deployment. A previous incident sent 14k briefs out
+    with the old preview host stamped into the 'Open The Daily' button,
+    which landed members on the pre-pivot snapshot of the site.
+    """
+    return "preview.emergentagent.com" in (html or "")
+
 
 def _headers() -> dict:
     return {
@@ -41,6 +65,14 @@ def send_email(
     if not BREVO_API_KEY:
         logger.warning("BREVO_API_KEY missing; skipping email to %s", to_email)
         return {"skipped": True}
+    if _email_body_has_stale_preview_url(html):
+        logger.error(
+            "BLOCKED outbound email to %s: body contains preview.emergentagent.com "
+            "URL. Check APP_PUBLIC_URL on the server — it must be the production "
+            "host (e.g. %s), not a preview URL.",
+            to_email, PROD_APP_URL,
+        )
+        return {"error": "blocked: preview URL in email body", "blocked": True}
     from_email = sender_email or SENDER_EMAIL
     from_name = sender_name or SENDER_NAME
     payload = {
@@ -257,7 +289,7 @@ def send_digest_email(email: str, name: str, window_label: str, kind: str, posts
 
     prompt_html = ""
     if prompt and prompt.get("title"):
-        prompt_url = f"{os.environ.get('APP_PUBLIC_URL', '')}/prompts/{prompt.get('prompt_id', '')}"
+        prompt_url = f"{app_url()}/prompts/{prompt.get('prompt_id', '')}"
         prompt_body = (prompt.get("body") or "")[:240]
         prompt_html = f"""
         <div style="margin-top:24px; padding:16px 20px; border-left:3px solid #AD893E; background:#FBF6E8;">
@@ -275,7 +307,7 @@ def send_digest_email(email: str, name: str, window_label: str, kind: str, posts
       {more_note}
       {picks_html}
       <p style="margin-top:24px;">
-        <a href="{os.environ.get('APP_PUBLIC_URL', '')}/feed" style="display:inline-block; background:#AD893E; color:#FDFAF4; padding:10px 20px; text-decoration:none; font-family:'Plus Jakarta Sans', Arial, sans-serif; font-weight:600; font-size:13px;">Open the feed</a>
+        <a href="{app_url()}/feed" style="display:inline-block; background:#AD893E; color:#FDFAF4; padding:10px 20px; text-decoration:none; font-family:'Plus Jakarta Sans', Arial, sans-serif; font-weight:600; font-size:13px;">Open the feed</a>
       </p>
       <p style="font-family:Georgia, serif; color:#2C2410;">The Editors</p>
     """)
@@ -431,7 +463,7 @@ def send_brief_email(
     unsubscribe_token: Optional[str] = None,
 ) -> dict:
     """Send a Morning or Evening Brief to one recipient."""
-    app_url = os.environ.get("APP_PUBLIC_URL", "")
+    link_base = app_url()
     articles = payload.get("articles") or []
     items_html = "".join(_brief_article_row(i + 1, a) for i, a in enumerate(articles[:8]))
     extras_html = ""
@@ -439,10 +471,10 @@ def send_brief_email(
         extras_html += _brief_podcast_block(payload["podcast"])
     if kind == "evening" and payload.get("trending"):
         extras_html += _brief_trending_block(payload["trending"])
-    essay_html = _brief_essay_block(payload.get("essay"), app_url)
+    essay_html = _brief_essay_block(payload.get("essay"), link_base)
     body = items_html + extras_html + essay_html
-    unsub_url = f"{app_url}/api/newsletter/unsubscribe?token={unsubscribe_token}" if unsubscribe_token else ""
-    html = _brief_wrap(kind, body, app_url, unsubscribe_url=unsub_url)
+    unsub_url = f"{link_base}/api/newsletter/unsubscribe?token={unsubscribe_token}" if unsubscribe_token else ""
+    html = _brief_wrap(kind, body, link_base, unsubscribe_url=unsub_url)
     return send_email(
         to_email,
         to_name,
