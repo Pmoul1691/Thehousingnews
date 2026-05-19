@@ -228,6 +228,7 @@ def parse_entries(xml_text: str, publisher: dict) -> list[dict]:
             "thumbnail_url": thumb,
             "original_url": link,
             "published_at": pub_at.isoformat(),
+            "author": (entry.get("author") or "").strip(),
         })
     return out
 
@@ -272,18 +273,29 @@ async def ingest_publisher(db, publisher: dict) -> dict:
     # Matches on word boundaries so short keywords don't trigger false positives.
     keywords = publisher.get("keyword_filter") or []
     if keywords:
-        import re
-        pattern = re.compile(
+        kw_pattern = re.compile(
             r"\b(?:" + "|".join(re.escape(k) for k in keywords) + r")\b",
             re.IGNORECASE,
         )
-        def _matches(e):
-            # Title-only match — snippets contain too many incidental
-            # mentions of "house"/"property"/etc. and produce false positives.
-            return bool(pattern.search(e.get("title", "")))
         before = len(entries)
-        entries = [e for e in entries if _matches(e)]
+        entries = [e for e in entries if kw_pattern.search(e.get("title", ""))]
         logger.info("keyword filter for %s: %d/%d kept", pub_id, len(entries), before)
+
+    # Optional per-publisher exclude patterns — title regex blocklist used for
+    # Reddit-sourced feeds to drop fluff/celebration/help-me threads.
+    excludes = publisher.get("exclude_patterns") or []
+    if excludes:
+        ex_pattern = re.compile("|".join(excludes), re.IGNORECASE)
+        before = len(entries)
+        entries = [e for e in entries if not ex_pattern.search(e.get("title", ""))]
+        logger.info("exclude filter for %s: %d/%d kept", pub_id, len(entries), before)
+
+    # Reddit-specific: drop AutoModerator posts (announcements / weekly threads).
+    if (publisher.get("source_type") or "") == "reddit":
+        before = len(entries)
+        entries = [e for e in entries if "automoderator" not in (e.get("author") or "").lower()]
+        if len(entries) != before:
+            logger.info("automod filter for %s: %d/%d kept", pub_id, len(entries), before)
 
     inserted = 0
     skipped = 0
