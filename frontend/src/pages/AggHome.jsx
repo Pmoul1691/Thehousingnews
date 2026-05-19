@@ -74,7 +74,7 @@ function TodayBriefPromoRow({ authed }) {
 }
 
 // ── Hero ──────────────────────────────────────────────────────────────────
-function AggHero({ pubsCount = 0, podsCount = 0 } = {}) {
+function AggHero({ pubsCount = 0, podsCount = 0, recentlyAdded = [] } = {}) {
   return (
     <section
       data-testid="agg-hero"
@@ -131,6 +131,30 @@ function AggHero({ pubsCount = 0, podsCount = 0 } = {}) {
           <p className="font-sans text-[10px] uppercase tracking-[0.22em] font-semibold text-slate-500 mt-1">Podcasts</p>
         </li>
       </ul>
+      {recentlyAdded.length > 0 && (
+        <p
+          data-testid="agg-hero-recently-added"
+          className="mt-5 font-sans text-[11px] uppercase tracking-[0.18em] font-semibold text-slate-500"
+        >
+          <span className="text-agg-orange">Recently added</span>
+          <span className="mx-2 text-slate-400">·</span>
+          {recentlyAdded.map((p, i) => (
+            <React.Fragment key={p.slug || p.name}>
+              {i > 0 && <span className="mx-2 text-slate-400">·</span>}
+              {p.slug ? (
+                <Link
+                  to={`/news/source/${p.slug}`}
+                  className="text-slate-700 hover:text-agg-orange transition-colors normal-case tracking-normal font-semibold"
+                >
+                  {p.name}
+                </Link>
+              ) : (
+                <span className="text-slate-700 normal-case tracking-normal font-semibold">{p.name}</span>
+              )}
+            </React.Fragment>
+          ))}
+        </p>
+      )}
     </section>
   );
 }
@@ -236,6 +260,7 @@ export default function AggHome() {
   const { user } = useAuth();
   const [pubs, setPubs] = useState([]);
   const [pods, setPods] = useState([]);
+  const [recentlyAdded, setRecentlyAdded] = useState([]);
   const [essays, setEssays] = useState([]);
   const [trending, setTrending] = useState([]);
   const [loadingPubs, setLoadingPubs] = useState(true);
@@ -270,6 +295,9 @@ export default function AggHome() {
       .catch(() => {});
     api.get("/agg/trending", { params: { hours: 24, limit: 6 } })
       .then((r) => { if (alive) setTrending(compareTopics([], r.data.items || [])); })
+      .catch(() => {});
+    api.get("/agg/network-stats")
+      .then((r) => { if (alive) setRecentlyAdded(r.data?.recently_added || []); })
       .catch(() => {});
     return () => { alive = false; };
   }, []);
@@ -336,7 +364,7 @@ export default function AggHome() {
     // skeleton cards in place of the article grid while data loads.
     return (
       <div data-testid="agg-home">
-        <AggHero pubsCount={pubs.length} podsCount={pods.length} />
+        <AggHero pubsCount={pubs.length} podsCount={pods.length} recentlyAdded={recentlyAdded} />
         <PhilosophyStrip />
         <section className="py-12">
           <div className="mb-6">
@@ -368,7 +396,7 @@ export default function AggHome() {
 
   return (
     <div data-testid="agg-home">
-      <AggHero pubsCount={pubs.length} podsCount={pods.length} />
+      <AggHero pubsCount={pubs.length} podsCount={pods.length} recentlyAdded={recentlyAdded} />
       <PhilosophyStrip />
       <TrendVisualization topics={trending} />
       <AggTrendingStrip />

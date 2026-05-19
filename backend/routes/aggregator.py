@@ -204,6 +204,27 @@ def setup(db):
             ]
         }
 
+    @router.get("/network-stats")
+    async def network_stats():
+        """Live source-count + most-recently-added publishers for the /news
+        hero subtext. The frontend renders something like
+        "Recently added: r/RealEstate · Inman · WSJ Real Estate" under the
+        stat block — concrete social proof that the network keeps growing.
+        """
+        pub_total = await db.agg_publishers.count_documents({"active": True})
+        pod_total = await db.agg_podcasts.count_documents({"active": True})
+        recent = await db.agg_publishers.find(
+            {"active": True, "created_at": {"$exists": True}},
+            {"_id": 0, "name": 1, "slug": 1, "created_at": 1},
+        ).sort("created_at", -1).limit(3).to_list(3)
+        return {
+            "publishers": pub_total,
+            "podcasts": pod_total,
+            "recently_added": [
+                {"name": r.get("name"), "slug": r.get("slug")} for r in recent
+            ],
+        }
+
     @router.get("/trending")
     async def trending(
         hours: int = Query(default=24, ge=1, le=168),
