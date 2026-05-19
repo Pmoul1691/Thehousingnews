@@ -59,7 +59,9 @@ export default function PublishDrawer({
         data-testid="publish-settings-drawer"
         role="dialog"
         aria-label="Publish settings"
-        className={`fixed inset-y-0 right-0 z-50 w-full max-w-md bg-cream border-l border-gold/20 shadow-2xl flex flex-col transform transition-transform duration-300 ease-out ${open ? "translate-x-0" : "translate-x-full"}`}
+        aria-hidden={!open}
+        tabIndex={open ? 0 : -1}
+        className={`fixed inset-y-0 right-0 z-50 w-full max-w-md bg-cream border-l border-gold/20 shadow-2xl flex flex-col transform transition-transform duration-300 ease-out ${open ? "translate-x-0" : "translate-x-full pointer-events-none"}`}
       >
         {/* Header */}
         <header className="flex items-center justify-between p-6 border-b border-gold/10">

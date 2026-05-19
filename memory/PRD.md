@@ -11,6 +11,30 @@ Hard guardrails: no chat widget, no popups, no follower counts, no stock photogr
 of teams.
 
 
+## 2026-02-19 — Writing Desk redesigned, Substack-style (DONE)
+User-confirmed scope: mirror dashboard + editor + publish drawer, keep
+Short post / Essay toggle, keep inline (no dedicated /write/new route),
+preserve cream + gold + navy brand palette.
+- `pages/Write.jsx`: slim 5-column stats row replaces 5 big KPI cards
+  (testid `stats-summary-row`). Dashboard tabs with count chips (Substack
+  underline pattern). Container testid `write-dashboard-container`.
+- `components/Composer.jsx`: title-first essay layout with a wrapping
+  multi-line title textarea that grows with content (no horizontal
+  overflow), italic-serif subtitle, generous whitespace. Substack-style
+  pill mode toggle (navy active). Schedule + Regions extracted OUT of the
+  editor and INTO the drawer. New CTA `[data-testid=open-publish-drawer-button]`.
+- `components/FloatingToolbar.jsx` (NEW): position-fixed selection toolbar
+  with Bold / Italic / H2 / Quote / Link that applies markdown wraps via
+  `setSelectionRange`. Listens to the textarea's `select` / `keyup` /
+  `mouseup` events. Active in markdown sub-mode and short-post mode.
+- `components/PublishDrawer.jsx` (NEW): right-side slide-in drawer with
+  Schedule, Audience, Regions, weekly-prompt link, Attachments summary,
+  and the final publish CTA. aria-hidden + pointer-events-none when
+  closed; Escape closes it; overlay click closes it.
+- Testing agent run 28: 22/22 features verified, 100% / 100%, no blocking
+  issues. Old `[data-testid=composer-text]` retired everywhere.
+
+
 ## 2026-02-19 — Onboarding drip + GA hero analytics (DONE)
 **A. Day 3 / 7 / 14 onboarding email drip (P3) — pre-staged behind flag.**
 - New `services/onboarding_drip.py` with three templates (Day 3 check-in,

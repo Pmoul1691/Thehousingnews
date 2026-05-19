@@ -46,10 +46,10 @@ export default function Composer({ onPosted }) {
   const textareaRef = useRef(null);
   const draftDirty = useRef(false);
 
-  const images = media.filter((m) => m.kind === "image");
-  const video = media.find((m) => m.kind === "video");
-  const audio = media.find((m) => m.kind === "audio");
-  const embed = media.find((m) => m.kind === "embed");
+  const images = useMemo(() => media.filter((m) => m.kind === "image"), [media]);
+  const video = useMemo(() => media.find((m) => m.kind === "video"), [media]);
+  const audio = useMemo(() => media.find((m) => m.kind === "audio"), [media]);
+  const embed = useMemo(() => media.find((m) => m.kind === "embed"), [media]);
 
   useEffect(() => {
     api.get("/drafts/mine").then((r) => {
