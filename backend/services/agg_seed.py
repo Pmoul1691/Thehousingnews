@@ -50,6 +50,11 @@ SEED_PUBLISHERS = [
     # 2026-05-18: Commercial real estate breadth.
     ("Bisnow",                  "bisnow",           "commercial_re",  "https://www.bisnow.com/rss",                            "https://www.bisnow.com",            "headline_and_snippet", "pending"),
     ("GlobeSt",                 "globest",          "commercial_re",  "https://feeds.feedblitz.com/globest/new-york",          "https://www.globest.com",            "headline_and_snippet", "pending"),
+    # 2026-05-18: Housing & real estate Substacks (curated, on-topic).
+    ("Real Estate Writer",      "real-estate-writer","industry_blog", "https://realestatewriter.substack.com/feed",            "https://realestatewriter.substack.com", "headline_and_snippet", "not_required"),
+    ("Glenn Felson",            "glenn-felson",     "commercial_re",  "https://glennfelson.substack.com/feed",                 "https://glennfelson.substack.com",  "headline_and_snippet", "not_required"),
+    ("Hate The Game",           "hate-the-game",    "data_research",  "https://hatethegame.substack.com/feed",                 "https://hatethegame.substack.com",  "headline_and_snippet", "not_required"),
+    ("LP Lessons",              "lp-lessons",       "data_research",  "https://www.lplessons.co/feed",                         "https://www.lplessons.co",           "headline_and_snippet", "not_required"),
 ]
 
 
@@ -84,5 +89,16 @@ KEYWORD_FILTERS: dict[str, list[str]] = {
         "broker", "brokerage", "deal", "deals", "acquisition", "acquires",
         "sells", "sold", "buys", "purchase", "purchased", "tower", "building",
         "campus", "portfolio", "sf", "square feet", "psf",
+    ],
+    # Hate The Game is ~70% housing — light filter to drop occasional off-topic
+    # culture/book/tour posts.
+    "hate-the-game": [
+        "housing", "home", "homes", "house", "houses", "mortgage", "mortgages",
+        "rent", "rental", "rentals", "real estate", "buyers", "buyer",
+        "sellers", "seller", "price", "prices", "market", "fed", "rate",
+        "rates", "inflation", "tax", "taxes", "bubble", "crash", "boom",
+        "construction", "build", "builder", "builders", "investor", "investors",
+        "wall street", "wealth", "neighborhood", "neighborhoods", "city",
+        "cities", "region", "regional",
     ],
 }
