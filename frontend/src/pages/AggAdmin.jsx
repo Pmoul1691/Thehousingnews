@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import api from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 
-const CATEGORIES = ["national_trade", "regional", "industry_blog", "data_research", "mortgage", "commercial_re"];
+const CATEGORIES = ["national_trade", "regional", "industry_blog", "data_research", "mortgage", "commercial_re", "community_discussion"];
 const DISPLAY_MODES = ["headline_only", "headline_and_snippet"];
 const PERMISSION_STATUSES = ["pending", "granted", "declined", "not_required"];
 
@@ -354,6 +354,7 @@ function SuggestionRow({ suggestion, open, onOpen, onApproved, onDecline }) {
             <option value="data_research">data_research</option>
             <option value="mortgage">mortgage</option>
             <option value="commercial_re">commercial_re</option>
+            <option value="community_discussion">community_discussion</option>
           </select>
           <select
             data-testid={`agg-suggestion-display-${s.id}`}

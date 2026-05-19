@@ -184,12 +184,13 @@ def _robots_allows(feed_url: str) -> bool:
         return True
 
 
-def fetch_feed_xml(feed_url: str) -> Tuple[Optional[str], Optional[str]]:
+def fetch_feed_xml(feed_url: str, user_agent: Optional[str] = None) -> Tuple[Optional[str], Optional[str]]:
     """Returns (xml_text, error_str). error_str is None on success."""
+    ua = user_agent or USER_AGENT
     try:
         r = requests.get(
             feed_url,
-            headers={"User-Agent": USER_AGENT, "Accept": "application/rss+xml, application/atom+xml, application/xml, text/xml;q=0.9, */*;q=0.8"},
+            headers={"User-Agent": ua, "Accept": "application/rss+xml, application/atom+xml, application/xml, text/xml;q=0.9, */*;q=0.8"},
             timeout=FETCH_TIMEOUT_SECONDS,
             allow_redirects=True,
         )
@@ -238,9 +239,12 @@ async def ingest_publisher(db, publisher: dict) -> dict:
     dict. Wrapped by callers in try/except so one bad feed never affects others."""
     pub_id = publisher["id"]
     feed_url = publisher["feed_url"]
+    custom_ua = publisher.get("user_agent")
+    bypass_robots = bool(publisher.get("bypass_robots"))
 
-    # robots.txt
-    if not _robots_allows(feed_url):
+    # robots.txt (skippable per publisher when bypass_robots is set; used for
+    # sources where we have a separate editorial decision to ingest).
+    if not bypass_robots and not _robots_allows(feed_url):
         await db.agg_publishers.update_one(
             {"id": pub_id},
             {"$set": {"last_fetched_at": _now_iso(), "last_fetch_status": "robots_disallowed"},
@@ -248,7 +252,7 @@ async def ingest_publisher(db, publisher: dict) -> dict:
         )
         return {"publisher_id": pub_id, "ok": False, "reason": "robots_disallowed", "inserted": 0}
 
-    xml, err = fetch_feed_xml(feed_url)
+    xml, err = fetch_feed_xml(feed_url, user_agent=custom_ua)
     if err:
         await db.agg_publishers.update_one(
             {"id": pub_id},

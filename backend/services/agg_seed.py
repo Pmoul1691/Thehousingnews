@@ -55,10 +55,59 @@ SEED_PUBLISHERS = [
     ("Glenn Felson",            "glenn-felson",     "commercial_re",  "https://glennfelson.substack.com/feed",                 "https://glennfelson.substack.com",  "headline_and_snippet", "not_required"),
     ("Hate The Game",           "hate-the-game",    "data_research",  "https://hatethegame.substack.com/feed",                 "https://hatethegame.substack.com",  "headline_and_snippet", "not_required"),
     ("LP Lessons",              "lp-lessons",       "data_research",  "https://www.lplessons.co/feed",                         "https://www.lplessons.co",           "headline_and_snippet", "not_required"),
+    # 2026-05-19: Per editorial brief from Peter.
+    ("The Skeptical Investor",  "skeptical-investor","industry_blog", "https://andreasmueller.substack.com/feed",              "https://andreasmueller.substack.com", "headline_and_snippet", "not_required"),
 ]
 
 
-CATEGORIES = ["national_trade", "regional", "industry_blog", "data_research", "mortgage", "newsletter", "commercial_re"]
+CATEGORIES = ["national_trade", "regional", "industry_blog", "data_research", "mortgage", "newsletter", "commercial_re", "community_discussion"]
+
+
+# 2026-05-18: Reddit subreddits, ingested via the public per-subreddit RSS
+# endpoint sorted by Top of the month. Each entry: (name, slug, subreddit_url,
+# homepage_url). The User-Agent and bypass_robots flag are applied at seed time
+# from REDDIT_UA below.
+REDDIT_PUBLISHERS: list[tuple[str, str, str, str]] = [
+    ("r/RealEstate",          "r-realestate",          "https://www.reddit.com/r/RealEstate/top/.rss?t=month",          "https://www.reddit.com/r/RealEstate"),
+    ("r/Realtors",            "r-realtors",            "https://www.reddit.com/r/Realtors/top/.rss?t=month",            "https://www.reddit.com/r/Realtors"),
+    ("r/FirstTimeHomeBuyer",  "r-firsttimehomebuyer",  "https://www.reddit.com/r/FirstTimeHomeBuyer/top/.rss?t=month",  "https://www.reddit.com/r/FirstTimeHomeBuyer"),
+    ("r/realestateinvesting", "r-realestateinvesting", "https://www.reddit.com/r/realestateinvesting/top/.rss?t=month", "https://www.reddit.com/r/realestateinvesting"),
+    ("r/RealEstateTechnology","r-realestatetechnology","https://www.reddit.com/r/RealEstateTechnology/top/.rss?t=month","https://www.reddit.com/r/RealEstateTechnology"),
+]
+
+REDDIT_UA = "TheHousingNews/1.0 (news aggregator)"
+
+
+# Title regex blocklist for community discussion sources. Reddit's "Top of
+# month" sort already removes most low-effort posts via upvote weighting, but
+# some subreddits (notably r/FirstTimeHomeBuyer) heavily upvote celebration
+# threads. This blocklist trims that residual fluff so the editorial brand
+# stays clean.
+REDDIT_EXCLUDE_PATTERNS: list[str] = [
+    # Celebration / milestone posts
+    r"\bi did it\b",
+    r"\bwe did it\b",
+    r"\bjust did it\b",
+    r"\bjust closed\b",
+    r"\bjust bought\b",
+    r"\bgot the keys\b",
+    r"\bgot my keys\b",
+    r"\bclosed on\b",
+    r"\bcheck off the box\b",
+    # Mega/weekly/automod threads
+    r"\bweekly\s+(/r/|discussion|thread|megathread)",
+    r"\bdaily\s+(discussion|thread|megathread)",
+    r"\bmegathread\b",
+    r"\bself[- ]promotion\b",
+    r"\bblatant self[- ]promotion\b",
+    # Low-effort help-me posts
+    r"^\s*help\b",
+    r"\bplease\s+help\b",
+    r"\bneed advice\b",
+    r"\blooking for advice\b",
+    # Stickied / admin announcements
+    r"^\[?(announcement|mod note|meta)\]?\b",
+]
 
 
 # Per-publisher keyword filters — applied to article TITLES at ingest time so

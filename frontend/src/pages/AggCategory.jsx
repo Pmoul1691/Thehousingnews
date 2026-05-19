@@ -14,6 +14,7 @@ const CATEGORY_LABELS = {
   data_research: "Data & research",
   mortgage: "Mortgage",
   commercial_re: "Commercial",
+  community_discussion: "Community discussion",
 };
 
 function dayKey(d) {

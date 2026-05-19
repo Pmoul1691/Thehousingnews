@@ -134,10 +134,21 @@ export default function DailyCard({ entry, badge }) {
   const domain = domainOf(pub.homepage_url);
   const logoSrc = pub.logo_url
     || (domain ? `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=64` : null);
+  // Community discussion cards (Reddit threads) are kept visually distinct
+  // from editorial sources: warm slate-tinted background, dashed border, and
+  // a "Forum thread" label so readers know this is unmoderated community
+  // chatter, not reported news.
+  const isCommunity = pub.category === "community_discussion";
+  const cardCls = isCommunity
+    ? "group flex flex-col bg-amber-50/60 border border-dashed border-amber-300 rounded-sm hover:border-agg-orange/70 transition-colors p-5"
+    : "group flex flex-col bg-white border border-slate-200 rounded-sm hover:border-agg-orange/60 transition-colors p-5";
+  const categoryLabel = isCommunity
+    ? "Forum thread"
+    : (pub.category?.replace(/_/g, " ") || "Publisher");
   return (
     <article
       data-testid={`daily-card-pub-${pub.slug}`}
-      className="group flex flex-col bg-white border border-slate-200 rounded-sm hover:border-agg-orange/60 transition-colors p-5"
+      className={cardCls}
     >
       <header className="flex items-center gap-3 mb-3">
         <MarkLogo name={pub.name} src={logoSrc} size={40} />
@@ -150,7 +161,7 @@ export default function DailyCard({ entry, badge }) {
             {pub.name}
           </Link>
           <p className="font-sans text-[10px] uppercase tracking-[0.18em] text-slate-400">
-            {pub.category?.replace(/_/g, " ") || "Publisher"}
+            {categoryLabel}
           </p>
         </div>
         {BadgeChip && <div className="ml-auto">{BadgeChip}</div>}

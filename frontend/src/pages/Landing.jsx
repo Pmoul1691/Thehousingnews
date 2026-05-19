@@ -394,14 +394,17 @@ function FeedLogo({ name, src, href, kind }) {
   );
 }
 
-// Category bucket configuration — order matters; this is the visual stack.
+// Category bucket configuration. Order matters; this is the visual stack.
+// "Community" appears last so editorial sources lead the page.
 const FEED_CATEGORIES = [
-  { key: "national_trade", label: "National News" },
-  { key: "regional",       label: "Regional" },
-  { key: "mortgage",       label: "Mortgage" },
-  { key: "data_research",  label: "Data & Research" },
-  { key: "industry_blog",  label: "Blogs" },
-  { key: "podcast",        label: "Podcasts" },
+  { key: "national_trade",       label: "National News" },
+  { key: "regional",             label: "Regional" },
+  { key: "mortgage",             label: "Mortgage" },
+  { key: "data_research",        label: "Data & Research" },
+  { key: "commercial_re",        label: "Commercial" },
+  { key: "industry_blog",        label: "Blogs" },
+  { key: "podcast",              label: "Podcasts" },
+  { key: "community_discussion", label: "Community Discussion" },
 ];
 
 function FeedCategoryRow({ label, items }) {

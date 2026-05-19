@@ -20,6 +20,7 @@ const CATEGORY_LABELS = {
   mortgage: "Mortgage",
   newsletter: "Newsletter",
   commercial_re: "Commercial",
+  community_discussion: "Community",
 };
 
 const PAGE_SIZE = 20;

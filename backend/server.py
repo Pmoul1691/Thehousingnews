@@ -204,6 +204,35 @@ async def on_startup():
                 {"slug": slug},
                 {"$set": {"keyword_filter": kws, "updated_at": _now}},
             )
+        # Reddit subreddits, sorted by Top of the month. Per editorial brief,
+        # we use a descriptive UA and bypass our default robots.txt check
+        # (Reddit's robots.txt blanket-disallows; the per-subreddit RSS
+        # endpoint itself returns 200).
+        from services.agg_seed import REDDIT_PUBLISHERS, REDDIT_UA, REDDIT_EXCLUDE_PATTERNS
+        for name, slug, feed_url, homepage_url in REDDIT_PUBLISHERS:
+            await db.agg_publishers.update_one(
+                {"slug": slug},
+                {"$setOnInsert": {
+                    "id": str(_uuid.uuid4()),
+                    "name": name, "slug": slug,
+                    "homepage_url": homepage_url,
+                    "logo_url": None, "display_mode": "headline_and_snippet",
+                    "refresh_minutes": 240, "active": True,
+                    "permission_status": "not_required",
+                    "last_fetched_at": None, "last_fetch_status": None,
+                    "created_at": _now,
+                 },
+                 "$set": {
+                    "source_type": "reddit",
+                    "user_agent": REDDIT_UA,
+                    "bypass_robots": True,
+                    "exclude_patterns": REDDIT_EXCLUDE_PATTERNS,
+                    "feed_url": feed_url,
+                    "category": "community_discussion",
+                    "updated_at": _now,
+                 }},
+                upsert=True,
+            )
     except Exception as _e:
         logger.warning("aggregator seed failed: %s", _e)
     await db.reads.create_index([("user_id", 1), ("post_id", 1)], unique=True)
