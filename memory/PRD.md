@@ -11,6 +11,26 @@ Hard guardrails: no chat widget, no popups, no follower counts, no stock photogr
 of teams.
 
 
+## 2026-02-19 — Onboarding drip + GA hero analytics (DONE)
+**A. Day 3 / 7 / 14 onboarding email drip (P3) — pre-staged behind flag.**
+- New `services/onboarding_drip.py` with three templates (Day 3 check-in,
+  Day 7 essays nudge, Day 14 write-your-first-post).
+- Daily 9:00 AM CT cron via APScheduler. Rolling 24h window so every member
+  hits the sweep exactly once per milestone.
+- Idempotency: unique compound index `(user_id, kind)` on a new
+  `onboarding_dispatches` collection. Insert-before-send pattern means a
+  duplicate sweep / scheduler glitch / flag flip is always safe.
+- Feature flag `ONBOARDING_DRIP_ENABLED` (env). Default OFF so the sweep
+  records candidates but never sends. Flip on once Brevo clears the hold.
+- 5 unit tests in `tests/test_onboarding_drip.py` cover window math, flag
+  dormancy, idempotency, status filter, and error recording.
+
+**B. GA event for "Recently added" hero clicks.**
+- Each hero link now fires `gtag('event', 'hero_recent_clicked', {publisher_slug, publisher_name, position})`.
+- Lets us see which newly-added publishers convert browsers → engaged readers within their first week.
+- Lives behind a `typeof window.gtag === 'function'` guard so it never breaks UX.
+
+
 ## 2026-02-19 — Title-based fuzzy dedup for aggregator (DONE, P3-a)
 Pre-existing URL-based dedup only catches the same URL re-shared with
 different tracking params. It misses the very common case of two

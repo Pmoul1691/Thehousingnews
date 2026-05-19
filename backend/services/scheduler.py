@@ -12,6 +12,7 @@ from services.essay_dispatch import dispatch_essay_to_followers
 from services.admin_digest import send_admin_digest
 from services.substack_import import import_substack_feed
 from services.rss_ingest import ingest_all_active as agg_ingest_all_active, prune_expired as agg_prune_expired
+from services.onboarding_drip import run_drip_sweep
 from routes.prompts import advance_weekly_prompt
 
 logger = logging.getLogger(__name__)
@@ -293,6 +294,19 @@ def start_scheduler(db) -> AsyncIOScheduler:
         id="admin_summary",
         replace_existing=True,
         misfire_grace_time=600,
+    )
+    # Onboarding drip sweep — once a day at 9:00 AM America/Chicago. Sends
+    # Day 3 / 7 / 14 emails to approved members whose created_at falls in
+    # each window. Dormant when ONBOARDING_DRIP_ENABLED is unset.
+    scheduler.add_job(
+        run_drip_sweep,
+        trigger="cron",
+        hour=9,
+        minute=0,
+        args=[db],
+        id="onboarding_drip",
+        replace_existing=True,
+        misfire_grace_time=3600,
     )
     scheduler.start()
     logger.info("Release scheduler started (8:30 AM and 5:30 PM America/Chicago + per-minute scheduled-essays sweep + 7:00 AM daily Substack import + 15-min aggregator ingest + 7:30 AM / 5:30 PM Daily Briefs)")

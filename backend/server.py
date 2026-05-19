@@ -161,6 +161,11 @@ async def on_startup():
     await db.drafts.create_index("user_id", unique=True)
     await db.bookmarks.create_index([("user_id", 1), ("post_id", 1)], unique=True)
     await db.bookmarks.create_index([("user_id", 1), ("created_at", -1)])
+    # Onboarding drip idempotency: never send the same (user_id, kind) twice.
+    await db.onboarding_dispatches.create_index(
+        [("user_id", 1), ("kind", 1)], unique=True
+    )
+    await db.onboarding_dispatches.create_index("status")
 
     # === Aggregator (thehousingnews.com) collections ===
     try:

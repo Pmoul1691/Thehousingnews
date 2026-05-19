@@ -144,6 +144,21 @@ function AggHero({ pubsCount = 0, podsCount = 0, recentlyAdded = [] } = {}) {
               {p.slug ? (
                 <Link
                   to={`/news/source/${p.slug}`}
+                  data-testid={`hero-recent-${p.slug}`}
+                  onClick={() => {
+                    // Fire a Google Analytics event so we can see which newly
+                    // added publishers convert curious browsers into engaged
+                    // readers within their first week of being added.
+                    try {
+                      if (typeof window !== "undefined" && typeof window.gtag === "function") {
+                        window.gtag("event", "hero_recent_clicked", {
+                          publisher_slug: p.slug,
+                          publisher_name: p.name,
+                          position: i + 1,
+                        });
+                      }
+                    } catch { /* analytics never breaks UX */ }
+                  }}
                   className="text-slate-700 hover:text-agg-orange transition-colors normal-case tracking-normal font-semibold"
                 >
                   {p.name}
