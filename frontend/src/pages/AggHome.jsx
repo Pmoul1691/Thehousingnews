@@ -243,8 +243,14 @@ export default function AggHome() {
     // Progressive load: publishers (the biggest payload, gates the river)
     // fires first and unlocks the page render the moment it returns. The
     // smaller side payloads (podcasts, essays, trending) populate independently.
-    api.get("/agg/publishers-latest", { params: { hours: WINDOW_HOURS } })
-      .then((r) => { if (alive) { setPubs(r.data.items || []); setLoadingPubs(false); } })
+    // Min 200ms skeleton display avoids a jarring layout flash when the API
+    // returns in <100ms (which is most of the time on warm CDN cache).
+    const minDelay = new Promise((res) => setTimeout(res, 200));
+    Promise.all([
+      api.get("/agg/publishers-latest", { params: { hours: WINDOW_HOURS } }),
+      minDelay,
+    ])
+      .then(([r]) => { if (alive) { setPubs(r.data.items || []); setLoadingPubs(false); } })
       .catch((e) => {
         if (!alive) return;
         setError(e?.response?.data?.detail || "Failed to load");

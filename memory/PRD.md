@@ -11,6 +11,14 @@ Hard guardrails: no chat widget, no popups, no follower counts, no stock photogr
 of teams.
 
 
+## 2026-02-19 — Skeleton min-display window (DONE)
+- `AggHome.jsx` and `Feed.jsx` now wrap their primary fetch in
+  `Promise.all([api.get(...), 200ms delay])` so the skeleton state stays
+  visible for at least 200ms even when the API returns in <100ms (most of the
+  time on warm CDN). Eliminates flicker / layout jank on first paint.
+- Verified: `/news` shows 9 `news-card-skeleton-*` cards, `/feed` shows 3
+  `post-skeleton-*` cards, real content loads cleanly after.
+
 ## 2026-02-19 — Reader-first post-login redirect + ReadWriteToggle (DONE)
 - All auth entry points (`/signin`, `/auth/magic`, `/auth/verify-email`,
   `/auth/callback`) now land approved members on `/news` instead of `/feed`.

@@ -51,8 +51,14 @@ export default function Feed() {
     const regionParam = currentRegion === "mine" ? "&regions=mine" : "";
 
     // Primary: the feed itself. Updates the main column.
-    api.get(`/posts/feed?scope=${currentScope}${regionParam}`)
-      .then((res) => {
+    // Min 200ms skeleton display so the placeholder doesn't flicker on
+    // sub-100ms responses (most of the time once the page is warm).
+    const minDelay = new Promise((res) => setTimeout(res, 200));
+    Promise.all([
+      api.get(`/posts/feed?scope=${currentScope}${regionParam}`),
+      minDelay,
+    ])
+      .then(([res]) => {
         const items = res.data.items || [];
         const mixed = items.slice().sort((a, b) => {
           const at = new Date(a.release_at || a.created_at).getTime();
