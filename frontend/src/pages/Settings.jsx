@@ -22,6 +22,11 @@ export default function Settings() {
   const [scopeCatalog, setScopeCatalog] = useState([]);
   const [profile, setProfile] = useState(null);
   const [linkedinBusy, setLinkedinBusy] = useState(false);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+
+  // API base URL for building avatar preview URLs that the backend serves
+  // at /api/uploads/file/<path>.
+  const API = (process.env.REACT_APP_BACKEND_URL || "").replace(/\/$/, "") + "/api";
 
   useEffect(() => {
     if (loading) return;
@@ -63,6 +68,30 @@ export default function Settings() {
     } catch (e) {
       toast.error("Could not save");
     } finally { setSaving(false); }
+  };
+
+  // Upload a new profile photo: posts to /api/uploads, then persists the
+  // returned storage path on the member profile so it shows everywhere
+  // (feed, posts, replies, member directory). Optimistic UI update.
+  const onUploadAvatar = async (file) => {
+    if (!file) return;
+    setAvatarUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("kind", "avatars");
+      const r = await api.post("/uploads", fd, { headers: { "Content-Type": "multipart/form-data" } });
+      const newPath = r.data?.path;
+      if (!newPath) throw new Error("Upload returned no path");
+      // Persist on the profile so it shows up everywhere.
+      await api.put("/profile", { avatar_path: newPath });
+      setProfile((p) => ({ ...(p || {}), avatar_path: newPath }));
+      toast.success("Photo updated");
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || "Upload failed");
+    } finally {
+      setAvatarUploading(false);
+    }
   };
 
   const generate = async () => {
@@ -189,54 +218,96 @@ export default function Settings() {
         </button>
       </section>
 
-      {invites && (
-        <section className="mt-16" data-testid="linkedin-section">
-          <p className="uppercase-label mb-3">LinkedIn</p>
-          <h2 className="font-display font-semibold text-2xl ink mb-2">Career profile.</h2>
-          <p className="prose-serif text-base ink/80 leading-relaxed max-w-prose mb-6">
-            We pulled your headline, location, work history, and education from LinkedIn when you joined. Re-sync if your role or location has changed and you want the network to see it.
-          </p>
-
-          <div className="border hairline rounded-sm bg-cream p-5 flex items-center justify-between gap-4 flex-wrap" data-testid="linkedin-card">
-            <div className="min-w-0">
-              {profile?.linkedin_url ? (
-                <>
-                  <div className="font-sans text-xs uppercase tracking-wider text-muted-ink font-semibold">Connected</div>
-                  <a
-                    href={profile.linkedin_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="font-display font-semibold text-base ink mt-1 hover:text-gold transition-colors break-all"
-                    data-testid="linkedin-url"
-                  >
-                    {profile.linkedin_url}
-                  </a>
-                  <div className="font-sans text-xs text-muted-ink mt-1">
-                    {profile.linkedin_data?.synced_at
-                      ? <>Last synced {new Date(profile.linkedin_data.synced_at).toLocaleString()}</>
-                      : <>Not yet synced</>}
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="font-sans text-xs uppercase tracking-wider text-muted-ink font-semibold">Not connected</div>
-                  <div className="font-serif text-sm ink/80 mt-1 italic">
-                    Add your LinkedIn URL from your profile page first, then re-sync here.
-                  </div>
-                </>
-              )}
-            </div>
-            <button
-              onClick={resyncLinkedin}
-              disabled={linkedinBusy || !profile?.linkedin_url}
-              data-testid="linkedin-resync-btn"
-              className="bg-gold text-cream font-sans font-semibold text-sm px-5 py-2 rounded-sm hover:opacity-90 transition-opacity disabled:opacity-50"
-            >
-              {linkedinBusy ? "Syncing…" : "Re-sync from LinkedIn"}
-            </button>
+      {/* Profile photo — basic profile field, available to any signed-in user
+          regardless of invite-code eligibility. */}
+      <section className="mt-16" data-testid="photo-section">
+        <p className="uppercase-label mb-3">Photo</p>
+        <h2 className="font-display font-semibold text-2xl ink mb-2">Profile photo.</h2>
+        <p className="prose-serif text-base ink/80 leading-relaxed max-w-prose mb-6">
+          Shows up next to your name in the feed, on your posts, and in the member directory. A real headshot earns more trust than initials.
+        </p>
+        <div className="border hairline rounded-sm bg-cream p-5 flex items-center gap-6 flex-wrap" data-testid="photo-card">
+          <div className="w-20 h-20 rounded-full bg-[#F5EDD6] border hairline overflow-hidden flex items-center justify-center shrink-0">
+            {profile?.avatar_path ? (
+              <img
+                src={`${API}/uploads/file/${profile.avatar_path}`}
+                alt="Your profile"
+                className="w-full h-full object-cover"
+                data-testid="settings-avatar-preview"
+              />
+            ) : (
+              <span className="font-display text-2xl text-gold" data-testid="settings-avatar-fallback">
+                {(profile?.name || user?.email || "P")[0].toUpperCase()}
+              </span>
+            )}
           </div>
-        </section>
-      )}
+          <div className="flex-1 min-w-[200px]">
+            <label className="inline-block cursor-pointer">
+              <span className="inline-block bg-gold text-cream font-sans font-semibold text-sm px-5 py-2 rounded-sm hover:opacity-90 transition-opacity">
+                {avatarUploading ? "Uploading…" : (profile?.avatar_path ? "Replace photo" : "Upload photo")}
+              </span>
+              <input
+                data-testid="settings-upload-avatar"
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                className="hidden"
+                disabled={avatarUploading}
+                onChange={(e) => onUploadAvatar(e.target.files?.[0])}
+              />
+            </label>
+            <p className="font-sans text-xs text-muted-ink mt-2">
+              JPG, PNG, WebP, or GIF. Up to 6 MB. We auto-resize big files.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section className="mt-16" data-testid="linkedin-section">
+        <p className="uppercase-label mb-3">LinkedIn</p>
+        <h2 className="font-display font-semibold text-2xl ink mb-2">Career profile.</h2>
+        <p className="prose-serif text-base ink/80 leading-relaxed max-w-prose mb-6">
+          We pulled your headline, location, work history, and education from LinkedIn when you joined. Re-sync if your role or location has changed and you want the network to see it.
+        </p>
+
+        <div className="border hairline rounded-sm bg-cream p-5 flex items-center justify-between gap-4 flex-wrap" data-testid="linkedin-card">
+          <div className="min-w-0">
+            {profile?.linkedin_url ? (
+              <>
+                <div className="font-sans text-xs uppercase tracking-wider text-muted-ink font-semibold">Connected</div>
+                <a
+                  href={profile.linkedin_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-display font-semibold text-base ink mt-1 hover:text-gold transition-colors break-all"
+                  data-testid="linkedin-url"
+                >
+                  {profile.linkedin_url}
+                </a>
+                <div className="font-sans text-xs text-muted-ink mt-1">
+                  {profile.linkedin_data?.synced_at
+                    ? <>Last synced {new Date(profile.linkedin_data.synced_at).toLocaleString()}</>
+                    : <>Not yet synced</>}
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="font-sans text-xs uppercase tracking-wider text-muted-ink font-semibold">Not connected</div>
+                <div className="font-serif text-sm ink/80 mt-1 italic">
+                  Add your LinkedIn URL from your profile page first, then re-sync here.
+                </div>
+              </>
+            )}
+          </div>
+          <button
+            onClick={resyncLinkedin}
+            disabled={linkedinBusy || !profile?.linkedin_url}
+            data-testid="linkedin-resync-btn"
+            className="bg-gold text-cream font-sans font-semibold text-sm px-5 py-2 rounded-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+          >
+            {linkedinBusy ? "Syncing…" : "Re-sync from LinkedIn"}
+          </button>
+        </div>
+      </section>
 
       {invites && (
         <section className="mt-16" data-testid="invites-section">
