@@ -212,11 +212,16 @@ function JsonLd({ items }) {
       },
     })),
   }), [items]);
+  // Escape `<` so a publisher description containing `</script>` (or any
+  // other tag) can never break out of the script element. JSON.stringify
+  // alone is not enough — the resulting string is HTML, not JSON literal.
+  const safe = JSON.stringify(blob).replace(/</g, "\\u003c");
   return (
     <script
       type="application/ld+json"
       data-testid="podcasts-jsonld"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(blob) }}
+      // eslint-disable-next-line react/no-danger
+      dangerouslySetInnerHTML={{ __html: safe }}
     />
   );
 }

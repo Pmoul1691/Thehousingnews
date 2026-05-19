@@ -85,12 +85,18 @@ function QuickActions({ onReload }) {
     try {
       const r = await api.get(`/admin/briefings/preview?kind=${kind}`);
       const articleCount = (r.data.articles || []).length;
-      const w = window.open("", "_blank");
-      if (w) {
-        w.document.write(`<pre style="font-family:ui-monospace,monospace;padding:20px;white-space:pre-wrap;">${JSON.stringify(r.data, null, 2)}</pre>`);
-      } else {
+      // Open the preview as a Blob URL so the new tab renders the JSON as
+      // pre-formatted text without any HTML parsing. document.write was a
+      // classic XSS sink — Blob URLs are sandboxed to a single document.
+      const pretty = JSON.stringify(r.data, null, 2);
+      const blob = new Blob([pretty], { type: "text/plain; charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const w = window.open(url, "_blank", "noopener,noreferrer");
+      if (!w) {
         toast.success(`Preview ready: ${articleCount} articles, ${r.data.recipients_total} recipients`);
       }
+      // Release the object URL after the tab has had time to load it.
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
     } catch (err) {
       toast.error(err?.response?.data?.detail || "Preview failed");
     } finally { setBusy(null); }
