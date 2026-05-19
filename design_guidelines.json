@@ -1,86 +1,147 @@
 {
-  "theme": "LIGHT",
-  "archetype": "Organic & Earthy / Custom Luxury",
-  "design_philosophy": {
-    "core_principles": [
-      "Calm by design: Wide open spaces, slow-paced interaction, distraction-free reading.",
-      "Editorial format: Text is paramount. Focus on long-form reading, similar to a high-end magazine.",
-      "No engagement traps: Strictly NO follower counts, trending tags, chat widgets, or exit-intent popups."
-    ],
-    "voice_and_tone": [
-      "First-person singular from Pete ('I built this'). Direct second-person ('you' not 'the member').",
-      "Short sentences. Plain words. NO motivational hype.",
-      "Strictly NO em dashes or en dashes anywhere.",
-      "Specific numbers stay specific."
-    ]
+  "project_name": "The Housing News - Writing Desk Redesign",
+  "theme_and_archetype": {
+    "theme": "Light",
+    "archetype": "Premium Editorial (Old Money Tech)",
+    "description": "A premium, editorial writing experience reflecting high-end real estate authority. Adopts Substack's layout patterns while retaining the existing cream, gold, and navy brand tokens."
   },
   "colors": {
-    "primary_gold": "#AD893E",
-    "background_pale_gold": "#F5EDD6",
-    "accent_mid_gold": "#E8D4A0",
-    "text_dark": "#2C2410",
-    "background_cream": "#FDFAF4",
-    "accent_deep_red": "#A4161A"
+    "background": {
+      "primary": "#FDFAF4",
+      "surface": "#FFFFFF",
+      "drawer": "#FDFAF4",
+      "overlay": "rgba(29, 45, 68, 0.4)"
+    },
+    "text": {
+      "primary": "#2C2410",
+      "secondary": "#1D2D44",
+      "muted": "rgba(44, 36, 16, 0.6)"
+    },
+    "brand": {
+      "accent": "#AD893E",
+      "navy": "#1D2D44",
+      "agg_orange": "#F26419"
+    },
+    "borders": {
+      "subtle": "rgba(173, 137, 62, 0.2)",
+      "focus": "#AD893E"
+    }
   },
   "typography": {
     "fonts": {
-      "headings": "Plus Jakarta Sans",
-      "body_long_form": "Georgia",
-      "ui_labels": "Plus Jakarta Sans"
+      "display": "font-display, Playfair Display, ui-serif, Georgia, serif",
+      "body": "'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif"
     },
-    "styling": {
-      "h1": "text-4xl sm:text-5xl lg:text-6xl font-semibold tracking-tight text-[#2C2410]",
-      "h2": "text-2xl sm:text-3xl lg:text-4xl font-semibold tracking-tight text-[#2C2410]",
-      "body": "font-serif text-base sm:text-lg leading-relaxed text-[#2C2410] max-w-prose",
-      "ui": "font-sans text-sm tracking-wide font-medium text-[#2C2410]"
+    "hierarchy": {
+      "h1_editor_title": "text-4xl sm:text-5xl font-display font-medium text-[#2C2410] tracking-tight leading-tight placeholder:text-[#2C2410]/30",
+      "h2_dashboard": "text-2xl sm:text-3xl font-display font-medium text-[#2C2410]",
+      "body_editor": "text-lg sm:text-xl font-body text-[#2C2410] leading-relaxed",
+      "body_short": "text-base font-body text-[#2C2410] leading-relaxed",
+      "ui_labels": "text-sm font-body uppercase tracking-[0.1em] text-[#2C2410]/70 font-semibold"
     }
   },
-  "layout_and_spacing": {
-    "philosophy": "Generous Spacing Philosophy. High white space. Content is centered and structured linearly.",
-    "container": "max-w-3xl mx-auto px-6 sm:px-12",
-    "padding_scale": "p-8 to p-24 for vertical rhythm",
-    "borders": "1px solid #E8D4A0 (Mid Gold) to separate feed items, NO heavy drop shadows. Flat surfaces only."
+  "layout_grid": {
+    "container": "max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12",
+    "stats_row": "flex flex-wrap md:flex-nowrap gap-4 mb-8 p-4 bg-white/50 backdrop-blur-sm border border-[#AD893E]/20 rounded-2xl shadow-sm",
+    "main_content": "w-full bg-white border border-[#AD893E]/20 rounded-2xl shadow-sm overflow-hidden",
+    "post_list": "divide-y divide-[#AD893E]/10"
   },
   "components": {
-    "buttons": "Flat, background #AD893E, text #FDFAF4, rounded-md, no shadow. Hover: slight opacity shift to 90%. Use data-testid.",
-    "inputs": "Shadcn-based but customized. 1px solid #E8D4A0 border, #FDFAF4 background. Focus: ring-1 ring-[#AD893E].",
-    "feed_posts": "Cardless layout. Posts separated by thin gold borders (border-b border-[#E8D4A0]) with ample vertical padding (py-12).",
-    "navigation": "Minimalist header. Sticky top. Contains next release window timestamp in a subtle UI label. Background #FDFAF4/90 with backdrop-blur-md."
-  },
-  "media_and_images": {
-    "rules": "No stock photography of teams. Only calm architecture, textures, and the Bloom mark.",
-    "brand_assets": {
-      "logo_bloom_svg": "https://customer-assets.emergentagent.com/job_0876d56f-54de-4e6e-9735-44bafdfed776/artifacts/21f0cb41_Gold.svg",
-      "logo_usage": "80-90px in hero, 28-36px in footer, 24-32px in top-left nav as home button."
+    "dashboard_tabs": {
+      "description": "Tabs for Drafts / Scheduled / Published / Sent. Clean, minimal underline indicators.",
+      "classes": "flex space-x-8 border-b border-[#AD893E]/20 px-6 sm:px-8",
+      "active_tab": "border-b-2 border-[#AD893E] text-[#2C2410] py-4 font-medium",
+      "inactive_tab": "text-[#2C2410]/60 hover:text-[#2C2410] py-4"
     },
-    "hero_and_marketing": [
-      {
-        "url": "https://static.prod-images.emergentagent.com/jobs/b3080531-d70d-48f6-a811-76bd01c38f94/images/9e63de29d3cb5585d4ded4ac424d710877c1341c355fb87f194f91b875a45a55.png",
-        "description": "Minimalist interior architectural detail with golden hour light",
-        "category": "hero_background"
+    "stats_summary": {
+      "description": "Slim row of stats replacing the 5 massive cards.",
+      "item_classes": "flex-1 min-w-[120px] px-4 py-2 border-l border-[#AD893E]/10 first:border-l-0",
+      "label": "text-xs font-body uppercase tracking-widest text-[#2C2410]/50 mb-1",
+      "value": "text-2xl font-display text-[#1D2D44]"
+    },
+    "editor_anatomy": {
+      "description": "Title-first inline editor. Switches between Short Post and Essay.",
+      "container": "p-6 sm:p-10",
+      "tab_toggle": "inline-flex bg-[#FDFAF4] rounded-full p-1 border border-[#AD893E]/20 mb-8",
+      "tab_button_active": "px-6 py-2 rounded-full bg-[#1D2D44] text-[#FDFAF4] text-sm font-medium shadow-sm transition-all",
+      "tab_button_inactive": "px-6 py-2 rounded-full text-[#2C2410]/70 hover:text-[#2C2410] text-sm font-medium transition-all",
+      "essay_mode": {
+        "title_input": "w-full bg-transparent border-none focus:ring-0 resize-none p-0 mb-4 h-14",
+        "subtitle_input": "w-full bg-transparent border-none focus:ring-0 text-xl text-[#2C2410]/60 font-body placeholder:text-[#2C2410]/30 mb-8",
+        "body_textarea": "w-full min-h-[400px] bg-transparent border-none focus:ring-0 resize-y"
       },
-      {
-        "url": "https://images.unsplash.com/photo-1773680176530-876ee4dd1dba?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NDh8MHwxfHNlYXJjaHwxfHxtaW5pbWFsaXN0JTIwbW9kZXJuJTIwYXJjaGl0ZWN0dXJlJTIwd2FybSUyMGxpZ2h0fGVufDB8fHx8MTc3ODYwNzEzOXww&ixlib=rb-4.1.0&q=85",
-        "description": "Modern architecture detail, orange light",
-        "category": "marketing_accent"
-      },
-      {
-        "url": "https://static.prod-images.emergentagent.com/jobs/b3080531-d70d-48f6-a811-76bd01c38f94/images/0f9f8f97b92d505d8c1823e667f4be391378578f0d307f79e6f39a084eb9e3b4.png",
-        "description": "Abstract serene background texture in cream and pale gold",
-        "category": "surface_texture"
+      "short_post_mode": {
+        "body_textarea": "w-full min-h-[150px] text-lg bg-transparent border-none focus:ring-0 resize-y",
+        "character_counter": "text-sm text-[#2C2410]/50 text-right mt-2"
       }
+    },
+    "floating_toolbar": {
+      "description": "Appears on text selection in the editor. Substack style.",
+      "classes": "absolute z-50 flex items-center bg-[#1D2D44] text-[#FDFAF4] rounded-lg shadow-xl px-2 py-1 space-x-1",
+      "button": "p-2 hover:bg-white/10 rounded text-sm font-medium transition-colors cursor-pointer",
+      "divider": "w-px h-5 bg-white/20 mx-1"
+    },
+    "publish_drawer": {
+      "description": "Right-side slide-in drawer for publish settings.",
+      "container": "fixed inset-y-0 right-0 z-50 w-full max-w-md bg-[#FDFAF4] shadow-2xl border-l border-[#AD893E]/20 flex flex-col transform transition-transform duration-300 ease-out",
+      "overlay": "fixed inset-0 z-40 bg-[#1D2D44]/40 backdrop-blur-sm transition-opacity",
+      "header": "flex justify-between items-center p-6 border-b border-[#AD893E]/10",
+      "body": "flex-1 overflow-y-auto p-6 space-y-8",
+      "footer": "p-6 border-t border-[#AD893E]/10 bg-[#FDFAF4]",
+      "section_title": "text-sm font-body uppercase tracking-[0.1em] text-[#2C2410]/70 mb-4",
+      "schedule_card": "bg-white p-4 rounded-xl border border-[#AD893E]/20 flex items-center justify-between cursor-pointer hover:border-[#AD893E]/50 transition-colors",
+      "primary_cta": "w-full py-3 bg-[#AD893E] hover:bg-[#967534] text-[#FDFAF4] rounded-full font-medium shadow-md transition-all flex justify-center items-center"
+    }
+  },
+  "interactions_and_motion": {
+    "hover_states": "Buttons subtly scale (-translate-y-px) and increase shadow. List items receive a subtle bg-[#AD893E]/5 treatment on hover.",
+    "drawer_slide": "Drawer slides in from the right: translate-x-full to translate-x-0 with 300ms ease-out. Overlay fades in with 300ms ease-out.",
+    "floating_toolbar_pop": "opacity-0 scale-95 to opacity-100 scale-100 with 150ms spring animation.",
+    "tab_switch": "Crossfade opacity between editor modes (Short/Essay) to prevent jarring layout jumps."
+  },
+  "component_file_changes": {
+    "instructions": "Split the monolithic Composer.jsx to manage complexity introduced by the floating toolbar and drawer.",
+    "frontend/src/pages/Write.jsx": [
+      "Update main layout grid: add max-w-5xl wrapper.",
+      "Replace the 5 KPI cards with a single slim flex-row stats summary.",
+      "Render `<DashboardTabs />` (Drafts, Scheduled, Published, Sent).",
+      "Render the clean post list with rich rows (opens/views/sends metrics right-aligned).",
+      "Manage top-level state: `isComposerOpen`, `composerMode` (short|essay), `isPublishDrawerOpen`."
+    ],
+    "frontend/src/components/Composer.jsx": [
+      "Refactor to be 'Title-first'.",
+      "Keep the Short Post / Essay toggle at the top of the component.",
+      "Implement adaptive UI: If Essay, show Title (`text-4xl font-display`) + Subtitle + Body. If Short Post, show only Body + 500 char counter.",
+      "Change the 'Queue for release' button to 'Next' or 'Publish Settings' which triggers the `onOpenPublishDrawer` prop instead of submitting directly."
+    ],
+    "frontend/src/components/FloatingToolbar.jsx": [
+      "NEW FILE: Listens to window.getSelection() within the composer.",
+      "Calculates bounding box of selection and positions itself absolutely above the selected text.",
+      "Contains formatting actions: Bold, Italic, Link, H2, Quote."
+    ],
+    "frontend/src/components/PublishDrawer.jsx": [
+      "NEW FILE: A slide-in drawer from the right side of the screen.",
+      "Receives current post metadata and content as props.",
+      "Contains: Audience selector (Everyone), Schedule picker (Next drop 8:30 AM / 5:30 PM CT vs Custom), Email-on-publish toggle, Regions combo box, Attachments summary.",
+      "Contains the final 'Queue for release' / 'Publish now' CTA button that triggers the actual API submission."
     ]
   },
-  "testing_and_qa": {
-    "data_testid_rules": "All interactive elements, buttons, nav links, and form inputs MUST include a data-testid attribute formatted in kebab-case and role-based."
-  },
-  "instructions_to_main_agent": [
-    "Import Plus Jakarta Sans and Georgia fonts into the application properly.",
-    "Follow the specific color palette exactly as specified in the colors section. Map them in tailwind.config.js.",
-    "Do NOT use standard shadow cards for the feed; use flat, spacious layouts with thin #E8D4A0 borders.",
-    "Ensure 'Next release window' logic displays exactly 8:30am or 5:30pm America/Chicago time in the UI.",
-    "Do not include any chat widgets, popups, or follower counts anywhere in the UI.",
-    "Strictly avoid em dashes and en dashes in all platform copy. Check hardcoded marketing copy.",
-    "Ensure the Bloom Mark SVG uses exactly the sizes defined (Hero: 80-90px, Nav: 24-32px, Footer: 28-36px)."
-  ]
+  "data_testids": {
+    "write_dashboard": "write-dashboard-container",
+    "new_essay_btn": "new-essay-button",
+    "stats_row": "stats-summary-row",
+    "composer_container": "inline-composer-container",
+    "mode_toggle_short": "toggle-mode-short",
+    "mode_toggle_essay": "toggle-mode-essay",
+    "editor_title_input": "editor-title-input",
+    "editor_body_input": "editor-body-textarea",
+    "floating_toolbar": "floating-selection-toolbar",
+    "open_publish_drawer_btn": "open-publish-drawer-button",
+    "publish_drawer": "publish-settings-drawer",
+    "schedule_selector": "drawer-schedule-selector",
+    "email_toggle": "drawer-email-toggle",
+    "regions_selector": "drawer-regions-selector",
+    "final_publish_btn": "drawer-final-publish-button",
+    "post_list_item": "post-list-item-{id}"
+  }
 }
