@@ -20,12 +20,11 @@ function formatDateTime(iso) {
   } catch { return ""; }
 }
 
-function StatCard({ label, value, hint }) {
+function SlimStat({ label, value, last }) {
   return (
-    <div className="border hairline rounded-sm p-5 bg-cream">
-      <p className="uppercase-label mb-2">{label}</p>
-      <p className="font-display font-semibold text-3xl ink leading-none">{value}</p>
-      {hint && <p className="font-sans text-xs text-muted-ink mt-2">{hint}</p>}
+    <div data-testid={`write-stat-${label.toLowerCase().replace(/\s+/g, "-")}`} className={`flex-1 min-w-[120px] px-4 py-3 ${last ? "" : "border-r border-gold/10"}`}>
+      <p className="font-sans text-[10px] uppercase tracking-[0.18em] font-semibold text-muted-ink mb-1">{label}</p>
+      <p className="font-display font-semibold text-2xl ink leading-none">{value}</p>
     </div>
   );
 }
@@ -62,8 +61,8 @@ export default function Write() {
   }
 
   return (
-    <div className="container-wide py-12" data-testid="write-page">
-      <div className="mb-10 flex items-end justify-between flex-wrap gap-4">
+    <div className="container-wide py-12 max-w-5xl mx-auto" data-testid="write-dashboard-container">
+      <div className="mb-8 flex items-end justify-between flex-wrap gap-4">
         <div>
           <p className="uppercase-label mb-2">Your desk</p>
           <h1 className="font-display font-semibold text-4xl ink leading-tight">Write.</h1>
@@ -72,20 +71,24 @@ export default function Write() {
           </p>
         </div>
         <button
-          data-testid="write-new-essay-btn"
+          data-testid="new-essay-button"
           onClick={() => setShowComposer((s) => !s)}
-          className="bg-gold text-cream font-sans font-semibold text-sm px-5 py-2.5 rounded-sm hover:opacity-90 transition-opacity"
+          className="bg-gold text-cream font-sans font-semibold text-sm px-5 py-2.5 rounded-full hover:opacity-90 transition-opacity"
         >
           {showComposer ? "Hide composer" : "New essay"}
         </button>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-12" data-testid="write-stats">
-        <StatCard label="Published" value={stats.published_essays} hint="Essays released" />
-        <StatCard label="Scheduled" value={stats.scheduled_essays} hint="Queued essays" />
-        <StatCard label="Short posts" value={stats.short_posts_30d} hint="Last 30 days" />
-        <StatCard label="Followers" value={stats.follower_count} hint="Receive your essays" />
-        <StatCard label="Emails sent" value={stats.essay_emails_sent_30d} hint="Last 30 days" />
+      {/* Slim stats row */}
+      <div
+        className="flex flex-wrap md:flex-nowrap mb-10 bg-white/60 border border-gold/20 rounded-2xl shadow-sm"
+        data-testid="stats-summary-row"
+      >
+        <SlimStat label="Published" value={stats.published_essays} />
+        <SlimStat label="Scheduled" value={stats.scheduled_essays} />
+        <SlimStat label="Short posts" value={stats.short_posts_30d} />
+        <SlimStat label="Followers" value={stats.follower_count} />
+        <SlimStat label="Emails sent" value={stats.essay_emails_sent_30d} last />
       </div>
 
       {showComposer && (
@@ -99,18 +102,22 @@ export default function Write() {
         </div>
       )}
 
-      <div className="border-b hairline flex items-center gap-6 mb-8">
+      {/* Dashboard tabs (Substack-style underline) */}
+      <div className="border-b border-gold/20 flex items-center gap-8 mb-6">
         {[
-          { k: "published", l: `Published (${published.length})` },
-          { k: "scheduled", l: `Scheduled (${scheduled.length})` },
+          { k: "published", l: `Published`, n: published.length },
+          { k: "scheduled", l: `Scheduled`, n: scheduled.length },
         ].map((t) => (
           <button
             key={t.k}
             data-testid={`write-tab-${t.k}`}
             onClick={() => setTab(t.k)}
-            className={`pb-3 font-sans text-sm font-medium transition-colors ${tab === t.k ? "text-gold border-b-2 border-gold" : "text-muted-ink hover:text-ink"}`}
+            className={`pb-3 font-sans text-sm font-medium transition-colors flex items-center gap-2 ${tab === t.k ? "text-ink border-b-2 border-gold -mb-px" : "text-muted-ink hover:text-ink"}`}
           >
-            {t.l}
+            <span>{t.l}</span>
+            <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${tab === t.k ? "bg-gold/10 text-gold" : "bg-ink/5 text-muted-ink"}`}>
+              {t.n}
+            </span>
           </button>
         ))}
       </div>

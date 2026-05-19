@@ -1,8 +1,9 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import api, { API } from "@/lib/api";
 import { toast } from "sonner";
 import RichTextEditor from "@/components/RichTextEditor";
-import RegionPicker from "@/components/RegionPicker";
+import FloatingToolbar from "@/components/FloatingToolbar";
+import PublishDrawer from "@/components/PublishDrawer";
 
 function formatLocal(iso) {
   if (!iso) return "";
@@ -41,7 +42,8 @@ export default function Composer({ onPosted }) {
   const [currentPrompt, setCurrentPrompt] = useState(null);
   const [linkPrompt, setLinkPrompt] = useState(false);
   const [regions, setRegions] = useState([]);
-  const [showRegions, setShowRegions] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const textareaRef = useRef(null);
   const draftDirty = useRef(false);
 
   const images = media.filter((m) => m.kind === "image");
@@ -268,6 +270,7 @@ export default function Composer({ onPosted }) {
         toast.success(`Queued for ${formatLocal(r.data.release_at)} CT`);
       }
       await reset();
+      setDrawerOpen(false);
       onPosted && onPosted();
     } catch (e) {
       toast.error(e?.response?.data?.detail || "Could not publish");
@@ -278,21 +281,37 @@ export default function Composer({ onPosted }) {
   const isEssay = mode === "essay";
   const savedLabel = savedAt ? `Draft saved at ${savedAt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : "";
 
+  const mediaSummary = useMemo(() => ({
+    images: images.length,
+    video: video ? (video.processing ? "transcoding..." : (video.duration_s ? `${Math.round(video.duration_s)}s` : "attached")) : "",
+    audio: audio ? (audio.duration_s ? `${Math.round(audio.duration_s)}s` : "attached") : "",
+    embed: embed ? `${embed.provider} ${embed.video_id}` : "",
+  }), [images.length, video, audio, embed]);
+
+  const canPublish = (text.trim() || media.length > 0) && (!isEssay || title.trim()) && !media.some((m) => m.processing);
+  const publishLabel = posting
+    ? (isEssay ? (scheduledAt ? "Scheduling…" : "Publishing…") : "Queueing…")
+    : (isEssay ? (scheduledAt ? "Schedule essay" : "Publish essay now") : `Queue for ${releaseLabel || "next drop"} CT`);
+
   return (
-    <section data-testid="composer" className="border hairline rounded-sm p-6 bg-cream">
-      <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
-        <div className="flex items-center gap-1 border hairline rounded-sm p-0.5" data-testid="composer-mode-toggle">
+    <section data-testid="inline-composer-container" className="border hairline rounded-sm p-6 sm:p-10 bg-cream relative">
+      {/* Mode toggle + release indicator */}
+      <div className="flex items-center justify-between mb-8 gap-3 flex-wrap">
+        <div
+          className="inline-flex bg-white/60 border border-gold/20 rounded-full p-1"
+          data-testid="composer-mode-toggle"
+        >
           <button
             data-testid="composer-mode-post"
             onClick={() => setMode("post")}
-            className={`px-3 py-1.5 font-sans text-xs font-semibold uppercase tracking-wider transition-colors ${mode === "post" ? "bg-gold text-cream" : "text-muted-ink hover:text-ink"}`}
+            className={`px-5 py-1.5 rounded-full font-sans text-xs font-semibold uppercase tracking-wider transition-all ${mode === "post" ? "bg-[#1D2D44] text-cream shadow-sm" : "text-muted-ink hover:text-ink"}`}
           >
             Short post
           </button>
           <button
             data-testid="composer-mode-essay"
             onClick={() => setMode("essay")}
-            className={`px-3 py-1.5 font-sans text-xs font-semibold uppercase tracking-wider transition-colors ${mode === "essay" ? "bg-gold text-cream" : "text-muted-ink hover:text-ink"}`}
+            className={`px-5 py-1.5 rounded-full font-sans text-xs font-semibold uppercase tracking-wider transition-all ${mode === "essay" ? "bg-[#1D2D44] text-cream shadow-sm" : "text-muted-ink hover:text-ink"}`}
           >
             Essay
           </button>
@@ -300,26 +319,43 @@ export default function Composer({ onPosted }) {
         <p className="font-sans text-xs text-muted-ink" data-testid="composer-release-note">
           {isEssay ? (
             scheduledAt ? (<>Publishes <span className="font-semibold ink">{new Date(scheduledAt).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}</span></>)
-              : (<>Publishes <span className="font-semibold ink">now</span>. Emails your followers.</>)
+              : (<>Publishes <span className="font-semibold ink">now</span> when you confirm</>)
           ) : (
             releaseLabel ? (<>Releases at <span className="font-semibold ink">{releaseLabel} CT</span></>) : null
           )}
         </p>
       </div>
 
+      {/* Title-first essay header */}
       {isEssay && (
-        <div className="mb-3 space-y-2 border-b hairline pb-4">
-          <input data-testid="composer-title" placeholder="Title" value={title} maxLength={160}
+        <div className="mb-8 space-y-3">
+          <textarea
+            data-testid="editor-title-input"
+            placeholder="Title"
+            value={title}
+            maxLength={160}
+            rows={1}
+            onInput={(e) => {
+              e.target.style.height = "auto";
+              e.target.style.height = `${e.target.scrollHeight}px`;
+            }}
             onChange={(e) => setTitle(e.target.value)}
-            className="w-full bg-cream border-0 focus:outline-none font-display font-semibold text-2xl ink placeholder:text-[#2C2410]/30" />
-          <input data-testid="composer-subtitle" placeholder="Subtitle (optional)" value={subtitle} maxLength={240}
+            className="w-full bg-transparent border-0 focus:outline-none focus:ring-0 resize-none overflow-hidden font-display font-semibold text-4xl sm:text-5xl ink tracking-tight leading-[1.1] placeholder:text-ink/25 placeholder:font-display p-0"
+          />
+          <input
+            data-testid="composer-subtitle"
+            placeholder="A subtitle to set the stakes (optional)"
+            value={subtitle}
+            maxLength={240}
             onChange={(e) => setSubtitle(e.target.value)}
-            className="w-full bg-cream border-0 focus:outline-none font-serif italic text-base ink placeholder:text-[#2C2410]/30" />
+            className="w-full bg-transparent border-0 focus:outline-none focus:ring-0 font-serif italic text-xl text-muted-ink placeholder:text-ink/25 p-0"
+          />
         </div>
       )}
 
+      {/* Essay visual/markdown sub-toggle */}
       {isEssay && (
-        <div className="flex items-center gap-1 mb-2 border hairline rounded-sm p-0.5 w-fit" data-testid="essay-editor-toggle">
+        <div className="flex items-center gap-1 mb-3 border hairline rounded-sm p-0.5 w-fit" data-testid="essay-editor-toggle">
           {[{ k: "visual", l: "Visual" }, { k: "markdown", l: "Markdown" }].map((t) => (
             <button
               key={t.k}
@@ -334,6 +370,7 @@ export default function Composer({ onPosted }) {
         </div>
       )}
 
+      {/* Writing surface */}
       {isEssay && editorMode === "visual" ? (
         <RichTextEditor
           value={text}
@@ -341,18 +378,23 @@ export default function Composer({ onPosted }) {
           placeholder="Write the essay. Type / to insert headings, images, video, audio, or links."
         />
       ) : (
-        <textarea
-          data-testid="composer-text"
-          className={`w-full bg-cream border-0 focus:outline-none font-serif text-base sm:text-lg ink leading-relaxed resize-none ${isEssay ? "min-h-[340px]" : "min-h-[110px]"}`}
-          placeholder={isEssay ? "Write the essay. Markdown is supported: **bold**, _italic_, # heading, - lists, > quotes, [link](url)." : "Plain words. What happened on a deal today?"}
-          value={text}
-          maxLength={isEssay ? 50000 : 500}
-          onChange={(e) => setText(e.target.value)}
-        />
+        <>
+          <textarea
+            ref={textareaRef}
+            data-testid="editor-body-textarea"
+            className={`w-full bg-transparent border-0 focus:outline-none focus:ring-0 font-serif ink leading-relaxed resize-none ${isEssay ? "min-h-[400px] text-lg sm:text-xl" : "min-h-[150px] text-base sm:text-lg"}`}
+            placeholder={isEssay ? "Begin writing. Markdown is supported: **bold**, _italic_, # heading, - lists, > quotes, [link](url)." : "Plain words. What happened on a deal today?"}
+            value={text}
+            maxLength={isEssay ? 50000 : 500}
+            onChange={(e) => setText(e.target.value)}
+          />
+          <FloatingToolbar editorRef={textareaRef} onChange={setText} active />
+        </>
       )}
-      <p className="mt-1 font-sans text-[11px] text-muted-ink/80" data-testid="composer-tag-hint">
+      <p className="mt-2 font-sans text-[11px] text-muted-ink/80" data-testid="composer-tag-hint">
         Tip: type <code className="font-mono text-gold">#chicago</code> or <code className="font-mono text-gold">#pricing</code> to tag this post. Other members can browse by tag.
       </p>
+
       {/* Media previews */}
       {media.length > 0 && (
         <div className="mt-4 space-y-2" data-testid="composer-media-list">
@@ -363,7 +405,7 @@ export default function Composer({ onPosted }) {
               m.kind === "audio" ? `Audio . ${m.duration_s ? `${Math.round(m.duration_s)}s` : "uploaded"}` :
               m.kind === "embed" ? `${m.provider} video . ${m.video_id}` : "Media";
             return (
-              <div key={idx} data-testid={`composer-media-${idx}`} className="flex items-center justify-between gap-3 px-3 py-2 border hairline rounded-sm bg-cream">
+              <div key={idx} data-testid={`composer-media-${idx}`} className="flex items-center justify-between gap-3 px-3 py-2 border hairline rounded-sm bg-white/60">
                 <div className="flex items-center gap-3 min-w-0">
                   {m.kind === "image" && m.path && (
                     <img src={`${API}/uploads/file/${m.path}`} alt="" className="w-10 h-10 object-cover border hairline rounded-sm" />
@@ -412,13 +454,13 @@ export default function Composer({ onPosted }) {
 
       {/* Embed URL input */}
       {!video && !embed && (
-        <div className="mt-3 flex items-center gap-2" data-testid="composer-embed-row">
+        <div className="mt-4 flex items-center gap-2" data-testid="composer-embed-row">
           <input
             data-testid="composer-embed-url"
             placeholder="Paste a YouTube or Vimeo link"
             value={embedUrl}
             onChange={(e) => setEmbedUrl(e.target.value)}
-            className="flex-1 bg-cream border hairline rounded-sm px-3 py-2 font-sans text-xs ink focus:outline-none focus:ring-1 focus:ring-gold"
+            className="flex-1 bg-white/60 border hairline rounded-sm px-3 py-2 font-sans text-xs ink focus:outline-none focus:ring-1 focus:ring-gold"
           />
           <button
             data-testid="composer-embed-attach"
@@ -431,71 +473,8 @@ export default function Composer({ onPosted }) {
         </div>
       )}
 
-      {isEssay && (
-        <div className="mt-3 flex items-center gap-3 flex-wrap" data-testid="composer-schedule">
-          <label className="font-sans text-xs uppercase tracking-wider font-semibold text-muted-ink">Schedule</label>
-          <input
-            type="datetime-local"
-            data-testid="composer-schedule-input"
-            value={scheduledAt}
-            onChange={(e) => setScheduledAt(e.target.value)}
-            className="bg-cream border hairline rounded-sm px-2 py-1 font-sans text-xs ink focus:outline-none focus:ring-1 focus:ring-gold"
-          />
-          {scheduledAt && (
-            <button onClick={() => setScheduledAt("")} data-testid="composer-schedule-clear" className="font-sans text-xs text-muted-ink hover:text-deepred transition-colors">
-              Publish now instead
-            </button>
-          )}
-        </div>
-      )}
-
-      {currentPrompt && (
-        <div className="mt-3 border hairline rounded-sm p-3 bg-cream flex items-start gap-3" data-testid="composer-prompt-link">
-          <input
-            id="link-prompt"
-            type="checkbox"
-            checked={linkPrompt}
-            onChange={(e) => setLinkPrompt(e.target.checked)}
-            data-testid="composer-prompt-link-checkbox"
-            className="mt-1 accent-gold cursor-pointer"
-          />
-          <label htmlFor="link-prompt" className="flex-1 cursor-pointer">
-            <div className="font-sans text-[11px] uppercase tracking-wider font-semibold text-gold mb-0.5">This week's subject</div>
-            <div className="font-display font-semibold text-sm ink leading-snug">{currentPrompt.title}</div>
-          </label>
-        </div>
-      )}
-
-      {/* Regions — collapsed by default. Leave empty to let Claude auto-tag. */}
-      <div className="mt-3 border hairline rounded-sm bg-cream" data-testid="composer-regions">
-        <button
-          type="button"
-          onClick={() => setShowRegions((v) => !v)}
-          data-testid="composer-regions-toggle"
-          className="w-full flex items-center justify-between px-3 py-2.5 text-left hover:bg-gold/5 transition-colors"
-        >
-          <span className="flex items-center gap-2 min-w-0">
-            <span className="font-sans text-[11px] uppercase tracking-wider font-semibold text-gold">Regions</span>
-            <span className="font-serif text-xs text-muted-ink truncate">
-              {regions.length > 0 ? `${regions.length} picked` : "Leave empty — Claude will tag it"}
-            </span>
-          </span>
-          <svg viewBox="0 0 24 24" className={`w-4 h-4 text-muted-ink transition-transform ${showRegions ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9" /></svg>
-        </button>
-        {showRegions && (
-          <div className="border-t hairline px-3 py-3">
-            <RegionPicker
-              controlled
-              value={regions}
-              onChange={setRegions}
-              emptyLabel="Pick which cities or regions this is about. We'll auto-tag if you skip."
-              testidPrefix="composer-region"
-            />
-          </div>
-        )}
-      </div>
-
-      <div className="flex items-center justify-between mt-4 pt-3 border-t hairline gap-3 flex-wrap">
+      {/* Editor action bar — attach + Next */}
+      <div className="flex items-center justify-between mt-6 pt-4 border-t hairline gap-3 flex-wrap">
         <div className="flex items-center gap-4 flex-wrap">
           <label className={`cursor-pointer font-sans text-sm font-medium transition-colors ${uploading === "image 1" || images.length >= MAX_IMAGES ? "text-muted-ink/50 cursor-not-allowed" : "text-muted-ink hover:text-gold"}`}>
             {uploading.startsWith("image") ? "Uploading..." : images.length >= MAX_IMAGES ? `Images (${MAX_IMAGES}/${MAX_IMAGES})` : `Image${images.length ? ` (${images.length}/${MAX_IMAGES})` : ""}`}
@@ -520,22 +499,38 @@ export default function Composer({ onPosted }) {
         <div className="flex items-center gap-4">
           <span className="font-sans text-xs text-muted-ink">{text.length}/{isEssay ? "50000" : "500"}</span>
           <button
-            data-testid="composer-publish"
-            onClick={submit}
-            disabled={posting || (!text.trim() && media.length === 0) || (isEssay && !title.trim()) || media.some((m) => m.processing)}
-            className="bg-gold text-cream font-sans font-semibold text-sm px-5 py-2 rounded-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+            data-testid="open-publish-drawer-button"
+            onClick={() => setDrawerOpen(true)}
+            disabled={!canPublish}
+            className="bg-gold text-cream font-sans font-semibold text-sm px-5 py-2 rounded-full hover:opacity-90 transition-opacity disabled:opacity-50"
           >
-            {media.some((m) => m.processing)
-              ? "Transcoding video..."
-              : posting
-              ? (isEssay ? (scheduledAt ? "Scheduling..." : "Publishing...") : "Queueing...")
-              : (isEssay ? (scheduledAt ? "Schedule" : "Publish essay") : "Queue for release")}
+            {isEssay ? "Publish settings →" : "Queue for release →"}
           </button>
         </div>
       </div>
       <p className="mt-3 font-sans text-[11px] text-muted-ink">
         Images up to 6MB each (max {MAX_IMAGES}). Video up to 3 minutes (≤60s plays inline, longer videos auto-transcode). Audio up to 20MB and 5 minutes.
       </p>
+
+      {/* Publish settings drawer */}
+      <PublishDrawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        mode={mode}
+        scheduledAt={scheduledAt}
+        setScheduledAt={setScheduledAt}
+        releaseLabel={releaseLabel}
+        mediaSummary={mediaSummary}
+        regions={regions}
+        setRegions={setRegions}
+        currentPrompt={currentPrompt}
+        linkPrompt={linkPrompt}
+        setLinkPrompt={setLinkPrompt}
+        onPublish={submit}
+        posting={posting}
+        canPublish={canPublish}
+        publishLabel={publishLabel}
+      />
     </section>
   );
 }

@@ -1,0 +1,29 @@
+{
+  "summary": "Full E2E + regression for Substack-style Writing Desk redesign. All 22 review-request features pass: slim stats row, count-chip tabs, new-essay toggle, mode switch (post/essay), wrapping title textarea (scrollHeight grew to 198px on long input, no overflow), italic subtitle input, short-post body with 500-char cap, floating selection toolbar (renders 44px above editor, visible only when selection non-empty, hides on blur), markdown wraps (Bold ** correctly applied), publish-drawer button gated by content + opens drawer with overlay, drawer schedule/audience/regions/prompt/attachments sections all render, Escape and overlay click both close drawer, auto-save fires after 5s producing [data-testid=draft-saved], embed URL row attaches YouTube link, GET /api/release-window /prompts/current /me/writer/stats|published|scheduled all 200. Old testid composer-text fully retired - no stale references in src.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Composer (essay visual mode)", "issues": ["Console warning from tiptap: 'Duplicate extension names found: [link]'. Non-blocking but should be cleaned up by removing the duplicate Link extension registration in RichTextEditor."]}
+    ]
+  },
+  "test_report_links": ["/app/test_reports/iteration_28.json"],
+  "action_items": [
+    "(LOW) De-dup the tiptap 'link' extension registration in RichTextEditor to silence the duplicate-name console warning."
+  ],
+  "critical_code_review_comments": [
+    "FloatingToolbar anchors to the textarea's top center rather than the actual selection bounding rect (textareas cannot expose per-char client rects without a mirror div). For short textareas this is acceptable, but for the long essay markdown mode the pill can sit far from the selected text. If pixel-accurate anchoring becomes a UX requirement, mirror the textarea into a hidden div with identical styles and read the selected range's rect from there.",
+    "Composer.jsx is large (~540 lines) - upload handlers, polling, draft save, and submit could be extracted into hooks (useDraftAutoSave, useMediaUploads) to keep the view layer focused. Not blocking the redesign.",
+    "PublishDrawer click-overlay close works, but the drawer aside element still receives pointer events when closed because translate-x-full doesn't disable focus. Add aria-hidden / tabIndex=-1 on the aside when !open to prevent tab-trap into hidden buttons.",
+    "Auto-save useEffect dependency array includes `images` (derived array recreated each render) which can cause extra timer resets. Memoize images via useMemo or depend on media only."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "100%", "frontend": "100%" },
+  "test_credentials": "Cookie session_token=tok_smoke_admin_v2 on agg-reader-first.preview.emergentagent.com",
+  "seed_data_creation": "None. Used pre-seeded smoke admin session.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Writing Desk redesign verified end-to-end. The body textarea testid is now 'editor-body-textarea' (old 'composer-text' removed everywhere). To exercise the FloatingToolbar in essay mode you MUST first click [data-testid=essay-editor-markdown] so the textarea is mounted (visual mode uses tiptap which has its own toolbar). When selecting programmatically dispatch a 'select' and 'keyup' event on the textarea so the toolbar's listeners fire. Drawer open state is reflected by the 'translate-x-0' class on [data-testid=publish-settings-drawer] (the element is always in the DOM).",
+  "rca of the issue": "N/A - no blocking issues found."
+}
