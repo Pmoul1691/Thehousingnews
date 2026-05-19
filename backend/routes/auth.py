@@ -125,15 +125,11 @@ def setup(db):
             existing_profile = await db.profiles.find_one({"email": email}, {"_id": 0})
             user_id = existing_profile["user_id"] if existing_profile else f"user_{uuid.uuid4().hex[:12]}"
             admin = is_admin_email(email)
-            # Status: admin -> approved, auto_grant -> approved, otherwise -> needs_application
-            if admin:
-                status = "approved"
-            elif auto_grant or existing_profile:
-                # If we are restoring from an existing profile the user was previously
-                # approved (profiles require approval to create), so respect that.
-                status = "approved"
-            else:
-                status = "needs_application"
+            # "Free forever" pivot: every new signup is approved on the spot.
+            # Membership status is no longer a gate. Admin / partner / recovered
+            # accounts remain approved for the same reasons they were before.
+            status = "approved"
+            _ = (admin, auto_grant, existing_profile)  # retained for source attribution below
             user_doc = {
                 "user_id": user_id,
                 "email": email,

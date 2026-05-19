@@ -117,7 +117,9 @@ def setup(db):
             "name": name or email.split("@")[0],
             "picture": "",
             "is_admin": is_admin,
-            "status": "approved" if is_admin else "needs_application",
+            # "Free forever" pivot: every signup is approved immediately. The
+            # legacy "needs_application" gate was retired in Feb 2026.
+            "status": "approved",
             "source": "email_signup",
             "email_verified": False,
             "created_at": _now_iso(),

@@ -103,55 +103,64 @@ def setup(db):
         if not uids:
             return {"items": [], "count": 0}
 
-        # Pull their profiles (only ones with a real market/bio show up).
+        # Pull all real profile rows we have (including stubs — they often
+        # carry a name + avatar from the LinkedIn import even if the user
+        # never personalised the row).
         profs = await db.profiles.find(
-            {"user_id": {"$in": uids}, "is_stub": {"$ne": True}},
+            {"user_id": {"$in": uids}},
             {"_id": 0, "user_id": 1, "name": 1, "market": 1, "bio": 1,
              "avatar_path": 1, "objectives": 1, "linkedin_data": 1,
-             "linkedin_url": 1},
+             "linkedin_url": 1, "is_stub": 1},
         ).to_list(2000)
+        prof_by_uid = {p["user_id"]: p for p in profs}
 
         # Per-user essay counts
         essay_counts: dict = {}
         pipeline = [
-            {"$match": {"user_id": {"$in": [p["user_id"] for p in profs]},
+            {"$match": {"user_id": {"$in": uids},
                         "kind": "essay", "status": "approved"}},
             {"$group": {"_id": "$user_id", "n": {"$sum": 1}}},
         ]
         async for row in db.posts.aggregate(pipeline):
             essay_counts[row["_id"]] = row["n"]
 
-        # Top-connector counts: how many approved members each profile has
+        # Top-connector counts: how many approved members each user has
         # invited. Joins on invite_codes.owner_user_id × users.status='approved'.
         top_conn_counts: dict = {}
-        prof_uids = [p["user_id"] for p in profs]
-        if prof_uids:
-            inv_rows = await db.invite_codes.find(
-                {"owner_user_id": {"$in": prof_uids},
-                 "redeemed_by_user_id": {"$ne": None}},
-                {"_id": 0, "owner_user_id": 1, "redeemed_by_user_id": 1},
+        inv_rows = await db.invite_codes.find(
+            {"owner_user_id": {"$in": uids},
+             "redeemed_by_user_id": {"$ne": None}},
+            {"_id": 0, "owner_user_id": 1, "redeemed_by_user_id": 1},
+        ).to_list(5000)
+        all_redeemed = [r["redeemed_by_user_id"] for r in inv_rows]
+        if all_redeemed:
+            approved_redeemers = await db.users.find(
+                {"user_id": {"$in": all_redeemed}, "status": "approved"},
+                {"_id": 0, "user_id": 1},
             ).to_list(5000)
-            all_redeemed = [r["redeemed_by_user_id"] for r in inv_rows]
-            if all_redeemed:
-                approved_redeemers = await db.users.find(
-                    {"user_id": {"$in": all_redeemed}, "status": "approved"},
-                    {"_id": 0, "user_id": 1},
-                ).to_list(5000)
-                approved_set = {u["user_id"] for u in approved_redeemers}
-                for r in inv_rows:
-                    if r["redeemed_by_user_id"] in approved_set:
-                        top_conn_counts[r["owner_user_id"]] = top_conn_counts.get(r["owner_user_id"], 0) + 1
+            approved_set = {u["user_id"] for u in approved_redeemers}
+            for r in inv_rows:
+                if r["redeemed_by_user_id"] in approved_set:
+                    top_conn_counts[r["owner_user_id"]] = top_conn_counts.get(r["owner_user_id"], 0) + 1
 
+        # Build a row for EVERY approved user, not just those with a real
+        # profile. Profile-less members now surface with fallback values so
+        # the directory reflects the actual room.
         items = []
-        for p in profs:
-            uid = p["user_id"]
+        for uid in uids:
             u = uid_to_user.get(uid) or {}
+            p = prof_by_uid.get(uid) or {}
             li = p.get("linkedin_data") or {}
             top_exp = (li.get("experiences") or [{}])[0]
             approved_n = top_conn_counts.get(uid, 0)
+            fallback_name = u.get("name") or (u.get("email") or "").split("@")[0]
+            display_name = p.get("name") or fallback_name or ""
+            has_real_profile = bool(
+                (p.get("name") or p.get("market") or p.get("bio")) and not p.get("is_stub")
+            )
             items.append({
                 "user_id": uid,
-                "name": p.get("name") or u.get("name") or "",
+                "name": display_name,
                 "market": p.get("market") or li.get("location") or "",
                 "bio": (p.get("bio") or "")[:280],
                 "headline": (li.get("headline") or "")[:180],
@@ -163,6 +172,7 @@ def setup(db):
                 "linkedin_url": p.get("linkedin_url"),
                 "is_top_connector": approved_n >= 3,
                 "approved_referrals": approved_n,
+                "profile_complete": has_real_profile,
             })
 
         # Text search (client-typed)

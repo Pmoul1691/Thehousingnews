@@ -97,19 +97,23 @@ def setup(db):
 
         items = []
         for u in users:
-            prof = pmap.get(u["user_id"])
-            if not prof:
-                continue
+            prof = pmap.get(u["user_id"]) or {}
+            # Profile-less members are no longer silently dropped — they
+            # appear with a fallback name (from the user record / email) so
+            # the directory reflects the actual room. They simply won't have
+            # a market / bio yet.
             partner_tier = u.get("partner_tier")
             supporter_until = u.get("supporter_until")
             is_supporter = bool(supporter_until and supporter_until > now_iso)
             is_comped = bool(partner_tier) or u.get("source") == "partners_auto_grant"
+            fallback_name = u.get("name") or (u.get("email") or "").split("@")[0]
             row = {
                 "user_id": u["user_id"],
-                "name": prof.get("name") or u.get("name") or "",
+                "name": prof.get("name") or fallback_name or "",
                 "market": prof.get("market") or "",
                 "bio": prof.get("bio") or "",
                 "avatar_path": prof.get("avatar_path"),
+                "profile_complete": bool(prof.get("name") and prof.get("market")),
             }
             # Only admins ever see the entitlement tier details.
             if viewer_is_admin:

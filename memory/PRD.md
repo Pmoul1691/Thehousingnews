@@ -11,6 +11,30 @@ Hard guardrails: no chat widget, no popups, no follower counts, no stock photogr
 of teams.
 
 
+## 2026-02-19 — "Free forever" Members fix (DONE)
+**Cause** of "everyone who signed up isn't showing on /members": two filters
+were silently hiding signups.
+1. `routes/auth.py` and `routes/auth_email.py` defaulted new users to
+   `status: "needs_application"` — a leftover gate from the invite-only
+   era. New users could sign in but never appeared on /members until
+   they (and an admin) completed a no-longer-existent "apply" form.
+2. `routes/profiles.py::/directory` only iterated over `profiles` with
+   real (non-stub) rows. Anyone who joined but never filled out a
+   profile was dropped, even if they were already approved.
+
+**Fix** (full free-forever treatment, per user choice A):
+- New Google and email signups now default to `status: "approved"`.
+- `routes/profiles.py::/directory` now iterates over approved users
+  (not just profiles) and surfaces profile-less rows with a fallback
+  name (from the user record or email username). New field on every
+  row: `profile_complete`.
+- `routes/users.py::/members` (admin endpoint) got the same treatment
+  for parity.
+- One-shot migration `scripts/migrate_needs_application_to_approved.py`
+  bumps every legacy `needs_application` user to `approved`.
+- Preview migration: 23 stuck users bumped. /members count: 4 → 21.
+
+
 ## 2026-02-19 — Writing Desk redesigned, Substack-style (DONE)
 User-confirmed scope: mirror dashboard + editor + publish drawer, keep
 Short post / Essay toggle, keep inline (no dedicated /write/new route),
