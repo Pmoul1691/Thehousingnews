@@ -5,6 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import NewsletterBand from "@/components/NewsletterBand";
 import AggTrendingStrip from "@/components/AggTrendingStrip";
 import DailyCard from "@/components/DailyCard";
+import { NewsCardSkeleton } from "@/components/Skeletons";
 
 const WINDOW_HOURS = 168;
 
@@ -239,23 +240,25 @@ export default function AggHome() {
   useEffect(() => {
     let alive = true;
     setLoadingPubs(true);
-    Promise.all([
-      api.get("/agg/publishers-latest", { params: { hours: WINDOW_HOURS } }).catch(() => ({ data: { items: [] } })),
-      api.get("/agg/podcasts").catch(() => ({ data: { items: [] } })),
-      api.get("/essays?limit=6").catch(() => ({ data: { items: [] } })),
-      api.get("/agg/trending", { params: { hours: 24, limit: 6 } }).catch(() => ({ data: { items: [] } })),
-    ]).then(([pubRes, podRes, eRes, tRes]) => {
-      if (!alive) return;
-      setPubs(pubRes.data.items || []);
-      setPods(podRes.data.items || []);
-      setEssays(eRes.data.items || []);
-      setTrending(compareTopics([], tRes.data.items || []));
-      setLoadingPubs(false);
-    }).catch((e) => {
-      if (!alive) return;
-      setError(e?.response?.data?.detail || "Failed to load");
-      setLoadingPubs(false);
-    });
+    // Progressive load: publishers (the biggest payload, gates the river)
+    // fires first and unlocks the page render the moment it returns. The
+    // smaller side payloads (podcasts, essays, trending) populate independently.
+    api.get("/agg/publishers-latest", { params: { hours: WINDOW_HOURS } })
+      .then((r) => { if (alive) { setPubs(r.data.items || []); setLoadingPubs(false); } })
+      .catch((e) => {
+        if (!alive) return;
+        setError(e?.response?.data?.detail || "Failed to load");
+        setLoadingPubs(false);
+      });
+    api.get("/agg/podcasts")
+      .then((r) => { if (alive) setPods(r.data.items || []); })
+      .catch(() => {});
+    api.get("/essays?limit=6")
+      .then((r) => { if (alive) setEssays(r.data.items || []); })
+      .catch(() => {});
+    api.get("/agg/trending", { params: { hours: 24, limit: 6 } })
+      .then((r) => { if (alive) setTrending(compareTopics([], r.data.items || [])); })
+      .catch(() => {});
     return () => { alive = false; };
   }, []);
 
@@ -316,7 +319,27 @@ export default function AggHome() {
   const loading = loadingPubs && pubs.length === 0;
   const totalSources = pubs.length + pods.length;
 
-  if (loading) return <p className="text-slate-500 py-12 text-center" data-testid="daily-loading">Loading.</p>;
+  if (loading) {
+    // Render the hero immediately so the page has structure, then show
+    // skeleton cards in place of the article grid while data loads.
+    return (
+      <div data-testid="agg-home">
+        <AggHero />
+        <PhilosophyStrip />
+        <section className="py-12">
+          <div className="mb-6">
+            <p className="font-sans text-[10px] uppercase tracking-[0.22em] font-semibold text-agg-orange mb-2">
+              The Daily
+            </p>
+            <p className="font-display font-semibold text-2xl text-agg-navy">
+              Loading today&apos;s reading...
+            </p>
+          </div>
+          <NewsCardSkeleton count={9} />
+        </section>
+      </div>
+    );
+  }
   if (error && !pubs.length) return <p className="text-red-700 py-12 text-center" data-testid="daily-error">{error}</p>;
 
   // Weave member commentary cards every 8 publisher/podcast cards so the

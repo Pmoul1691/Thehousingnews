@@ -6,6 +6,7 @@ import FeedCompose from "@/components/FeedCompose";
 import NextReleaseTimer from "@/components/NextReleaseTimer";
 import VerifyEmailBanner from "@/components/VerifyEmailBanner";
 import OnboardingChecklist from "@/components/OnboardingChecklist";
+import { PostSkeleton } from "@/components/Skeletons";
 import { useAuth } from "@/context/AuthContext";
 
 function PendingChip({ post }) {
@@ -41,34 +42,48 @@ export default function Feed() {
   const [regionFilter, setRegionFilter] = useState(() => localStorage.getItem("feed_regions") || "all");
   const [myRegions, setMyRegions] = useState([]);
 
-  const load = useCallback(async (currentScope, currentRegion) => {
+  const load = useCallback((currentScope, currentRegion) => {
+    // Progressive load: each call resolves independently and updates its own
+    // state slice. The main stream (/posts/feed) is what gates the perceived
+    // page-ready feel, so render the moment it arrives without waiting for
+    // picks/prompt/profile/regions. They populate in the background.
     setFetching(true);
-    try {
-      const regionParam = currentRegion === "mine" ? "&regions=mine" : "";
-      const [feedRes, mineRes, picksRes, promptRes, profRes, regRes] = await Promise.all([
-        api.get(`/posts/feed?scope=${currentScope}${regionParam}`),
-        api.get("/posts/mine"),
-        api.get("/posts/picks?limit=4"),
-        api.get("/prompts/current").catch(() => ({ data: {} })),
-        api.get("/profile").catch(() => ({ data: {} })),
-        api.get("/users/me/regions").catch(() => ({ data: { regions: [] } })),
-      ]);
-      const items = feedRes.data.items || [];
-      const mixed = items.slice().sort((a, b) => {
-        const at = new Date(a.release_at || a.created_at).getTime();
-        const bt = new Date(b.release_at || b.created_at).getTime();
-        return bt - at;
-      });
-      setStream(mixed);
-      const pending = (mineRes.data.items || []).filter((p) => p.is_released === false);
-      setMyPending(pending);
-      setPicks(picksRes.data.items || []);
-      setCurrentPrompt(promptRes.data && promptRes.data.prompt_id ? promptRes.data : null);
-      setProfile(profRes.data || null);
-      setMyRegions(regRes.data?.regions || []);
-    } finally {
-      setFetching(false);
-    }
+    const regionParam = currentRegion === "mine" ? "&regions=mine" : "";
+
+    // Primary: the feed itself. Updates the main column.
+    api.get(`/posts/feed?scope=${currentScope}${regionParam}`)
+      .then((res) => {
+        const items = res.data.items || [];
+        const mixed = items.slice().sort((a, b) => {
+          const at = new Date(a.release_at || a.created_at).getTime();
+          const bt = new Date(b.release_at || b.created_at).getTime();
+          return bt - at;
+        });
+        setStream(mixed);
+      })
+      .catch(() => {})
+      .finally(() => setFetching(false));
+
+    // Secondary: queued posts, picks, prompt, profile, regions. Each fires
+    // and lands independently. None of these gate the feed render.
+    api.get("/posts/mine")
+      .then((res) => {
+        const pending = (res.data.items || []).filter((p) => p.is_released === false);
+        setMyPending(pending);
+      })
+      .catch(() => {});
+    api.get("/posts/picks?limit=4")
+      .then((res) => setPicks(res.data.items || []))
+      .catch(() => {});
+    api.get("/prompts/current")
+      .then((res) => setCurrentPrompt(res.data?.prompt_id ? res.data : null))
+      .catch(() => {});
+    api.get("/profile")
+      .then((res) => setProfile(res.data || null))
+      .catch(() => {});
+    api.get("/users/me/regions")
+      .then((res) => setMyRegions(res.data?.regions || []))
+      .catch(() => {});
   }, []);
 
   const setRegionFilterAndSave = (r) => {
@@ -232,7 +247,7 @@ export default function Feed() {
           {/* Main stream - mixed essays + shorts, chronological */}
           <div className="mt-6" data-testid="feed-stream">
             {fetching && stream.length === 0 ? (
-              <div className="font-serif italic text-base text-muted-ink py-16 text-center">Loading.</div>
+              <PostSkeleton count={3} />
             ) : stream.length === 0 ? (
               <div className="py-20 text-center" data-testid="feed-empty">
                 <p className="font-sans text-[11px] uppercase tracking-[0.22em] font-semibold text-muted-ink mb-3">Quiet</p>
