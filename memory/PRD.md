@@ -10,6 +10,20 @@ Voice rules: first-person Pete, no em/en dashes, no hype, short sentences.
 Hard guardrails: no chat widget, no popups, no follower counts, no stock photography
 of teams.
 
+
+## 2026-02-19 — Reader-first post-login redirect + ReadWriteToggle (DONE)
+- All auth entry points (`/signin`, `/auth/magic`, `/auth/verify-email`,
+  `/auth/callback`) now land approved members on `/news` instead of `/feed`.
+- New `<ReadWriteToggle />` component (`/app/frontend/src/components/ReadWriteToggle.jsx`):
+  bottom-right gold pill, renders only for signed-in approved users on `/news`
+  (label: "Write a post" → `/feed`) or `/feed` (label: "Read The Daily" → `/news`).
+- `FloatingWriteButton` now hides on `/news` and `/feed` via `ownedByToggle`
+  predicate to avoid double-pill stacking. `FloatingSuggestButton` stays on
+  bottom-left and is independent.
+- Test data-testids: `rw-toggle-write` (on /news), `rw-toggle-read` (on /feed).
+- Verified end-to-end by testing agent: iteration_27.json, 100% backend + 100%
+  frontend, no regressions on /essays or signed-out flows.
+
 ## Architecture
 - **Frontend**: React 19, React Router 7, Tailwind, shadcn primitives, sonner toasts.
 - **Backend**: FastAPI, Motor (Mongo), Pydantic v2.
