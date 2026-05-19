@@ -74,7 +74,7 @@ function TodayBriefPromoRow({ authed }) {
 }
 
 // ── Hero ──────────────────────────────────────────────────────────────────
-function AggHero() {
+function AggHero({ pubsCount = 0, podsCount = 0 } = {}) {
   return (
     <section
       data-testid="agg-hero"
@@ -113,15 +113,21 @@ function AggHero() {
 
       <ul className="mt-10 flex gap-10 sm:gap-14 flex-wrap" data-testid="agg-hero-stats">
         <li>
-          <p className="font-display font-semibold text-[34px] text-agg-navy leading-none">40+</p>
+          <p data-testid="agg-hero-stat-sources" className="font-display font-semibold text-[34px] text-agg-navy leading-none">
+            {pubsCount + podsCount > 0 ? `${pubsCount + podsCount}+` : "—"}
+          </p>
           <p className="font-sans text-[10px] uppercase tracking-[0.22em] font-semibold text-slate-500 mt-1">Sources</p>
         </li>
         <li>
-          <p className="font-display font-semibold text-[34px] text-agg-navy leading-none">28</p>
+          <p data-testid="agg-hero-stat-publishers" className="font-display font-semibold text-[34px] text-agg-navy leading-none">
+            {pubsCount || "—"}
+          </p>
           <p className="font-sans text-[10px] uppercase tracking-[0.22em] font-semibold text-slate-500 mt-1">Publishers</p>
         </li>
         <li>
-          <p className="font-display font-semibold text-[34px] text-agg-navy leading-none">10</p>
+          <p data-testid="agg-hero-stat-podcasts" className="font-display font-semibold text-[34px] text-agg-navy leading-none">
+            {podsCount || "—"}
+          </p>
           <p className="font-sans text-[10px] uppercase tracking-[0.22em] font-semibold text-slate-500 mt-1">Podcasts</p>
         </li>
       </ul>
@@ -330,7 +336,7 @@ export default function AggHome() {
     // skeleton cards in place of the article grid while data loads.
     return (
       <div data-testid="agg-home">
-        <AggHero />
+        <AggHero pubsCount={pubs.length} podsCount={pods.length} />
         <PhilosophyStrip />
         <section className="py-12">
           <div className="mb-6">
@@ -362,7 +368,7 @@ export default function AggHome() {
 
   return (
     <div data-testid="agg-home">
-      <AggHero />
+      <AggHero pubsCount={pubs.length} podsCount={pods.length} />
       <PhilosophyStrip />
       <TrendVisualization topics={trending} />
       <AggTrendingStrip />
