@@ -11,6 +11,25 @@ Hard guardrails: no chat widget, no popups, no follower counts, no stock photogr
 of teams.
 
 
+## 2026-02-19 — Title-based fuzzy dedup for aggregator (DONE, P3-a)
+Pre-existing URL-based dedup only catches the same URL re-shared with
+different tracking params. It misses the very common case of two
+publishers re-titling the same wire story.
+- `services/rss_ingest.py` now stamps a `title_signature` and
+  `title_normalized` on every new article. Normalization strips publisher
+  suffixes (" | Bloomberg", " — NYT", " - WSJ"), prefix labels
+  ("BREAKING:", "EXCLUSIVE:"), punctuation, smart-quotes, stop-words.
+- Before upserting, each new article is checked against the last 48h of
+  articles from OTHER publishers using both an exact signature match and
+  a `difflib` ratio >= 0.88 fuzzy match. Bounded scan (200 rows max) so
+  this stays O(1) in practice.
+- Mongo index `{title_signature: 1, published_at: -1}` (sparse) added in
+  `server.py` for fast lookup.
+- Live test: one ingest pass caught **24 cross-publisher near-duplicates**
+  that would previously have polluted /news.
+- Regression locked in by `backend/tests/test_title_fuzzy_dedup.py`
+  (16 tests, all passing).
+
 ## 2026-02-19 — Outbound email URL guardrails (DONE)
 Root-cause of the "old version of the site" mobile complaint: production had
 `APP_PUBLIC_URL` set to a stale Emergent preview URL, so the daily brief's

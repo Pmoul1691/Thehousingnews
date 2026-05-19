@@ -75,6 +75,78 @@ def normalize_url(url: str) -> str:
         return url.strip().lower()
 
 
+# ---------- Title-based fuzzy dedup ----------
+#
+# Two publishers often re-share the same wire story with slightly different
+# titles ("Fed signals rate cut" vs "Fed Signals Rate Cut In June - WSJ").
+# We strip the publisher suffix, common prefixes ("BREAKING:", "EXCLUSIVE:"),
+# punctuation, and stop-words, then store a `title_signature`. New inserts
+# check the last 48h for any article with the same signature OR a high
+# difflib similarity ratio and skip the duplicate.
+
+# Trailing "delimiter Publisher" suffix patterns. The em/en/regular hyphen,
+# pipe, middle-dot and bullet are all in use across our 28 publishers.
+_TITLE_SUFFIX_RE = re.compile(
+    r"\s*[\|\-\u2013\u2014\u00B7\u2022:]\s*[^\|\-\u2013\u2014\u00B7\u2022]{2,40}\s*$"
+)
+_TITLE_PREFIX_RE = re.compile(
+    r"^\s*(breaking|exclusive|opinion|analysis|update|video|watch|live|just in)\s*[:\-\u2013\u2014]\s*",
+    re.IGNORECASE,
+)
+# Stop-words that don't help distinguish stories.
+_TITLE_STOPWORDS = {
+    "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for",
+    "of", "with", "as", "is", "are", "was", "were", "be", "by",
+}
+_TITLE_FUZZY_RATIO = 0.88  # difflib similarity above this counts as dup
+_TITLE_FUZZY_WINDOW_HOURS = 48  # only compare against recent articles
+
+
+def normalize_title(title: str) -> str:
+    """Strip publisher suffix, prefix labels, punctuation and stop-words so
+    near-identical wire stories collapse to the same signature.
+    """
+    if not title:
+        return ""
+    t = title.strip()
+    # Drop leading "BREAKING:", "EXCLUSIVE:", etc. FIRST so we don't mistake
+    # the body of a short headline for a publisher suffix below.
+    t = _TITLE_PREFIX_RE.sub("", t)
+    # Drop trailing " - Publisher Name", " | Bloomberg", etc. — but only when
+    # there's enough body before the delimiter to confidently say the suffix
+    # is publisher branding, not the article itself (e.g. "Fed - WSJ" stays).
+    m = _TITLE_SUFFIX_RE.search(t)
+    if m and m.start() >= 8:
+        t = t[: m.start()]
+    t = t.lower()
+    # Replace any non-alphanumeric run with single space
+    t = re.sub(r"[^a-z0-9]+", " ", t)
+    tokens = [w for w in t.split() if w and w not in _TITLE_STOPWORDS]
+    return " ".join(tokens)
+
+
+def title_signature(title: str) -> str:
+    """Stable short hash of the normalized title for index lookups."""
+    import hashlib
+    norm = normalize_title(title)
+    if not norm:
+        return ""
+    return hashlib.sha1(norm.encode("utf-8")).hexdigest()[:16]
+
+
+def titles_are_near_duplicates(a: str, b: str) -> bool:
+    """Return True when two NORMALIZED titles look like the same story.
+    Cheap path: exact equality. Borderline: difflib ratio >= threshold."""
+    if not a or not b:
+        return False
+    if a == b:
+        return True
+    if abs(len(a) - len(b)) > max(8, int(0.4 * min(len(a), len(b)))):
+        return False
+    from difflib import SequenceMatcher
+    return SequenceMatcher(None, a, b).ratio() >= _TITLE_FUZZY_RATIO
+
+
 def _now() -> datetime:
     return datetime.now(timezone.utc)
 
@@ -303,7 +375,13 @@ async def ingest_publisher(db, publisher: dict) -> dict:
 
     inserted = 0
     skipped = 0
+    skipped_title_dup = 0
     fetched_at = _now_iso()
+    # Cache of recent normalized titles for in-batch dedup (catches two
+    # articles arriving in the same fetch that point to different URLs but
+    # are the same wire story).
+    seen_norm_titles: list[str] = []
+    fuzzy_cutoff = _now() - timedelta(hours=_TITLE_FUZZY_WINDOW_HOURS)
     for art in entries:
         published_at = datetime.fromisoformat(art["published_at"])
         expires_at = published_at + timedelta(days=ITEM_TTL_DAYS)
@@ -311,11 +389,56 @@ async def ingest_publisher(db, publisher: dict) -> dict:
         # to (publisher_id, guid) on the secondary index for legacy rows.
         guid = art["guid"] or art["original_url"]
         norm_url = normalize_url(art["original_url"])
+        norm_title = normalize_title(art["title"])
+        title_sig = title_signature(art["title"])
+
+        # Secondary dedup: same wire story re-titled by a different publisher.
+        # Only kicks in when the publisher_id differs (we trust the source's
+        # own titling for its own URL).
+        if norm_title:
+            # 1) Cheap path: exact signature match within the fuzzy window,
+            #    from a DIFFERENT publisher.
+            dup = await db.agg_articles.find_one(
+                {
+                    "title_signature": title_sig,
+                    "publisher_id": {"$ne": pub_id},
+                    "published_at": {"$gte": fuzzy_cutoff.isoformat()},
+                },
+                {"_id": 0, "id": 1},
+            )
+            if dup is None:
+                # 2) Borderline: scan recent same-window titles for a fuzzy
+                #    match. Bounded scan (200 rows) keeps this O(1) practically.
+                recent_cur = db.agg_articles.find(
+                    {
+                        "publisher_id": {"$ne": pub_id},
+                        "published_at": {"$gte": fuzzy_cutoff.isoformat()},
+                        "title_signature": {"$ne": title_sig},
+                    },
+                    {"_id": 0, "title_normalized": 1},
+                ).limit(200)
+                async for r in recent_cur:
+                    if titles_are_near_duplicates(norm_title, r.get("title_normalized") or ""):
+                        dup = r
+                        break
+                # 3) Also catch dupes inside the same fetch batch.
+                if dup is None:
+                    for cached in seen_norm_titles:
+                        if titles_are_near_duplicates(norm_title, cached):
+                            dup = {"in_batch": True}
+                            break
+            if dup is not None:
+                skipped_title_dup += 1
+                continue
+            seen_norm_titles.append(norm_title)
+
         doc = {
             "id": str(uuid.uuid4()),
             "publisher_id": pub_id,
             "guid": guid,
             "title": art["title"],
+            "title_normalized": norm_title,
+            "title_signature": title_sig,
             "snippet": art["snippet"],
             "thumbnail_url": art["thumbnail_url"],
             "original_url": art["original_url"],
@@ -345,7 +468,14 @@ async def ingest_publisher(db, publisher: dict) -> dict:
         {"id": pub_id},
         {"$set": {"last_fetched_at": fetched_at, "last_fetch_status": "ok", "error_count": 0}},
     )
-    return {"publisher_id": pub_id, "ok": True, "inserted": inserted, "skipped": skipped, "parsed": len(entries)}
+    return {
+        "publisher_id": pub_id,
+        "ok": True,
+        "inserted": inserted,
+        "skipped": skipped,
+        "skipped_title_dup": skipped_title_dup,
+        "parsed": len(entries),
+    }
 
 
 async def ingest_all_active(db) -> dict:

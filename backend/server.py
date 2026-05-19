@@ -172,6 +172,11 @@ async def on_startup():
         await db.agg_articles.create_index("normalized_url", unique=True, sparse=True)
         await db.agg_articles.create_index([("published_at", -1)])
         await db.agg_articles.create_index("hidden")
+        # Title-based fuzzy dedup: fast lookup for cross-publisher near-dupes.
+        await db.agg_articles.create_index(
+            [("title_signature", 1), ("published_at", -1)],
+            sparse=True,
+        )
         await db.agg_newsletter_signups.create_index("email", unique=True)
     except Exception as _e:
         logger.warning("aggregator indexes not created: %s", _e)
