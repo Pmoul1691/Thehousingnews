@@ -47,6 +47,9 @@ SEED_PUBLISHERS = [
     ("Notebook by Brad Inman",  "brad-inman",       "newsletter",     "https://www.inman.com/category/brad-inman/feed/",      "https://www.inman.com/category/brad-inman", "headline_and_snippet", "pending"),
     # 2026-05-18: Major mainstream publisher. TheStreet's full feed is mixed-topic; the housing-specific feed is blocked. We use the full feed and rely on downstream filtering.
     ("TheStreet",               "thestreet",        "national_trade", "https://www.thestreet.com/.rss/full/",                  "https://www.thestreet.com/real-estate", "headline_and_snippet", "pending"),
+    # 2026-05-18: Commercial real estate breadth.
+    ("Bisnow",                  "bisnow",           "commercial_re",  "https://www.bisnow.com/rss",                            "https://www.bisnow.com",            "headline_and_snippet", "pending"),
+    ("GlobeSt",                 "globest",          "commercial_re",  "https://feeds.feedblitz.com/globest/new-york",          "https://www.globest.com",            "headline_and_snippet", "pending"),
 ]
 
 
@@ -68,5 +71,18 @@ KEYWORD_FILTERS: dict[str, list[str]] = {
         "interest rate", "interest rates", "fed rate", "fed cut", "fed hike",
         "house", "houses", "single-family", "multifamily", "multi-family",
         "affordability",
+    ],
+    # GlobeSt's Feedblitz feeds mix in ALM legal/litigation content (parent
+    # company is American Lawyer Media). Filter to commercial real estate signal.
+    "globest": [
+        "real estate", "property", "properties", "office", "industrial",
+        "retail", "multifamily", "apartment", "apartments", "hotel", "hotels",
+        "warehouse", "warehouses", "logistics", "data center", "data centers",
+        "lease", "leasing", "leased", "tenant", "tenants", "landlord",
+        "development", "developer", "developers", "construction", "investor",
+        "investors", "REIT", "reit", "loan", "loans", "financing", "mortgage",
+        "broker", "brokerage", "deal", "deals", "acquisition", "acquires",
+        "sells", "sold", "buys", "purchase", "purchased", "tower", "building",
+        "campus", "portfolio", "sf", "square feet", "psf",
     ],
 }
