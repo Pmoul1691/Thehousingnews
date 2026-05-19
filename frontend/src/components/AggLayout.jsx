@@ -43,7 +43,7 @@ export default function AggLayout({ children }) {
       <header className="bg-agg-navy text-agg-cream border-b border-agg-navy-deep">
         <div className="max-w-5xl mx-auto px-4 sm:px-6">
           <div className="flex items-center justify-between py-3">
-            <Link to="/news" data-testid="agg-nav-home" className="flex items-center gap-3 group min-w-0">
+            <Link to="/" data-testid="agg-nav-home" className="flex items-center gap-3 group min-w-0" title="Back to thehousingnews.com home">
               <img
                 src="/brand/logo-full-light.png"
                 alt="The Housing News"
@@ -55,6 +55,9 @@ export default function AggLayout({ children }) {
               </span>
             </Link>
             <div className="flex items-center gap-5">
+              <Link to="/" data-testid="agg-nav-back-home" className="hidden sm:inline font-sans text-sm font-medium text-agg-cream hover:text-agg-orange transition-colors" title="Back to thehousingnews.com home">
+                ← Home
+              </Link>
               <Link to="/news/latest" data-testid="agg-nav-latest" className="hidden sm:inline font-sans text-sm font-medium text-agg-cream hover:text-agg-orange transition-colors">
                 Latest
               </Link>
