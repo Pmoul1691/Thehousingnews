@@ -196,7 +196,7 @@ def setup(db):
         uids = [u["user_id"] for u in users]
         profiles = await db.profiles.find(
             {"user_id": {"$in": uids}},
-            {"_id": 0, "user_id": 1, "avatar_path": 1, "market": 1, "is_stub": 1},
+            {"_id": 0, "user_id": 1, "name": 1, "avatar_path": 1, "market": 1, "is_stub": 1},
         ).to_list(500) if uids else []
         pmap = {p["user_id"]: p for p in profiles}
 
@@ -212,6 +212,11 @@ def setup(db):
         out = []
         for u in users:
             prof = pmap.get(u["user_id"]) or {}
+            profile_complete = bool(
+                (prof.get("name") or "").strip()
+                and (prof.get("market") or "").strip()
+                and not prof.get("is_stub")
+            )
             out.append({
                 "user_id": u["user_id"],
                 "email": u["email"],
@@ -219,6 +224,8 @@ def setup(db):
                 "status": u.get("status"),
                 "suspended": u.get("suspended", False),
                 "is_admin": u.get("is_admin", False),
+                "email_verified": bool(u.get("email_verified")),
+                "profile_complete": profile_complete,
                 "source": u.get("source"),
                 "created_at": u.get("created_at"),
                 "last_login_at": u.get("last_login_at"),

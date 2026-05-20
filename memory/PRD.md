@@ -11,6 +11,32 @@ Hard guardrails: no chat widget, no popups, no follower counts, no stock photogr
 of teams.
 
 
+## 2026-02-19 — Admin Membership panel cleanup (DONE)
+The Membership panel still spoke the invite-only vocabulary even after
+the free-forever pivot. Refreshed in three spots.
+- **Backend** `routes/admin_dashboard.py::list_members`: now returns
+  `email_verified` (bool) and `profile_complete` (bool, mirrors the
+  /api/auth/me definition: real name + market on a non-stub profile).
+  Also pulls `name` from the profiles projection so the directory match
+  works.
+- **Frontend** `components/AdminMembership.jsx`:
+  - Trimmed `STATUS_OPTIONS` from 7 to 5 — dropped meaningless `pending`
+    and `declined` filters; kept `needs_application` as "Legacy · needs
+    app" so historic rows are still findable.
+  - Replaced the cryptic `status?.slice(0,6)` row badge (which displayed
+    "NEEDS_" on every legacy row) with a `rowSignalLabel` helper that
+    only badges rows needing attention: `SUSP` (suspended), `INV`
+    (invited), `LEGACY` (un-migrated `needs_application`). Approved &
+    healthy rows are now badge-free.
+  - Added per-row signal indicators next to the name: a green/grey dot
+    for `profile_complete`, a ✓ next to the email when `email_verified`.
+  - Detail pane header replaced the blunt status text with three
+    explicit pills: Suspended / Email verified|unverified / Profile
+    complete|incomplete.
+- 5 regression tests in `tests/test_admin_members_signals.py` lock the
+  new fields against future drift.
+
+
 ## 2026-02-19 — Profile-completion nudge banner (DONE)
 - `/api/auth/me` now returns `profile_complete: boolean` — true when the
   member has a non-stub profile with both a real name AND a real market.

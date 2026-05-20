@@ -11,22 +11,24 @@ import { toast } from "sonner";
  * stacks above the detail pane.
  */
 
+// "Free forever" model: every signup is auto-approved. The only statuses
+// that are still meaningful in day-to-day admin work are Approved, Invited
+// (admin-issued invites that haven't been claimed yet) and Suspended. The
+// legacy `needs_application` / `pending` / `declined` filters are still
+// available so old rows can be found, but they're collapsed under one
+// "Legacy" option since they're effectively a single bucket now.
 const STATUS_OPTIONS = [
   { v: "", l: "All statuses" },
   { v: "approved", l: "Approved" },
   { v: "invited", l: "Invited" },
-  { v: "pending", l: "Pending" },
-  { v: "needs_application", l: "Needs app" },
-  { v: "declined", l: "Declined" },
   { v: "suspended", l: "Suspended" },
+  { v: "needs_application", l: "Legacy · needs app" },
 ];
 
 function statusBadgeCls(status, suspended) {
   if (suspended) return "bg-deepred/10 text-deepred border border-deepred/40";
   if (status === "approved") return "bg-emerald-50 text-emerald-800 border border-emerald-200";
   if (status === "invited") return "bg-gold/10 text-gold border border-gold/40";
-  if (status === "pending") return "bg-amber-50 text-amber-800 border border-amber-200";
-  if (status === "declined") return "bg-slate-100 text-slate-600 border border-slate-300";
   return "bg-cream-soft text-muted-ink border border-gold/20";
 }
 
@@ -66,7 +68,19 @@ function StatPill({ label, value, testid }) {
   );
 }
 
+function rowSignalLabel(m) {
+  // Returns a short, meaningful tag for the right-side row badge. The
+  // legacy 6-char slice (`status?.slice(0,6)`) ended up showing "NEEDS_"
+  // on every legacy row, which became misleading after the free-forever
+  // pivot. We now only badge the rows that need operator attention.
+  if (m.suspended) return "SUSP";
+  if (m.status === "invited") return "INV";
+  if (m.status === "needs_application") return "LEGACY";
+  return ""; // approved + healthy: no badge needed
+}
+
 function MemberRow({ m, active, onClick, selected, onToggleSelect }) {
+  const badge = rowSignalLabel(m);
   return (
     <div
       data-testid={`member-row-${m.user_id}`}
@@ -90,17 +104,38 @@ function MemberRow({ m, active, onClick, selected, onToggleSelect }) {
       >
         <Avatar name={m.name || m.email} avatarPath={m.avatar_path} size={32} />
         <div className="flex-1 min-w-0">
-          <div className="flex items-baseline gap-2">
+          <div className="flex items-center gap-2">
+            {/* Profile-complete dot: green = real name+market, grey = sparse. */}
+            <span
+              title={m.profile_complete ? "Profile complete" : "Profile incomplete"}
+              data-testid={`row-profile-dot-${m.user_id}`}
+              className={`w-1.5 h-1.5 rounded-full shrink-0 ${m.profile_complete ? "bg-emerald-500" : "bg-muted-ink/30"}`}
+            />
             <span className="font-display font-semibold text-[13px] ink truncate">{m.name || "—"}</span>
             {m.is_admin && <span className="font-mono text-[9px] uppercase text-gold shrink-0">admin</span>}
-            {m.is_stub && <span className="font-mono text-[9px] uppercase text-muted-ink shrink-0">stub</span>}
           </div>
-          <div className="font-mono text-[10px] text-muted-ink truncate">{m.email}</div>
+          <div className="flex items-center gap-1.5 mt-0.5">
+            <span className="font-mono text-[10px] text-muted-ink truncate">{m.email}</span>
+            {m.email_verified && (
+              <span
+                title="Email verified"
+                data-testid={`row-verified-${m.user_id}`}
+                className="font-mono text-[10px] text-emerald-700 shrink-0"
+              >
+                ✓
+              </span>
+            )}
+          </div>
         </div>
         <div className="flex flex-col items-end shrink-0">
-          <span className={`font-mono text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded-sm ${statusBadgeCls(m.status, m.suspended)}`}>
-            {m.suspended ? "susp" : m.status?.slice(0, 6)}
-          </span>
+          {badge && (
+            <span
+              data-testid={`row-status-badge-${m.user_id}`}
+              className={`font-mono text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded-sm ${statusBadgeCls(m.status, m.suspended)}`}
+            >
+              {badge}
+            </span>
+          )}
           <span className="font-mono text-[10px] text-muted-ink mt-1">{m.posts_total} posts</span>
         </div>
       </button>
@@ -163,14 +198,41 @@ function MemberDetail({ userId, onMutated }) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <h3 className="font-display font-semibold text-xl ink" data-testid="membership-detail-name">{user.name || "—"}</h3>
-            <span className={`font-mono text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded-sm ${statusBadgeCls(user.status, user.suspended)}`}>
-              {user.suspended ? "Suspended" : user.status}
-            </span>
+            {user.suspended && (
+              <span className="font-mono text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded-sm bg-deepred/10 text-deepred border border-deepred/40">
+                Suspended
+              </span>
+            )}
+            {user.status === "invited" && !user.suspended && (
+              <span className="font-mono text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded-sm bg-gold/10 text-gold border border-gold/40">
+                Invite pending
+              </span>
+            )}
             {user.is_admin && <span className="font-mono text-[10px] uppercase text-gold border border-gold px-1.5 py-0.5 rounded-sm">admin</span>}
-            {profile.is_stub && <span className="font-mono text-[10px] uppercase text-muted-ink border border-gold/30 px-1.5 py-0.5 rounded-sm">stub profile</span>}
           </div>
-          <p className="font-sans text-sm text-muted-ink mt-1" data-testid="membership-detail-email">{user.email}</p>
-          {profile.market && <p className="font-sans text-[11px] uppercase tracking-[0.18em] font-semibold text-gold mt-1">{profile.market}</p>}
+          <div className="flex items-center gap-2 flex-wrap mt-1" data-testid="membership-detail-signals">
+            <p className="font-sans text-sm text-muted-ink" data-testid="membership-detail-email">{user.email}</p>
+            {user.email_verified ? (
+              <span className="font-mono text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded-sm bg-emerald-50 text-emerald-800 border border-emerald-200">
+                ✓ email verified
+              </span>
+            ) : (
+              <span className="font-mono text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded-sm bg-amber-50 text-amber-800 border border-amber-200">
+                email unverified
+              </span>
+            )}
+            <span
+              data-testid="membership-detail-profile-pill"
+              className={`font-mono text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded-sm ${
+                (profile.name && profile.market && !profile.is_stub)
+                  ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                  : "bg-cream-soft text-muted-ink border border-gold/20"
+              }`}
+            >
+              {(profile.name && profile.market && !profile.is_stub) ? "profile complete" : "profile incomplete"}
+            </span>
+          </div>
+          {profile.market && <p className="font-sans text-[11px] uppercase tracking-[0.18em] font-semibold text-gold mt-2">{profile.market}</p>}
           {profile.bio && <p className="font-serif text-[14px] text-ink/80 mt-3 leading-relaxed">{profile.bio}</p>}
           <div className="flex items-center gap-3 mt-4 flex-wrap">
             <Link to={`/profile/${user.user_id}`} target="_blank" rel="noopener noreferrer" data-testid="membership-view-profile" className="font-sans text-xs uppercase tracking-wider font-semibold text-gold hover:underline">
