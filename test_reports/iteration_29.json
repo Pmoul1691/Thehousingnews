@@ -1,0 +1,39 @@
+{
+  "summary": "Verified the PublishDrawer infinite-spinner bug fix and the new live publish timer. End-to-end essay publish completed in <1s with drawer auto-closing and success toast. The 45s axios global timeout has no negative effect on regular pages (Today/Feed/Members/News/Podcasts/Write all load cleanly without axios timeout/abort errors).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/* (Today + Feed)", "issue": "Pre-existing 401/404 console noise on initial load of / and /feed (unrelated to publish bug). Not blocking."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/test_reports/iteration_29.json"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Composer.jsx submit() correctly closes drawer + flips posting=false BEFORE awaiting any cleanup (reset() and onPosted() are non-blocking). This is the right fix for the infinite spinner.",
+    "ECONNABORTED branch maps to 'Publish timed out…' toast and clears posting state — verified logic by code review (live timeout simulation skipped per request).",
+    "PublishDrawer renders [data-testid=drawer-publish-timer] only while posting; clock SVG + '{n}s' counter visible. Counter updates every 250ms via setInterval in Composer.jsx (lines 53-59).",
+    "axios timeout: 45000 in /app/frontend/src/lib/api.js is shared by all GETs (Today/Feed/etc). All those pages load normally — timeout doesn't truncate any legitimate request.",
+    "Minor: tiptap 'Duplicate extension names found: [link]' warning surfaces on essay editor mount — cosmetic, unrelated to this bug."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "100%"},
+  "test_credentials": "Bearer tok_smoke_admin_v2 injected via localStorage.ultradian_session_token",
+  "seed_data_creation": "Created one published essay 'Frontend Agent Test' (~232 char body) via the live UI flow. It now appears as Published #8 in the writer desk. Safe to keep or main agent can delete via admin tools.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Publish flow E2E: /write → New essay button → composer-mode-essay → essay-editor-markdown → editor-title-input + editor-body-textarea (>=100 chars for essay) → open-publish-drawer-button → drawer-final-publish-button. Drawer auto-closes when POST /api/posts returns. Timer testid: drawer-publish-timer (only present while posting). Session token: tok_smoke_admin_v2.",
+  "rca of the issue": "Original bug: Composer.submit() awaited reset() (which does DELETE /drafts/mine) and onPosted() (which reloaded writer stats) inside the try block before setPosting(false). On production those calls intermittently stalled, leaving posting=true forever -> infinite spinner. Fix in /app/frontend/src/components/Composer.jsx lines 286-300 closes drawer + sets posting=false immediately after the POST succeeds, then fires reset().catch(()=>{}) and onPosted() as fire-and-forget promises. Verified live: drawer closed in 0.20s after POST /api/posts -> 200.",
+  "test_observations": {
+    "publish_drawer_close_time_seconds": 0.20,
+    "post_api_status": 200,
+    "success_toast_text": "Essay published. Emails are going out now.",
+    "timer_seen": true,
+    "timer_initial_text": "0s",
+    "pages_axios_clean": ["/", "/feed", "/members", "/news", "/podcasts", "/write"]
+  }
+}

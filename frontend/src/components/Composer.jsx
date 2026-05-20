@@ -43,8 +43,20 @@ export default function Composer({ onPosted }) {
   const [linkPrompt, setLinkPrompt] = useState(false);
   const [regions, setRegions] = useState([]);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [postingStartedAt, setPostingStartedAt] = useState(0);
+  const [elapsed, setElapsed] = useState(0);
   const textareaRef = useRef(null);
   const draftDirty = useRef(false);
+
+  // Live "Publishing… 3s" counter so the user knows the request is still in flight
+  // (and the spinner isn't dead). Resets when posting flips back to false.
+  useEffect(() => {
+    if (!posting) { setElapsed(0); return undefined; }
+    const t = setInterval(() => {
+      setElapsed(Math.max(0, Math.floor((Date.now() - postingStartedAt) / 1000)));
+    }, 250);
+    return () => clearInterval(t);
+  }, [posting, postingStartedAt]);
 
   const images = useMemo(() => media.filter((m) => m.kind === "image"), [media]);
   const video = useMemo(() => media.find((m) => m.kind === "video"), [media]);
@@ -244,6 +256,7 @@ export default function Composer({ onPosted }) {
       toast.error("Schedule must be in the future");
       return;
     }
+    setPostingStartedAt(Date.now());
     setPosting(true);
     try {
       const cleanMedia = media.map((m) => {
@@ -269,12 +282,22 @@ export default function Composer({ onPosted }) {
       } else {
         toast.success(`Queued for ${formatLocal(r.data.release_at)} CT`);
       }
-      await reset();
+      // Close the drawer + flip spinner off immediately. Cleanup (clearing the
+      // draft + refetching writer stats) happens in the background so a slow
+      // /drafts or /me/writer/* call never leaves the spinner stuck.
       setDrawerOpen(false);
-      onPosted && onPosted();
+      setPosting(false);
+      reset().catch(() => {});
+      if (onPosted) {
+        try { Promise.resolve(onPosted()).catch(() => {}); } catch (_e) {}
+      }
     } catch (e) {
-      toast.error(e?.response?.data?.detail || "Could not publish");
-    } finally { setPosting(false); }
+      const msg = e?.code === "ECONNABORTED"
+        ? "Publish timed out. Check your connection and try again."
+        : (e?.response?.data?.detail || "Could not publish");
+      toast.error(msg);
+      setPosting(false);
+    }
   };
 
   const releaseLabel = nextWindow ? formatLocal(nextWindow.next_release_iso) : "";
@@ -528,6 +551,7 @@ export default function Composer({ onPosted }) {
         setLinkPrompt={setLinkPrompt}
         onPublish={submit}
         posting={posting}
+        postingElapsed={elapsed}
         canPublish={canPublish}
         publishLabel={publishLabel}
       />

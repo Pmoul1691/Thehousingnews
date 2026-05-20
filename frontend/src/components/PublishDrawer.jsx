@@ -24,6 +24,7 @@ export default function PublishDrawer({
   setLinkPrompt,
   onPublish,
   posting,
+  postingElapsed = 0,
   canPublish,
   publishLabel,
 }) {
@@ -225,9 +226,18 @@ export default function PublishDrawer({
             data-testid="drawer-final-publish-button"
             onClick={onPublish}
             disabled={!canPublish || posting}
-            className="w-full py-3 bg-gold hover:bg-[#967534] disabled:opacity-50 disabled:cursor-not-allowed text-cream rounded-full font-sans font-semibold text-sm transition-colors"
+            className="w-full py-3 bg-gold hover:bg-[#967534] disabled:opacity-90 disabled:cursor-not-allowed text-cream rounded-full font-sans font-semibold text-sm transition-colors flex items-center justify-center gap-2"
           >
-            {publishLabel}
+            {posting && (
+              <span data-testid="drawer-publish-timer" className="inline-flex items-center gap-1.5 font-mono text-xs tabular-nums opacity-95">
+                <svg viewBox="0 0 24 24" className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="9" />
+                  <polyline points="12,7 12,12 15.5,14" />
+                </svg>
+                <span>{postingElapsed}s</span>
+              </span>
+            )}
+            <span>{publishLabel}</span>
           </button>
           <button
             type="button"

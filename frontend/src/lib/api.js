@@ -22,6 +22,9 @@ export const clearSessionToken = () => {
 const api = axios.create({
   baseURL: API,
   withCredentials: false,
+  // Hard timeout so a stalled network never leaves the UI hanging on a spinner.
+  // 45s is well above our slowest expected backend route (essay publish ~3-5s).
+  timeout: 45000,
 });
 
 api.interceptors.request.use((config) => {
