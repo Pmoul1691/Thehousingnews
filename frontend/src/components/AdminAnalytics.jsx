@@ -204,7 +204,41 @@ export default function AdminAnalytics() {
 
       {/* ─── TRAFFIC ─────────────────────────────────────────────── */}
       <Section title="Traffic" subtitle="Pageviews via the in-app event tracker" testid="analytics-traffic">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {/* TODAY — separate row so it draws the eye first */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3" data-testid="tr-today-tiles">
+          <StatTile testid="tr-pv-today" label="Pageviews · today" value={t.pageviews_today} hint="Since UTC midnight" tone="accent" />
+          <StatTile testid="tr-sessions-today" label="Sessions · today" value={t.sessions_today} tone="accent" />
+          <StatTile testid="tr-members-today" label="Members · today" value={t.members_today} hint="Signed-in unique" tone="accent" />
+          <StatTile testid="tr-current-hour" label="Current hour" value={(() => {
+            const nowH = new Date().getUTCHours();
+            const row = (t.hourly_today || []).find((r) => r.hour === nowH);
+            return row ? row.pageviews : 0;
+          })()} hint="Pageviews in this UTC hour" />
+        </div>
+
+        {/* HOURLY chart for today */}
+        <div className="bg-cream-soft border border-gold/15 rounded-sm p-5 mt-4">
+          <div className="flex items-baseline justify-between gap-3 flex-wrap mb-3">
+            <p className="font-sans text-[10px] uppercase tracking-[0.22em] font-semibold text-gold">Daily visitor activity · hour by hour (UTC)</p>
+            <p className="font-serif italic text-xs text-muted-ink">
+              Total today: <span className="font-mono not-italic text-ink">{t.pageviews_today}</span> pageviews · <span className="font-mono not-italic text-ink">{t.sessions_today}</span> sessions
+            </p>
+          </div>
+          {(t.hourly_today || []).every((r) => !r.pageviews) ? (
+            <p className="font-serif italic text-sm text-muted-ink py-6 text-center">No traffic yet today.</p>
+          ) : (
+            <BarChart
+              rows={t.hourly_today}
+              getValue={(row) => row.pageviews}
+              getLabel={(row) => String(row.hour).padStart(2, "0")}
+              color="bg-gold"
+              testid="tr-hourly-chart"
+            />
+          )}
+        </div>
+
+        {/* ROLLING WINDOWS */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6">
           <StatTile testid="tr-pv-7d" label="Pageviews · 7d" value={t.pageviews_7d} />
           <StatTile testid="tr-pv-30d" label="Pageviews · 30d" value={t.pageviews_30d} />
           <StatTile testid="tr-sessions-14d" label="Sessions · 14d" value={(t.daily_14d || []).reduce((a, b) => a + (b.unique_sessions || 0), 0)} />

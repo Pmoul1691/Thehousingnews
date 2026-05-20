@@ -11,6 +11,26 @@ Hard guardrails: no chat widget, no popups, no follower counts, no stock photogr
 of teams.
 
 
+## 2026-02-19 — Admin Site Analytics: Today window (DONE)
+Pageviews-today wasn't surfaced anywhere on the analytics dashboard —
+the smallest rolling window was 7d. Added a dedicated Today block
+above the existing rolling windows.
+- **Backend** `routes/admin_analytics.py`: response now includes
+  `traffic.pageviews_today`, `sessions_today`, `members_today`, plus a
+  zero-filled 24-bucket `hourly_today` array (each entry:
+  `{hour, pageviews, unique_sessions, unique_users}`). Anchors on UTC
+  calendar day so today's totals match the daily 14d aggregation.
+- **Frontend** `components/AdminAnalytics.jsx`: new 4-tile gold-accented
+  row (Pageviews · today, Sessions · today, Members · today, Current
+  hour) plus a 24-bar "Daily visitor activity · hour by hour (UTC)"
+  chart sitting above the existing 7d / 30d / 14d windows. New testids:
+  `tr-today-tiles`, `tr-pv-today`, `tr-sessions-today`,
+  `tr-members-today`, `tr-current-hour`, `tr-hourly-chart`.
+- 4 regression tests in `tests/test_admin_analytics_today.py` lock the
+  zero-fill behaviour and the today-row fallback when no traffic
+  occurred yet today.
+
+
 ## 2026-02-19 — Admin Membership panel cleanup (DONE)
 The Membership panel still spoke the invite-only vocabulary even after
 the free-forever pivot. Refreshed in three spots.

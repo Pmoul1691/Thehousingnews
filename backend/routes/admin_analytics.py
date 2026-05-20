@@ -152,6 +152,46 @@ def setup(db):
         ]
         traffic_daily = await db.analytics_events.aggregate(pv_pipeline_14).to_list(14)
 
+        # "Today" window. We anchor on the UTC calendar day — same anchor
+        # the daily aggregation above uses (substring of created_at). That
+        # keeps the totals consistent across stats vs. chart and avoids
+        # the off-by-one issue between server-local and UTC midnight.
+        today_str = _iso(datetime.now(timezone.utc))[:10]
+        today_row = next(
+            (r for r in traffic_daily if r.get("day") == today_str),
+            {"pageviews": 0, "unique_sessions": 0, "unique_users": 0},
+        )
+
+        # Hourly breakdown for today — drives the new daily-visitor chart.
+        # 24 bars, hours 0..23 UTC, zero-filled so empty hours render flat.
+        hourly_rows = await db.analytics_events.aggregate([
+            {"$match": {
+                "kind": "pageview",
+                "created_at": {"$gte": f"{today_str}T00:00:00",
+                               "$lte": f"{today_str}T23:59:59.999999"},
+            }},
+            {"$project": {
+                "hour": {"$toInt": {"$substr": ["$created_at", 11, 2]}},
+                "session_id": 1, "user_id": 1,
+            }},
+            {"$group": {
+                "_id": "$hour",
+                "pageviews": {"$sum": 1},
+                "unique_sessions": {"$addToSet": "$session_id"},
+                "unique_users": {"$addToSet": "$user_id"},
+            }},
+        ]).to_list(24)
+        hourly_lookup = {r["_id"]: r for r in hourly_rows}
+        hourly_today = []
+        for h in range(24):
+            row = hourly_lookup.get(h)
+            hourly_today.append({
+                "hour": h,
+                "pageviews": (row or {}).get("pageviews", 0),
+                "unique_sessions": len((row or {}).get("unique_sessions") or []),
+                "unique_users": len((row or {}).get("unique_users") or []),
+            })
+
         pv_7 = await db.analytics_events.count_documents(
             {"kind": "pageview", "created_at": {"$gte": d7}},
         )
@@ -218,6 +258,10 @@ def setup(db):
                 "suspended": suspended,
             },
             "traffic": {
+                "pageviews_today": today_row["pageviews"],
+                "sessions_today": today_row["unique_sessions"],
+                "members_today": today_row["unique_users"],
+                "hourly_today": hourly_today,
                 "pageviews_7d": pv_7,
                 "pageviews_30d": pv_30,
                 "daily_14d": traffic_daily,
