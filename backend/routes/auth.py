@@ -198,6 +198,15 @@ def setup(db):
         user = await get_current_user(db, session_token, authorization)
         # Attach profile if any
         profile = await db.profiles.find_one({"user_id": user["user_id"]}, {"_id": 0})
+        prof = profile or {}
+        # "profile_complete" = at least a real name and a market on a
+        # non-stub profile. Mirrors the directory definition so a member
+        # who flips the banner CTA lands them in the right state.
+        profile_complete = bool(
+            (prof.get("name") or "").strip()
+            and (prof.get("market") or "").strip()
+            and not prof.get("is_stub")
+        )
         return {
             "user_id": user["user_id"],
             "email": user["email"],
@@ -206,6 +215,7 @@ def setup(db):
             "is_admin": user.get("is_admin", False),
             "status": user.get("status", "needs_application"),
             "has_profile": bool(profile),
+            "profile_complete": profile_complete,
             "email_verified": bool(user.get("email_verified")),
             "has_password": bool(user.get("password_hash")),
         }

@@ -11,6 +11,23 @@ Hard guardrails: no chat widget, no popups, no follower counts, no stock photogr
 of teams.
 
 
+## 2026-02-19 — Profile-completion nudge banner (DONE)
+- `/api/auth/me` now returns `profile_complete: boolean` — true when the
+  member has a non-stub profile with both a real name AND a real market.
+- New `components/ProfileNudgeBanner.jsx` mounted globally in `App.js`.
+  Renders a slim cream + gold strip above page content for signed-in
+  approved members whose profile is incomplete. Single CTA links to
+  `/settings`. Dismissable for 7 days via localStorage.
+- Hidden on auth surfaces (/signin, /signup, /auth, /claim) and on
+  /settings itself so the nudge never appears redundant.
+- CTA click fires a GA event `profile_nudge_clicked` for funnel tracking.
+- 7 unit tests in `tests/test_profile_complete_flag.py` lock the
+  `profile_complete` logic (stub profile, missing market, whitespace-only
+  name, etc.).
+- Visual smoke: banner shows for incomplete-profile user, hides for
+  admin and anonymous, persists dismissal across reload.
+
+
 ## 2026-02-19 — "Free forever" Members fix (DONE)
 **Cause** of "everyone who signed up isn't showing on /members": two filters
 were silently hiding signups.

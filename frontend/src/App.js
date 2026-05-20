@@ -8,6 +8,8 @@ import { AuthProvider } from "@/context/AuthContext";
 import Layout from "@/components/Layout";
 // Aggregator layout (Techmeme navy + orange)
 import AggLayout from "@/components/AggLayout";
+// Global member-only profile-completion nudge
+import ProfileNudgeBanner from "@/components/ProfileNudgeBanner";
 
 // Members product pages
 import Landing from "@/pages/Landing";
@@ -75,6 +77,7 @@ function Router() {
 
   return (
     <ChromeLayout>
+      <ProfileNudgeBanner />
       <Routes>
         {/* === Members product (owns /) === */}
         <Route path="/" element={<Landing />} />
