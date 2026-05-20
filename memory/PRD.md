@@ -11,6 +11,47 @@ Hard guardrails: no chat widget, no popups, no follower counts, no stock photogr
 of teams.
 
 
+## 2026-02-20 — Publish-essay infinite spinner (FIX, DONE)
+**Symptom**: user reported clicking "Publish essay now" in the new
+`PublishDrawer` hangs forever with a spinner on production.
+
+**Root cause**: the backend route (`POST /api/posts`) already returns
+in ~3s on preview (BackgroundTasks handle moderation / region tagger /
+essay dispatch). The frontend `Composer.submit()` however awaited
+`reset()` (DELETE `/drafts/mine`) and called `onPosted()` (reloads
+3 writer stats endpoints) BEFORE setting `posting=false` in a `finally`
+block. If any of those follow-ups stalled — e.g. Brevo-induced lag on
+production or a flaky network — the spinner lived forever. There was
+also no global axios timeout, so a stalled HTTP request had no
+backstop.
+
+**Fix** (frontend only, all green via testing_agent_v3_fork iter 29):
+- `/app/frontend/src/lib/api.js` — set a global axios `timeout: 45000`
+  so any stalled request surfaces as `ECONNABORTED` instead of an
+  infinite spinner.
+- `/app/frontend/src/components/Composer.jsx` — on a 200 response,
+  close the drawer + flip `posting=false` immediately. `reset()` and
+  `onPosted()` run in the background with `.catch(()=>{})` so they
+  cannot keep the spinner alive. ECONNABORTED is caught and a friendly
+  "Publish timed out…" toast is shown.
+- New live `[data-testid=drawer-publish-timer]` clock + "Xs" counter
+  inside the publish button. Updates every 250ms via `setInterval` so
+  users can see the request is still in flight (and not dead).
+- `PublishDrawer` exposes a new `postingElapsed` prop and renders the
+  clock SVG + seconds badge next to the existing label only while
+  `posting=true`.
+
+**Verification**: smoke test on preview with a 4s network delay
+intercept confirmed the timer counts 0s → 1s → 2s → 3s and clears
+when the response lands. Frontend testing agent verified Today / Feed
+/ Members / News / Podcasts / Write all continue to load cleanly
+under the new 45s axios timeout.
+
+**Action required from user**: redeploy production from preview pod
+so the fix reaches `thehousingnews.com`.
+
+
+
 ## 2026-02-19 — Production hang: /news + /today (HOTFIX, DONE)
 **Symptom**: user reported production was "very slow or won't load at
 all" after login. Screenshot showed `/today` stuck on "Loading today."
