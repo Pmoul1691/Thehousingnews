@@ -11,6 +11,41 @@ Hard guardrails: no chat widget, no popups, no follower counts, no stock photogr
 of teams.
 
 
+## 2026-02-19 — Production hang: /news + /today (HOTFIX, DONE)
+**Symptom**: user reported production was "very slow or won't load at
+all" after login. Screenshot showed `/today` stuck on "Loading today."
+
+**Root cause**: `/api/agg/podcasts` and `build_brief_payload('morning')`
+both call `services.podcasts_directory.get_directory()` which fetches
+10 external podcast RSS feeds on a cache miss. Two of those feeds
+(ninjaselling 404, biggerpockets malformed XML) blocked the worker
+thread up to 30 seconds. Every signed-in user landing on /news or
+/today on a cold pod triggered this and got stuck.
+
+**Fix**:
+- New `get_directory_fast()` in `services/podcasts_directory.py`
+  implements stale-while-revalidate: returns the in-process cache
+  immediately (fresh OR stale) and kicks off a background thread to
+  rebuild the cache. Guarded by a module-level lock so only one
+  refresher runs at a time. First user after a cold pod start gets an
+  empty list, the page renders instantly, and within ~30s the cache is
+  populated for every subsequent user.
+- Per-feed HTTP timeout dropped 12s → 3s.
+- `routes/podcasts.py::list_podcasts` switched to the fast variant so
+  /api/agg/podcasts never blocks.
+- `services/briefings.py::_fetch_top_podcast_async` switched to the
+  fast variant too — /api/today no longer waits on the podcast block.
+  Email-dispatch path retains the blocking `get_directory()` since the
+  scheduler can wait.
+- Email dispatch passes `use_cache=False` to `build_brief_payload` so
+  real briefs are always built from fresh data.
+
+**Measured impact (preview pod, cold cache)**:
+- /api/agg/podcasts: 28.8s → 0.38s (76x faster)
+- /api/today:       ~30s  → 1.5s  (20x faster)
+- /news page load:           1.64s end-to-end (was timing out)
+
+
 ## 2026-02-19 — Admin Site Analytics: Today window (DONE)
 Pageviews-today wasn't surfaced anywhere on the analytics dashboard —
 the smallest rolling window was 7d. Added a dedicated Today block

@@ -14,6 +14,7 @@ swapped in later if the deployment scales horizontally.
 """
 import logging
 import re
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from email.utils import parsedate_to_datetime
@@ -243,7 +244,75 @@ _FEED_URL_CACHE: dict = {}   # apple_id -> (feed_url, expires_at)
 _FEED_CACHE: dict = {}       # rss_url   -> (parsed_dict, expires_at)
 _DIR_CACHE: dict = {}        # "entry"   -> (directory_dict, expires_at)
 _USER_AGENT = "thehousingnews-podcast-directory/1.0 (+https://thehousingnews.com)"
-_HTTP_TIMEOUT = 12.0
+# Tight per-request timeout. With 10 feeds in the thread pool, the total
+# cold-fill is bounded by `_HTTP_TIMEOUT + small overhead` even when every
+# feed is dead. Was 12s — caused 30-second hangs on /news the moment any
+# one feed misbehaved.
+_HTTP_TIMEOUT = 3.0
+
+
+_DIR_REFRESH_LOCK = threading.Lock()
+_DIR_REFRESHING = False
+
+
+def _refresh_directory_in_background() -> None:
+    """Spawn a background thread that rebuilds the in-process directory
+    cache. Guarded by a lock so we never spin up more than one refresher
+    at a time. Called from `get_directory_fast()` when the cache is
+    stale or empty; the calling request returns instantly with whatever
+    cached data exists."""
+    global _DIR_REFRESHING
+    with _DIR_REFRESH_LOCK:
+        if _DIR_REFRESHING:
+            return
+        _DIR_REFRESHING = True
+
+    def _run():
+        global _DIR_REFRESHING
+        try:
+            get_directory()  # populates _DIR_CACHE
+        except Exception:
+            logger.exception("background podcast directory refresh failed")
+        finally:
+            with _DIR_REFRESH_LOCK:
+                _DIR_REFRESHING = False
+
+    threading.Thread(target=_run, daemon=True, name="podcast-dir-refresh").start()
+
+
+def get_directory_fast() -> dict:
+    """Non-blocking variant for interactive routes (/api/agg/podcasts and
+    the cached brief path). Returns whatever's currently in the cache
+    (fresh OR stale), and asynchronously kicks off a background rebuild
+    if the data is stale or missing. The first user after a cold pod
+    start gets an empty list and the page renders instantly; the
+    background fill completes in a few seconds and every subsequent
+    user gets the full directory.
+
+    Use the blocking `get_directory()` from background jobs (scheduler,
+    email dispatch) where waiting for fresh data is fine.
+    """
+    now = time.time()
+    entry = _DIR_CACHE.get("entry")
+    if entry and entry[1] > now:
+        return entry[0]  # fresh
+    # Trigger background refresh; serve stale-or-empty immediately.
+    _refresh_directory_in_background()
+    if entry:
+        return entry[0]  # stale but rendered
+    return {"items": []}
+
+
+def get_directory_stale_or_empty() -> dict:
+    """Used by the public /api/agg/podcasts route as a fast fallback when
+    the live fetch is slower than the outer route timeout. Returns the
+    last successfully built directory (even if its TTL has expired) so
+    /news renders instantly with the most recent known data. If the
+    cache has never been populated, returns an empty list."""
+    entry = _DIR_CACHE.get("entry")
+    if entry:
+        return entry[0]
+    return {"items": []}
 
 
 def _resolve_apple_feed_url(apple_id: str) -> Optional[str]:

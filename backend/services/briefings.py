@@ -11,7 +11,9 @@ approved member. The Housing News is free forever for everyone in housing.
 Each send records a `brief_dispatches` row so opens/clicks can be tracked via
 the existing services/tracking.py wrapper.
 """
+import asyncio
 import logging
+import time
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
@@ -21,6 +23,29 @@ from services.podcasts_directory import get_directory
 from services.trending import compute_trending
 
 logger = logging.getLogger(__name__)
+
+
+# In-process cache for build_brief_payload. The brief content only changes
+# when the aggregator re-ingests articles (every 15 min via scheduler), so
+# rebuilding it on every /api/today hit is wasteful — that's what was
+# making the /today page hang for signed-in users on production. 5-minute
+# TTL keeps the payload fresh enough while making subsequent calls
+# essentially free.
+#
+# Key: f"brief:{kind}"  →  (payload_dict, expires_at_unix_ts)
+_BRIEF_CACHE: dict = {}
+_BRIEF_TTL_SECONDS = 300
+
+
+def _brief_cache_get(kind: str):
+    entry = _BRIEF_CACHE.get(f"brief:{kind}")
+    if entry and entry[1] > time.time():
+        return entry[0]
+    return None
+
+
+def _brief_cache_set(kind: str, payload: dict) -> None:
+    _BRIEF_CACHE[f"brief:{kind}"] = (payload, time.time() + _BRIEF_TTL_SECONDS)
 
 
 def _now_iso() -> str:
@@ -73,8 +98,37 @@ async def _fetch_top_articles(db, hours: int, limit: int = 8) -> list[dict]:
     return out
 
 
+async def _fetch_top_podcast_async(timeout_s: float = 2.0) -> Optional[dict]:
+    """Non-blocking variant for the interactive /api/today path. Reads
+    only from the in-process directory cache (never blocks on RSS).
+    First user after a cold pod start gets no podcast; the background
+    refresh triggered by the fast getter fills the cache shortly after.
+    """
+    from services.podcasts_directory import get_directory_fast
+    _ = timeout_s  # kept for backwards-compat with callers; no longer needed
+    try:
+        directory = get_directory_fast()
+    except Exception:
+        logger.exception("podcast directory fetch failed")
+        return None
+    items = directory.get("items") if isinstance(directory, dict) else None
+    if not items:
+        return None
+    with_eps = [p for p in items if p.get("latest_episode")]
+    if not with_eps:
+        return None
+    with_eps.sort(
+        key=lambda p: (p.get("latest_episode") or {}).get("published_at", ""),
+        reverse=True,
+    )
+    return with_eps[0]
+
+
 def _fetch_top_podcast() -> Optional[dict]:
-    """The most recently aired podcast episode in the directory."""
+    """Synchronous variant kept for compatibility with the email-dispatch
+    path, which uses `use_cache=False`. Has no timeout because the email
+    job runs on a background scheduler where a slow RSS feed is fine.
+    """
     try:
         directory = get_directory()
     except Exception:
@@ -130,11 +184,29 @@ async def _fetch_trending(db, hours: int = 24, limit: int = 5) -> list[dict]:
     return compute_trending(titles, limit=limit)
 
 
-async def build_brief_payload(db, kind: str) -> dict:
-    """Build content for either 'morning' or 'evening' brief."""
+async def build_brief_payload(db, kind: str, use_cache: bool = True) -> dict:
+    """Build content for either 'morning' or 'evening' brief.
+
+    Cached for 5 minutes in-process — the underlying article pool only
+    changes when the aggregator re-ingests (every 15 min), so we don't
+    need to rebuild this on every /api/today hit. Pass `use_cache=False`
+    from the email-dispatch path so a fresh brief is always sent.
+    """
+    if use_cache:
+        cached = _brief_cache_get(kind)
+        if cached is not None:
+            return cached
+
     if kind == "morning":
         articles = await _fetch_top_articles(db, hours=14, limit=8)
-        extra = {"podcast": _fetch_top_podcast(), "trending": None}
+        # Interactive path (use_cache=True): hard 2s timeout on the podcast
+        # so a slow external RSS feed can never hang /api/today again.
+        # Email dispatch path: use the blocking variant, no urgency.
+        if use_cache:
+            podcast = await _fetch_top_podcast_async(timeout_s=2.0)
+        else:
+            podcast = _fetch_top_podcast()
+        extra = {"podcast": podcast, "trending": None}
     else:
         articles = await _fetch_top_articles(db, hours=8, limit=8)
         # If 8h window is too thin, widen to 14h for the evening brief.
@@ -145,7 +217,10 @@ async def build_brief_payload(db, kind: str) -> dict:
             "trending": await _fetch_trending(db, hours=24, limit=5),
         }
     essay = await _fetch_top_essay(db)
-    return {"kind": kind, "articles": articles, "essay": essay, **extra}
+    payload = {"kind": kind, "articles": articles, "essay": essay, **extra}
+    if use_cache:
+        _brief_cache_set(kind, payload)
+    return payload
 
 
 async def send_brief(db, kind: str, dry_run: bool = False) -> dict:
@@ -155,7 +230,7 @@ async def send_brief(db, kind: str, dry_run: bool = False) -> dict:
     """
     if kind not in ("morning", "evening"):
         raise ValueError("kind must be 'morning' or 'evening'")
-    payload = await build_brief_payload(db, kind)
+    payload = await build_brief_payload(db, kind, use_cache=False)
     if not payload["articles"]:
         logger.warning("Brief %s aborted — no articles available", kind)
         return {"sent": 0, "skipped_no_articles": True, "kind": kind}
