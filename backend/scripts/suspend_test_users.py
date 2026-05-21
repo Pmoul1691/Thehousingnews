@@ -14,33 +14,14 @@ Run inside the backend container:
 """
 import asyncio
 import os
-import re
 import sys
 from datetime import datetime, timezone
 
 from motor.motor_asyncio import AsyncIOMotorClient
 
-
-# Patterns we recognise as obvious test artefacts. The regex matches the
-# WHOLE email (case-insensitive). Keep this list conservative — anything
-# borderline should be reviewed manually before adding here.
-TEST_EMAIL_PATTERNS = [
-    r"^e2e\..*",                # e2e.signup.*, e2e.dup.*, etc.
-    r"^auth\.smoke\..*",        # auth.smoke.1779119938@...
-    r".*@example\.com$",        # the canonical example.com TLD
-    r".*@example\.org$",
-    r".*@example\.net$",
-    r".*@test\..*",             # *@test.local, *@test.com, etc.
-    r".*\.test$",               # *@something.test
-    r"^test[\.\-_+].*@.*",      # test.foo@..., test+x@..., test_bar@...
-    r"^smoke[\.\-_+].*@.*",     # smoke.* prefixes
-]
-COMPILED = [re.compile(p, re.IGNORECASE) for p in TEST_EMAIL_PATTERNS]
-
-
-def is_test_email(email: str) -> bool:
-    e = (email or "").strip().lower()
-    return any(p.match(e) for p in COMPILED)
+# Single source of truth for the "is this email a test fixture?" check.
+# Lives in services/ so the live API endpoints can import it too.
+from services.test_email_filter import is_test_email
 
 
 async def main(apply: bool):

@@ -80,9 +80,18 @@ def setup(db):
                 {"regions": {"$exists": False}},
                 {"regions": []},
             ]
-        # Exclude suspended authors
-        sus_rows = await db.users.find({"suspended": True}, {"_id": 0, "user_id": 1}).to_list(2000)
-        sus = [s["user_id"] for s in sus_rows]
+        # Exclude suspended authors AND any account whose email looks like
+        # an automated-test fixture (defence-in-depth — the suspend script
+        # may not have run on freshly-seeded environments).
+        from services.test_email_filter import is_test_email
+        excl_rows = await db.users.find(
+            {"$or": [{"suspended": True}, {"email": {"$exists": True}}]},
+            {"_id": 0, "user_id": 1, "email": 1, "suspended": 1},
+        ).to_list(5000)
+        sus = [
+            r["user_id"] for r in excl_rows
+            if r.get("suspended") or is_test_email(r.get("email", ""))
+        ]
         if writer_id:
             if writer_id in sus:
                 return {"items": [], "next_before": None}

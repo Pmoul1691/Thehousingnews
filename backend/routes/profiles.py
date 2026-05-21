@@ -92,12 +92,16 @@ def setup(db):
         if viewer.get("status") != "approved":
             raise HTTPException(status_code=403, detail="Membership not approved")
 
-        # Pull approved, non-suspended users.
+        # Pull approved, non-suspended users. Test/e2e emails are filtered
+        # in-memory below as defence-in-depth — the suspend script may not
+        # have run on a freshly-seeded environment.
+        from services.test_email_filter import is_test_email
         user_match = {"status": "approved", "suspended": {"$ne": True}}
         approved = await db.users.find(
             user_match,
             {"_id": 0, "user_id": 1, "name": 1, "email": 1, "is_admin": 1},
         ).to_list(2000)
+        approved = [u for u in approved if not is_test_email(u.get("email", ""))]
         uid_to_user = {u["user_id"]: u for u in approved}
         uids = list(uid_to_user.keys())
         if not uids:

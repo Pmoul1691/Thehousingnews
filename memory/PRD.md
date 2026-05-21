@@ -11,6 +11,62 @@ Hard guardrails: no chat widget, no popups, no follower counts, no stock photogr
 of teams.
 
 
+## 2026-02-21 — Perf sprint Day 6: UX friction audit (DONE)
+
+**Audit method**: Playwright walk-through of the 10 highest-traffic user
+journeys (landing → /news → SignIn → Subscribe → Essays → Feed → Profile
+→ Members → Write → Admin → Settings) on the preview pod, plus screenshots.
+
+**Top finding (single biggest credibility hit)**:
+`e2e.dup.*`, `e2e.link.*`, `e2e.lockout.*`, `e2e.magic.*`,
+`auth.smoke.*`, `E2E Tester`, `E2E User` accounts were appearing
+on the public Members directory, recent-members landing strip, new-members
+strip, and the "X reading" subscriber count. And smoke-test essays
+("Frontend Agent Test", "Timer Slow Test", "Timer Smoke Essay v2") were
+on the public /essays page. Looked sloppy.
+
+**Top 5 papercuts fixed**:
+
+1. **Public surfaces filter test/e2e emails at query time** — new
+   `services/test_email_filter.py::is_test_email(email)` shared helper
+   matches `e2e.*`, `auth.smoke.*`, `perf-test@`, `*@example.{com,org,net}`,
+   `*@test.*`, `*.test`, `test[._+-]*@`, `smoke[._+-]*@`. Applied to:
+   - `routes/aggregator.py::recent_members` (landing strip)
+   - `routes/aggregator.py::new_members` (landing strip)
+   - `routes/profiles.py::directory` (Members page)
+   - `routes/essays.py::list_essays` (public essay browser)
+   Defence-in-depth: even if `suspend_test_users` script isn't run, these
+   filters keep public views clean.
+
+2. **Suspend script consolidated** — `scripts/suspend_test_users.py` now
+   imports the single source of truth from `services/test_email_filter`.
+   Ran it on preview: 21 accounts suspended (10 e2e + 11 demo/sample
+   stubs already present).
+
+3. **Test essays hidden** — 11 essays whose titles matched obvious test
+   markers (test/smoke/probe/repro/frontend agent/timer/click-tracking)
+   were set `status=hidden`. Manually restored 1 false-positive
+   ("Real estate is the ultimate entrepreneurial test" — a legit essay).
+
+4. **Subscriber count auto-fixes** — `routes/newsletter.py::stats` already
+   filters `suspended: $ne: true`, so the "X reading" counter on /subscribe
+   automatically drops the now-suspended test users.
+
+5. **Regression coverage** — `tests/test_day6_friction.py` (5 passing) —
+   seeds an e2e user with an essay, hits each public surface, asserts the
+   fixture is invisible. Includes a sanity check that a real essay whose
+   title contains the word "test" is NOT swept up.
+
+**Verified on preview after restart**:
+- `/api/agg/recent-members` → 1 member (Peter Moulton), no e2e
+- `/api/essays` → 10 real essays, no test pollution
+- `/api/profile/directory` → no test users
+- All 5 regression tests pass
+
+**Action required**: redeploy production AND run `python -m scripts.suspend_test_users --apply` on prod to clean historical fixtures.
+
+
+
 ## 2026-02-21 — Perf sprint Day 5: optimistic UI + idle route prefetch (DONE)
 
 **Goal**: erase the "did my click register?" perceived-latency moment.

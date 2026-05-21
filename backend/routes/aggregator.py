@@ -568,16 +568,20 @@ def setup(db):
         if not rows:
             return {"items": []}
         user_ids = [r["_id"] for r in rows]
-        # Only show approved + non-suspended + non-stub members with a profile and an avatar.
+        # Only show approved + non-suspended + non-test + non-stub members
+        # with a profile. The `is_test_email` filter is defence-in-depth — a
+        # missed call to the suspend script must never leak e2e fixtures
+        # onto the public landing page.
+        from services.test_email_filter import is_test_email
         users = await db.users.find(
             {
                 "user_id": {"$in": user_ids},
                 "status": "approved",
                 "suspended": {"$ne": True},
             },
-            {"_id": 0, "user_id": 1},
+            {"_id": 0, "user_id": 1, "email": 1},
         ).to_list(500)
-        approved_ids = {u["user_id"] for u in users}
+        approved_ids = {u["user_id"] for u in users if not is_test_email(u.get("email", ""))}
         profiles = await db.profiles.find(
             {"user_id": {"$in": list(approved_ids)}, "is_stub": {"$ne": True}},
             {"_id": 0, "user_id": 1, "name": 1, "market": 1, "avatar_path": 1},
@@ -632,18 +636,19 @@ def setup(db):
         if cached and cached[1] > now_ts:
             return cached[0]
         cutoff_iso = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+        from services.test_email_filter import is_test_email
         users = await db.users.find(
             {
                 "status": "approved",
                 "suspended": {"$ne": True},
                 "created_at": {"$gte": cutoff_iso},
             },
-            {"_id": 0, "user_id": 1, "created_at": 1},
+            {"_id": 0, "user_id": 1, "created_at": 1, "email": 1},
         ).sort("created_at", -1).to_list(limit * 4)
         if not users:
             return {"items": [], "days": days}
 
-        uids = [u["user_id"] for u in users]
+        uids = [u["user_id"] for u in users if not is_test_email(u.get("email", ""))]
         profiles = await db.profiles.find(
             {"user_id": {"$in": uids}, "is_stub": {"$ne": True}},
             {"_id": 0, "user_id": 1, "name": 1, "market": 1,
