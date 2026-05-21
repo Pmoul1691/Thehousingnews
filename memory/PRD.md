@@ -11,6 +11,51 @@ Hard guardrails: no chat widget, no popups, no follower counts, no stock photogr
 of teams.
 
 
+## 2026-02-20 — Production perf audit & event-loop fixes (DONE, pending redeploy)
+
+**Symptom**: production was "devastatingly slow" — landing page took 9s to load,
+Google sign-in looped back to landing, publish-essay timer hit 11s.
+
+**Root cause**: three different `requests.*()` calls were running **synchronously
+inside async route handlers**, freezing the entire FastAPI worker every time one
+fired. When one user signed in or requested a magic link, every other API call
+queued up behind a 10–20s blocking call. Plus five public landing-page
+aggregations were running uncached on every request.
+
+**Fixes shipped to preview pod**:
+- `/app/backend/routes/auth.py` — Emergent session-data fetch switched to
+  `httpx.AsyncClient` (non-blocking). Partners bridge (`get_user_status`) wrapped
+  in `asyncio.to_thread` with a hard 6s timeout — sign-in proceeds without
+  auto-grant if the bridge is slow instead of hanging.
+- `/app/backend/routes/auth_email.py` — magic link / password reset /
+  verification emails now send via `asyncio.to_thread(send_email, …)` so a slow
+  Brevo round-trip can never freeze the event loop.
+- `/app/backend/routes/aggregator.py` — 90s in-process cache on
+  `/trending-tags`, `/recent-members`, `/new-members`.
+- `/app/backend/routes/essays.py` — 60s in-process cache on the default
+  unfiltered first page (`?limit=12`), which is the public landing-page hit.
+- `/app/backend/.env` — quoted three values the deploy linter flagged
+  (`SUBSTACK_RSS_URL`, `APP_PUBLIC_URL`, `BREVO_INVITE_LIST_NAME`).
+
+**Verification (preview pod)**:
+| Endpoint                                | Before     | Cold | Warm |
+|-----------------------------------------|------------|------|------|
+| `/api/agg/publishers-latest?hours=36`   | 3.41s      | 0.58s| 0.18s|
+| `/api/agg/trending-tags?days=14&limit=8`| 4.80s      | 0.25s| 0.20s|
+| `/api/agg/recent-members?limit=24`      | 1.19s      | 0.78s| 0.17s|
+| `/api/agg/new-members?days=14&limit=5`  | 0.88s      | 0.37s| 0.26s|
+| `/api/essays?limit=12`                  | 4.67s      | 0.82s| 0.30s|
+| `/api/auth/session` (bogus id)          | 3.77s      | 0.22s| —    |
+| 8 concurrent `/api/auth/me`             | serialized | 130-230ms each (parallel) | — |
+
+**Decision logged**: keep Emergent-managed Google Auth. The async fix eliminated
+the real latency. Switching to own Google OAuth would only add a branded consent
+screen — kept on the backlog as P3.
+
+**Action required**: user redeploying production now (Feb 20, 2026).
+
+
+
 ## 2026-02-20 — Publish-essay infinite spinner (FIX, DONE)
 **Symptom**: user reported clicking "Publish essay now" in the new
 `PublishDrawer` hangs forever with a spinner on production.
