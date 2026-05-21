@@ -151,7 +151,7 @@ function InlinePlayer({ podcast, onClose }) {
     >
       <div className="flex flex-col sm:flex-row gap-6 items-start">
         {podcast.cover_art && (
-          <img src={podcast.cover_art} alt="" className="w-20 h-20 sm:w-28 sm:h-28 rounded-md object-cover shrink-0 border border-white/10" />
+          <img src={podcast.cover_art} alt="" loading="lazy" decoding="async" width={112} height={112} className="w-20 h-20 sm:w-28 sm:h-28 rounded-md object-cover shrink-0 border border-white/10" />
         )}
         <div className="flex-1 min-w-0">
           <p className="font-sans text-[10px] uppercase tracking-[0.22em] text-agg-orange font-semibold mb-1">

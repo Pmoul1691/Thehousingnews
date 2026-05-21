@@ -66,7 +66,7 @@ export default function Library() {
               <div key={b.post_id} data-testid={`library-item-${b.post_id}`} className="p-5 flex gap-4 items-start">
                 {coverUrl && (
                   <div className="hidden sm:block w-24 h-24 shrink-0 border hairline rounded-sm overflow-hidden">
-                    <img src={coverUrl} alt="" className="w-full h-full object-cover" />
+                    <img src={coverUrl} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
                   </div>
                 )}
                 <div className="flex-1 min-w-0">

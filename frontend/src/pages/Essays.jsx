@@ -48,7 +48,7 @@ function EssayRow({ e }) {
         </div>
         {coverUrl && (
           <div className="hidden sm:block w-32 h-32 shrink-0 border hairline rounded-sm overflow-hidden">
-            <img src={coverUrl} alt="" className="w-full h-full object-cover" />
+            <img src={coverUrl} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
           </div>
         )}
       </div>

@@ -226,7 +226,7 @@ export default function EssayDetail() {
 
         {coverUrl && (
           <div className="border hairline rounded-sm overflow-hidden mb-10">
-            <img src={coverUrl} alt="" className="w-full max-h-[480px] object-cover" />
+            <img src={coverUrl} alt="" loading="lazy" decoding="async" className="w-full max-h-[480px] object-cover" />
           </div>
         )}
         {extraMedia.length > 0 && (

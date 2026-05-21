@@ -38,7 +38,7 @@ export function ArticleCard({ article }) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1.5">
             {pub.logo_url ? (
-              <img src={pub.logo_url} alt="" className="w-4 h-4 object-contain rounded-sm" />
+              <img src={pub.logo_url} alt="" loading="lazy" decoding="async" width={16} height={16} className="w-4 h-4 object-contain rounded-sm" />
             ) : null}
             <Link
               to={`/news/source/${pub.slug}`}

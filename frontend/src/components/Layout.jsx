@@ -59,12 +59,17 @@ export default function Layout({ children }) {
               </Link>
             )}
             <Link to="/" data-testid="nav-home" className="flex items-center gap-2.5 min-w-0">
-              <img
-                src="/brand/logo-full.png"
-                alt="The Housing News"
-                className="h-7 sm:h-9 w-auto select-none max-w-[55vw] sm:max-w-none"
-                draggable={false}
-              />
+              <picture>
+                <source srcSet="/brand/logo-full@2x.webp" type="image/webp" />
+                <img
+                  src="/brand/logo-full@2x.png"
+                  alt="The Housing News"
+                  width="278"
+                  height="40"
+                  className="h-7 sm:h-9 w-auto select-none max-w-[55vw] sm:max-w-none"
+                  draggable={false}
+                />
+              </picture>
             </Link>
           </div>
 
@@ -207,12 +212,17 @@ export default function Layout({ children }) {
       <footer className="border-t hairline mt-24">
         <div className="container-wide py-12 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
           <div className="flex items-center gap-3">
-            <img
-              src="/brand/logo-full.png"
-              alt="The Housing News"
-              className="h-10 w-auto select-none"
-              draggable={false}
-            />
+            <picture>
+              <source srcSet="/brand/logo-full@2x.webp" type="image/webp" />
+              <img
+                src="/brand/logo-full@2x.png"
+                alt="The Housing News"
+                width="278"
+                height="40"
+                className="h-10 w-auto select-none"
+                draggable={false}
+              />
+            </picture>
             <div className="font-serif text-xs text-muted-ink">A daily magazine for the real estate industry.</div>
           </div>
           <div className="font-sans text-xs text-muted-ink max-w-md">

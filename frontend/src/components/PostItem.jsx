@@ -89,7 +89,7 @@ function EssayCard({ post, user, onChange }) {
         </div>
         {coverUrl && (
           <div className="border hairline rounded-sm overflow-hidden mb-5">
-            <img src={coverUrl} alt="" className="w-full max-h-[280px] object-cover" />
+            <img src={coverUrl} alt="" loading="lazy" decoding="async" className="w-full max-h-[280px] object-cover" />
           </div>
         )}
         <h2 className="font-display font-semibold text-2xl sm:text-3xl ink leading-tight group-hover:text-gold transition-colors mb-2">

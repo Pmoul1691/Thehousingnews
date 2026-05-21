@@ -11,6 +11,47 @@ Hard guardrails: no chat widget, no popups, no follower counts, no stock photogr
 of teams.
 
 
+## 2026-02-21 — Perf sprint Day 3: image optimization (DONE)
+
+**Goal**: reduce image bytes shipped per page load — landing was eating
+710 kB of images on mobile.
+
+**Shipped to preview**:
+- **Logos**: re-encoded `logo-full`, `logo-full-light`, `logo-full-dark`
+  from 1600x230 (140–190 kB PNG each) to 557x80 WebP at quality 85
+  + an optimized PNG fallback for the rare browser without WebP.
+  - `logo-full.png` 186 kB → `logo-full@2x.webp` **15.4 kB** (−92%)
+  - `logo-full-light.png` 145 kB → 15.4 kB (−89%)
+  - `logo-full-dark.png` 141 kB → 3.6 kB (−97%)
+- `/app/frontend/src/components/Layout.jsx` (header + footer) and
+  `/app/frontend/src/components/AggLayout.jsx` (aggregator header) — now
+  use `<picture><source srcSet="...webp">` with PNG fallback. Explicit
+  `width`/`height` attrs added to prevent CLS during header paint.
+- **Below-fold images** — added `loading="lazy"` + `decoding="async"`
+  on every card image in:
+  - `EssayCards.jsx`, `Essays.jsx`, `Library.jsx`, `EssayDetail.jsx`
+    (essay cover images)
+  - `PostItem.jsx` (feed item covers)
+  - `AggArticleCard.jsx` (publisher logos)
+  - `Podcasts.jsx` (podcast cover art with explicit dimensions)
+  `DailyCard.jsx` already had lazy + dimensions.
+
+**Verification (mobile viewport on preview)**:
+| Metric | Before Day 3 | After Day 3 |
+|---|---|---|
+| Logo transferred | 186 kB | 16 kB |
+| Total image bytes | 710 kB | 290 kB |
+| Mobile FCP | 264 ms | 312 ms (within noise) |
+
+Remaining image weight (~290 kB) is member-commentary thumbnails and
+article hero images that are user-uploaded JPGs. Day 4 candidate:
+re-encode user uploads to WebP at upload time + serve a `?w=480`
+mobile-sized srcset.
+
+**Action required**: user redeploys production to ship.
+
+
+
 ## 2026-02-21 — Perf sprint Day 2: code splitting + dynamic TipTap (DONE)
 
 **Goal**: cut the first-load JS bundle on production.

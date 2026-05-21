@@ -58,7 +58,7 @@ export function FeaturedEssay({ essay, linkTo, cta, variant = "card", testIdPref
     <div className="grid sm:grid-cols-5 gap-0">
       {coverUrl && (
         <div className="sm:col-span-2 h-56 sm:h-auto overflow-hidden border-b sm:border-b-0 sm:border-r hairline">
-          <img src={coverUrl} alt="" className="w-full h-full object-cover" />
+          <img src={coverUrl} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
         </div>
       )}
       <div className={`p-7 sm:p-9 ${coverUrl ? "sm:col-span-3" : "sm:col-span-5"}`}>
