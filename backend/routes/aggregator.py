@@ -14,7 +14,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query, Request, Cookie, Header
+from fastapi import APIRouter, HTTPException, Query, Request, Response, Cookie, Header
 from pydantic import BaseModel, Field
 
 from services.agg_seed import CATEGORIES
@@ -28,6 +28,16 @@ logger = logging.getLogger(__name__)
 EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 DEFAULT_LIMIT = 50
 MAX_LIMIT = 100
+
+
+def _set_public_cache(response: Response, max_age: int = 60) -> None:
+    """Tell Cloudflare (and the browser) that this response can be served from
+    edge cache for `max_age` seconds. We also opt into stale-while-revalidate
+    so a stale value can be served instantly while the edge refreshes in the
+    background — perceived latency stays at 0ms for the user."""
+    response.headers["Cache-Control"] = (
+        f"public, max-age={max_age}, s-maxage={max_age}, stale-while-revalidate=60"
+    )
 
 # In-process cache for /publishers-latest. Key: f"pl:{hours}" -> (result, expires_ts).
 # 5-minute TTL — RSS ingest cron runs every 15 min so freshness is fine.
@@ -116,7 +126,7 @@ def setup(db):
         return {"items": items}
 
     @router.get("/publishers-latest")
-    async def publishers_latest(hours: int = Query(default=168, ge=1, le=720)):
+    async def publishers_latest(response: Response, hours: int = Query(default=168, ge=1, le=720)):
         """Every active publisher with its most recent (non-hidden) article in
         the last `hours` window. Used by the home page grid: one card per
         publisher featuring its latest headline + a link to the publisher
@@ -126,6 +136,7 @@ def setup(db):
         Results are cached in-process for 5 minutes; the RSS ingest cron runs
         every 15 minutes so 5 minutes is well inside the freshness budget.
         """
+        _set_public_cache(response, 60)
         import time as _time
         cache_key = f"pl:{hours}"
         cached = _PL_CACHE.get(cache_key)
@@ -255,10 +266,11 @@ def setup(db):
         return {"ok": True, "count": len(rows)}
 
     @router.get("/articles/top-clicked")
-    async def top_clicked_article(hours: int = Query(default=24, ge=1, le=72)):
+    async def top_clicked_article(response: Response, hours: int = Query(default=24, ge=1, le=72)):
         """Single most-clicked article in the last `hours`. Powers the public
         🔥 badge on /news. Cached for 60s — the badge moves on human time
         scales, not per-request. Public, no auth."""
+        _set_public_cache(response, 60)
         import time as _time
         cache_key = f"tc:{hours}"
         cached = _PUBLIC_CACHE.get(cache_key)
@@ -483,6 +495,7 @@ def setup(db):
 
     @router.get("/trending-tags")
     async def trending_tags(
+        response: Response,
         days: int = Query(default=14, ge=1, le=90),
         limit: int = Query(default=8, ge=1, le=30),
     ):
@@ -491,6 +504,7 @@ def setup(db):
         what real estate professionals on the platform are writing about.
         Cached in-process for 90 seconds.
         """
+        _set_public_cache(response, 90)
         import time as _time
         cache_key = f"tt:{days}:{limit}"
         cached = _PUBLIC_CACHE.get(cache_key)
@@ -516,7 +530,7 @@ def setup(db):
         return result
 
     @router.get("/recent-members")
-    async def recent_members(limit: int = Query(default=8, ge=1, le=30)):
+    async def recent_members(response: Response, limit: int = Query(default=8, ge=1, le=30)):
         """Public-safe list of recently-active members for the Landing page.
         Returns only name, market, avatar_path, and a short snippet from the
         member's most recent approved post. No emails, no IDs that aren't
@@ -527,6 +541,7 @@ def setup(db):
 
         Cached in-process for 90 seconds to keep landing-page load fast.
         """
+        _set_public_cache(response, 90)
         import time as _time
         cache_key = f"rm:{limit}"
         cached = _PUBLIC_CACHE.get(cache_key)
@@ -599,6 +614,7 @@ def setup(db):
 
     @router.get("/new-members")
     async def new_members(
+        response: Response,
         days: int = Query(default=14, ge=1, le=90),
         limit: int = Query(default=5, ge=1, le=20),
     ):
@@ -608,6 +624,7 @@ def setup(db):
         members with a real profile. No emails, no IDs beyond what is
         already exposed via /profile/{user_id}. Cached for 90s.
         """
+        _set_public_cache(response, 90)
         import time as _time
         cache_key = f"nm:{days}:{limit}"
         cached = _PUBLIC_CACHE.get(cache_key)

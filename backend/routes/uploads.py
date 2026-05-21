@@ -47,40 +47,54 @@ INLINE_VIDEO_SECONDS = 60            # videos this short stay as direct MP4
 MAX_VIDEO_SECONDS = 180              # 3 minutes total cap
 MAX_AUDIO_SECONDS = 5 * 60
 
-# Resize images > this threshold to keep payloads reasonable
-RESIZE_TRIGGER_BYTES = 1 * 1024 * 1024  # 1 MB
+# Image normalisation: downscale anything over 2000px on the long edge and
+# always re-encode JPEG/PNG uploads as WebP. WebP cuts payload by ~40-50%
+# vs JPEG at the same perceptual quality, and ~70% vs PNG. GIFs keep their
+# original encoding (animation would be lost otherwise).
 RESIZE_MAX_DIM = 2000
-RESIZE_JPEG_QUALITY = 82
+WEBP_QUALITY = 82
 
 
-def _maybe_resize_image(data: bytes, content_type: str) -> tuple[bytes, str]:
-    """If the image is larger than RESIZE_TRIGGER_BYTES, downscale + recompress.
-    GIFs are left alone (animation would be destroyed by Pillow's default save).
-    Returns (new_bytes, new_content_type)."""
-    if len(data) <= RESIZE_TRIGGER_BYTES:
-        return data, content_type
+def _normalise_uploaded_image(data: bytes, content_type: str) -> tuple[bytes, str]:
+    """Take a freshly-uploaded image and return (bytes, mime_type) ready to
+    persist. JPEG / PNG inputs are re-encoded to WebP at quality 82; oversize
+    images are downscaled to 2000px on the long edge. GIFs are passed through
+    unchanged (animation preservation)."""
     if content_type == "image/gif":
         return data, content_type
     try:
         img = Image.open(io.BytesIO(data))
         img = ImageOps.exif_transpose(img)
-        # Force RGB(A); JPEG cannot save RGBA.
-        target_ct = "image/jpeg"
-        if content_type == "image/png" and img.mode in ("RGBA", "LA"):
-            target_ct = "image/png"
-        if target_ct == "image/jpeg" and img.mode not in ("RGB", "L"):
-            img = img.convert("RGB")
-
-        img.thumbnail((RESIZE_MAX_DIM, RESIZE_MAX_DIM), Image.LANCZOS)
+        # Pillow's WebP encoder accepts RGB / RGBA / L; everything else needs
+        # a convert. CMYK JPEGs in particular need to be RGB-ified.
+        if img.mode not in ("RGB", "RGBA", "L"):
+            img = img.convert("RGBA" if "A" in img.mode else "RGB")
+        # Strip alpha when it's all-opaque so the output is smaller.
+        if img.mode == "RGBA":
+            alpha = img.getchannel("A")
+            if alpha.getextrema() == (255, 255):
+                img = img.convert("RGB")
+        # Downscale long edge if needed.
+        if max(img.size) > RESIZE_MAX_DIM:
+            img.thumbnail((RESIZE_MAX_DIM, RESIZE_MAX_DIM), Image.LANCZOS)
         out = io.BytesIO()
-        if target_ct == "image/jpeg":
-            img.save(out, format="JPEG", quality=RESIZE_JPEG_QUALITY, optimize=True, progressive=True)
-        else:
-            img.save(out, format="PNG", optimize=True)
-        return out.getvalue(), target_ct
+        img.save(out, format="WEBP", quality=WEBP_QUALITY, method=6)
+        new_bytes = out.getvalue()
+        # Defensive: if the WebP encode somehow produced a larger file than
+        # the original (rare, but possible for tiny PNG icons), keep the
+        # original to avoid making things worse.
+        if len(new_bytes) >= len(data):
+            return data, content_type
+        return new_bytes, "image/webp"
     except Exception:
-        logger.exception("image resize failed; storing original")
+        logger.exception("image normalisation failed; storing original")
         return data, content_type
+
+
+def _maybe_resize_image(data: bytes, content_type: str) -> tuple[bytes, str]:
+    """Back-compat shim — the new normaliser does both downscale and WebP
+    re-encode, so we just delegate."""
+    return _normalise_uploaded_image(data, content_type)
 
 
 def setup(db):

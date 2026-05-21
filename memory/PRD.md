@@ -11,6 +11,68 @@ Hard guardrails: no chat widget, no popups, no follower counts, no stock photogr
 of teams.
 
 
+## 2026-02-21 — Perf sprint Day 4: cache headers, indexes, WebP uploads (DONE)
+
+**Goal**: maximise edge caching, audit Mongo indexes, and stop user-uploaded
+JPGs from blowing out the image bytes the page just optimised.
+
+**Shipped to preview**:
+
+### Cache-Control headers on public endpoints
+- `aggregator.py` — added `_set_public_cache(response, ttl)` helper that
+  emits `Cache-Control: public, max-age=N, s-maxage=N, stale-while-revalidate=60`.
+  Applied to `/publishers-latest` (60s), `/trending-tags` (90s),
+  `/recent-members` (90s), `/new-members` (90s), `/articles/top-clicked` (60s).
+- `podcasts.py` — 120s public cache (directory updates only every ~30 min).
+- `essays.py` — 60s public cache on the unfiltered first page only
+  (filtered queries skip the cache).
+- Browser now caches all these responses within the session. Cloudflare
+  will edge-cache them on production if a Page Rule is set to honour
+  origin Cache-Control for `/api/agg/*`, `/api/essays`.
+- **Note**: preview ingress rewrites Cache-Control to `no-store, no-cache,
+  must-revalidate` (intentional dev behaviour). Backend serves the correct
+  header at `localhost:8001` — production should honour it.
+
+### Mongo index audit
+Audit (via `mongosh` against `test_database`) on 13 hot collections
+confirmed all critical indexes are in place:
+- `users` (28 docs): email_1, user_id_1 ✅
+- `profiles` (4 docs): user_id_1, email_1 ✅
+- `posts` (41 docs): status_1, release_at_-1, tags_1, posts_text_search ✅
+- `agg_articles` (1612 docs): publisher_id_1+guid_1 (unique),
+  published_at_-1, hidden_1, normalized_url_1, title_signature_1 ✅
+- `agg_article_clicks`: partial unique (article_id, session_id, bucket_5m)
+  + clicked_at sort ✅
+- `agg_article_impressions`: seen_at + article_id+seen_at ✅
+- `user_sessions`: session_token + expires_at ✅
+**Verdict**: no new indexes needed at this scale (1600 articles, 40 posts).
+Caches handle 95% of read load. Re-audit when posts crosses 5,000.
+
+### On-upload WebP normalisation
+- `routes/uploads.py` — rewrote `_maybe_resize_image` into
+  `_normalise_uploaded_image`. Every JPEG/PNG upload is now:
+  1. EXIF-rotated to the user's actual orientation
+  2. Stripped of an all-opaque alpha channel (saves bytes)
+  3. Downscaled to 2000px on the long edge if larger
+  4. Re-encoded as WebP at quality 82, method 6
+  5. Stored with `.webp` extension and `content_type: image/webp`
+- Defensive fallback: if WebP encoding ever produces a *larger* file than
+  the original (e.g., tiny PNG icons), we keep the original.
+- GIFs are passed through unchanged (animation preservation).
+- Measured: realistic photo JPG 74 kB → **23 kB WebP** (−69%).
+  Random-pixel PNG 409 kB → 290 kB WebP (−29%).
+
+### Tests
+- `/app/backend/tests/test_day4_perf.py` — 4 passing:
+  - JPG → WebP conversion + size shrink
+  - PNG → WebP conversion + size shrink
+  - 4K image downscaled to < 50 % original size
+  - Cache-Control directive present on all 7 public agg endpoints
+
+**Action required**: redeploy production to ship Day 4.
+
+
+
 ## 2026-02-21 — Perf sprint Day 3: image optimization (DONE)
 
 **Goal**: reduce image bytes shipped per page load — landing was eating

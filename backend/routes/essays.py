@@ -2,7 +2,7 @@
 import logging
 from datetime import datetime, timezone
 from typing import Optional
-from fastapi import APIRouter, HTTPException, Cookie, Header
+from fastapi import APIRouter, HTTPException, Response, Cookie, Header
 
 from services.auth_helpers import get_current_user
 from services.regions import normalise as normalise_regions
@@ -34,6 +34,7 @@ def _preview(text: str, limit: int = PREVIEW_CHARS) -> str:
 def setup(db):
     @router.get("")
     async def list_essays(
+        response: Response,
         q: Optional[str] = None,
         market: Optional[str] = None,
         writer_id: Optional[str] = None,
@@ -45,6 +46,12 @@ def setup(db):
         `regions=<slug>,<slug>` filters to essays whose tags overlap any of
         the passed slugs. Untagged essays still pass (so legacy content
         remains visible)."""
+        # Only the unfiltered "first page" is safe to edge-cache — that's the
+        # call the landing page (and Cloudflare) hits over and over.
+        if not q and not market and not writer_id and not regions and not before:
+            response.headers["Cache-Control"] = (
+                "public, max-age=60, s-maxage=60, stale-while-revalidate=60"
+            )
         limit = min(max(1, limit), 60)
         # Cache only the "unfiltered first page" — the common landing-page
         # case — for 60s. Filtered/paginated calls skip the cache because
