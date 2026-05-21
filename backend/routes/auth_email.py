@@ -16,6 +16,7 @@ the Google flow already uses, so the rest of the app doesn't need changes.
 import uuid
 import logging
 import re
+import asyncio
 from datetime import datetime, timezone
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Response, Request, Cookie, Header
@@ -140,7 +141,13 @@ def setup(db):
 <p style="font-size:12px;color:#7A6E4F">Or paste this link into your browser:<br>{link}</p>
 <p style="font-size:12px;color:#7A6E4F">This link expires in 3 days. If you didn't sign up, you can ignore this email.</p>
 """
-        send_email(email, name or email, "Confirm your email — The Housing News", html, tags=["thn_auth", "verify"])
+        await asyncio.to_thread(
+            send_email,
+            email, name or email,
+            "Confirm your email — The Housing News",
+            html,
+            ["thn_auth", "verify"],
+        )
 
     async def _send_magic_link(email: str, name: str, token: str) -> None:
         link = f"{app_public_url()}/auth/magic?token={token}"
@@ -151,7 +158,13 @@ def setup(db):
 <p style="font-size:12px;color:#7A6E4F">Or paste this link into your browser:<br>{link}</p>
 <p style="font-size:12px;color:#7A6E4F">If you didn't request this, you can ignore this email.</p>
 """
-        send_email(email, name or email, "Your sign-in link — The Housing News", html, tags=["thn_auth", "magic_link"])
+        await asyncio.to_thread(
+            send_email,
+            email, name or email,
+            "Your sign-in link — The Housing News",
+            html,
+            ["thn_auth", "magic_link"],
+        )
 
     async def _send_password_reset(email: str, name: str, token: str) -> None:
         link = f"{app_public_url()}/auth/reset-password?token={token}"
@@ -162,7 +175,13 @@ def setup(db):
 <p style="font-size:12px;color:#7A6E4F">Or paste this link into your browser:<br>{link}</p>
 <p style="font-size:12px;color:#7A6E4F">If you didn't request this, ignore this email and your password stays the same.</p>
 """
-        send_email(email, name or email, "Reset your password — The Housing News", html, tags=["thn_auth", "password_reset"])
+        await asyncio.to_thread(
+            send_email,
+            email, name or email,
+            "Reset your password — The Housing News",
+            html,
+            ["thn_auth", "password_reset"],
+        )
 
     # ── Email + Password ──────────────────────────────────────────────
     @router.post("/email/signup")

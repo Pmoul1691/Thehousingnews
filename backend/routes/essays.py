@@ -13,6 +13,11 @@ router = APIRouter(prefix="/api/essays", tags=["essays"])
 
 PREVIEW_CHARS = 320
 
+# Public essay-list cache. Key: a fingerprint of the query params.
+# 60s TTL so writes (publish/schedule) propagate quickly without crushing
+# the DB under landing-page load.
+_ESSAY_LIST_CACHE: dict = {}
+
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -41,6 +46,17 @@ def setup(db):
         the passed slugs. Untagged essays still pass (so legacy content
         remains visible)."""
         limit = min(max(1, limit), 60)
+        # Cache only the "unfiltered first page" — the common landing-page
+        # case — for 60s. Filtered/paginated calls skip the cache because
+        # the variation space is large and the user-visible benefit is small.
+        import time as _time
+        cache_key = None
+        if not q and not market and not writer_id and not regions and not before and limit == 12:
+            cache_key = "list:public:12"
+            cached = _ESSAY_LIST_CACHE.get(cache_key)
+            now_ts = _time.time()
+            if cached and cached[1] > now_ts:
+                return cached[0]
         now_iso = _now_iso()
         query = {
             "kind": "essay",
@@ -123,7 +139,10 @@ def setup(db):
                 break
 
         next_before = out[-1]["release_at"] if len(out) == limit else None
-        return {"items": out, "next_before": next_before}
+        result = {"items": out, "next_before": next_before}
+        if cache_key:
+            _ESSAY_LIST_CACHE[cache_key] = (result, _time.time() + 60)
+        return result
 
     @router.get("/{post_id}")
     async def get_essay(

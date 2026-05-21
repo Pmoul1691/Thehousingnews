@@ -33,6 +33,12 @@ MAX_LIMIT = 100
 # 5-minute TTL — RSS ingest cron runs every 15 min so freshness is fine.
 _PL_CACHE: dict = {}
 
+# Cache for the slow public aggregations driving the landing page. Each entry
+# is `key -> (result, expires_ts)`. Cleared on process restart. We don't need
+# cross-process invalidation because the inputs (posts, members) change on
+# human time-scales (minutes-to-hours) and a 60-90s staleness is invisible.
+_PUBLIC_CACHE: dict = {}
+
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -292,7 +298,14 @@ def setup(db):
         """Public-safe top N hashtags across approved member posts in the last
         `days`. No auth — used by the Landing page social-proof strip to show
         what real estate professionals on the platform are writing about.
+        Cached in-process for 90 seconds.
         """
+        import time as _time
+        cache_key = f"tt:{days}:{limit}"
+        cached = _PUBLIC_CACHE.get(cache_key)
+        now_ts = _time.time()
+        if cached and cached[1] > now_ts:
+            return cached[0]
         from datetime import datetime as _dt
         cutoff = (_dt.now(timezone.utc) - timedelta(days=days)).isoformat()
         pipeline = [
@@ -307,7 +320,9 @@ def setup(db):
             {"$limit": limit},
         ]
         rows = await db.posts.aggregate(pipeline).to_list(limit)
-        return {"items": [{"tag": r["_id"], "count": r["count"]} for r in rows], "days": days}
+        result = {"items": [{"tag": r["_id"], "count": r["count"]} for r in rows], "days": days}
+        _PUBLIC_CACHE[cache_key] = (result, now_ts + 90)
+        return result
 
     @router.get("/recent-members")
     async def recent_members(limit: int = Query(default=8, ge=1, le=30)):
@@ -318,7 +333,15 @@ def setup(db):
 
         "Recently active" = has at least one approved post within the last 30
         days. Sorted by most-recent post timestamp, descending.
+
+        Cached in-process for 90 seconds to keep landing-page load fast.
         """
+        import time as _time
+        cache_key = f"rm:{limit}"
+        cached = _PUBLIC_CACHE.get(cache_key)
+        now_ts = _time.time()
+        if cached and cached[1] > now_ts:
+            return cached[0]
         cutoff_iso = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
         # Pull recent approved posts, newest first; we'll group client-side by user_id.
         pipeline = [
@@ -379,7 +402,9 @@ def setup(db):
             })
             if len(items) >= limit:
                 break
-        return {"items": items}
+        result = {"items": items}
+        _PUBLIC_CACHE[cache_key] = (result, now_ts + 90)
+        return result
 
     @router.get("/new-members")
     async def new_members(
@@ -390,8 +415,14 @@ def setup(db):
         "Members joined this week" strip. Sorted by most-recent join
         timestamp. Only returns approved + non-suspended + non-stub
         members with a real profile. No emails, no IDs beyond what is
-        already exposed via /profile/{user_id}.
+        already exposed via /profile/{user_id}. Cached for 90s.
         """
+        import time as _time
+        cache_key = f"nm:{days}:{limit}"
+        cached = _PUBLIC_CACHE.get(cache_key)
+        now_ts = _time.time()
+        if cached and cached[1] > now_ts:
+            return cached[0]
         cutoff_iso = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
         users = await db.users.find(
             {
@@ -429,6 +460,8 @@ def setup(db):
             })
             if len(items) >= limit:
                 break
-        return {"items": items, "days": days}
+        result = {"items": items, "days": days}
+        _PUBLIC_CACHE[cache_key] = (result, now_ts + 90)
+        return result
 
     return router
