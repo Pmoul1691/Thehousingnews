@@ -11,6 +11,44 @@ Hard guardrails: no chat widget, no popups, no follower counts, no stock photogr
 of teams.
 
 
+## 2026-02-21 — Perf sprint Day 5: optimistic UI + idle route prefetch (DONE)
+
+**Goal**: erase the "did my click register?" perceived-latency moment.
+
+**Shipped to preview**:
+
+### Optimistic UI
+- `/app/frontend/src/pages/Profile.jsx::toggleFollow` — follow / unfollow
+  now flips `rel.is_following` **before** the network round-trip and only
+  reverts on failure. UI feels instant; the button caption swaps in <16ms
+  even on slow networks.
+- Audited the rest of the app for like / clap / heart actions — they don't
+  exist yet (no reactions system in the product), so follow was the only
+  candidate. Publish was already optimistic after Feb 20 fix. Draft autosave
+  is silent (debounced via `draftDirty` ref). Newsletter signup intentionally
+  kept non-optimistic (the user wants real confirmation their email landed).
+
+### Idle route prefetch
+- New `/app/frontend/src/components/RoutePrefetch.jsx` — schedules a list
+  of `() => import("…")` calls via `requestIdleCallback` (fallback 600ms
+  setTimeout). Respects Save-Data and 2g/slow-2g connections — never
+  prefetches on bandwidth-constrained clients.
+- `/app/frontend/src/pages/Landing.jsx` prefetches `Essays`, `Directory`,
+  `Subscribe` (the three most prominent landing CTAs after `/news`).
+- `/app/frontend/src/pages/AggHome.jsx` prefetches `AggPublisher`,
+  `AggCategory`, `AggNewsletter` (the three most clicked next-routes
+  from the news river).
+- Result: after Day 2 split routes into per-route chunks, the first click
+  into any prefetched route now skips the chunk-fetch wait entirely.
+
+**Verification**: smoke test on preview — landing renders cleanly, idle
+prefetch runs ~600ms after FCP, navigation to `/essays` and `/members`
+both fast and intact.
+
+**Action required**: redeploy production to ship Day 5.
+
+
+
 ## 2026-02-21 — Perf sprint Day 4: cache headers, indexes, WebP uploads (DONE)
 
 **Goal**: maximise edge caching, audit Mongo indexes, and stop user-uploaded

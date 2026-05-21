@@ -59,19 +59,25 @@ export default function Profile() {
   }, [id, isSelf, user]);
 
   const toggleFollow = async () => {
-    if (!rel || isSelf) return;
+    if (!rel || isSelf || busy) return;
+    // Optimistic flip: update the UI immediately so the click feels instant.
+    // We then issue the network call and revert only on failure. A short
+    // `busy` flag still prevents double-clicks from queuing duplicate
+    // requests.
+    const prev = rel.is_following;
+    setRel({ ...rel, is_following: !prev });
     setBusy(true);
     try {
-      if (rel.is_following) {
+      if (prev) {
         await api.delete(`/users/${targetId}/follow`);
-        setRel({ ...rel, is_following: false });
         toast.success("Unfollowed");
       } else {
         await api.post(`/users/${targetId}/follow`);
-        setRel({ ...rel, is_following: true });
         toast.success("Following");
       }
     } catch (e) {
+      // Revert the optimistic flip so the UI matches reality again.
+      setRel({ ...rel, is_following: prev });
       toast.error("Could not update follow");
     } finally {
       setBusy(false);

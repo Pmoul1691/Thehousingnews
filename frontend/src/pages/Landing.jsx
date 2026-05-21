@@ -3,6 +3,16 @@ import { Link, useNavigate } from "react-router-dom";
 import api, { API } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import PageMeta from "@/components/PageMeta";
+import RoutePrefetch from "@/components/RoutePrefetch";
+
+// Routes most likely to be clicked from the landing page. We prefetch their
+// JS chunks once the page is idle so the first click into them is instant.
+// (Ordered by observed CTA prominence.)
+const LANDING_PREFETCH_LOADERS = [
+  () => import("@/pages/Essays"),
+  () => import("@/pages/Directory"),
+  () => import("@/pages/Subscribe"),
+];
 
 const signIn = () => {
   // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
@@ -1268,6 +1278,7 @@ export default function Landing() {
         title="Where the housing industry reads. And writes."
         description="A daily magazine for real estate professionals. Read what the industry is publishing and publish what you're seeing — twice-daily briefings pulled from 40 housing sources, plus member essays from agents, brokers, lenders, and investors."
       />
+      <RoutePrefetch loaders={LANDING_PREFETCH_LOADERS} />
       <HeroSection />
       <JoinedThisWeekStrip members={newMembers} />
       <SectionDivider />

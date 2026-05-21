@@ -6,7 +6,17 @@ import NewsletterBand from "@/components/NewsletterBand";
 import AggTrendingStrip from "@/components/AggTrendingStrip";
 import DailyCard from "@/components/DailyCard";
 import NewsAdminPulse from "@/components/NewsAdminPulse";
+import RoutePrefetch from "@/components/RoutePrefetch";
 import { NewsCardSkeleton } from "@/components/Skeletons";
+
+// Prefetch the JS chunks of the most-likely next routes from /news, so a
+// click on a publisher card, the newsletter band, or the about link feels
+// instant on the second try.
+const NEWS_PREFETCH_LOADERS = [
+  () => import("@/pages/AggPublisher"),
+  () => import("@/pages/AggCategory"),
+  () => import("@/pages/AggNewsletter"),
+];
 
 const WINDOW_HOURS = 168;
 
@@ -546,6 +556,7 @@ export default function AggHome() {
       </div>
 
       <NewsAdminPulse enabled={!!user?.is_admin} />
+      <RoutePrefetch loaders={NEWS_PREFETCH_LOADERS} />
     </div>
   );
 }
