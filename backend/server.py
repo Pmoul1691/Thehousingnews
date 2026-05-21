@@ -183,6 +183,22 @@ async def on_startup():
             sparse=True,
         )
         await db.agg_newsletter_signups.create_index("email", unique=True)
+        # Article engagement tracking — clicks & impressions per article.
+        # Click dedupe via partial unique index on (article_id, session_id, bucket_5m).
+        # MongoDB partial filter expressions support a limited subset of operators —
+        # `$ne` is NOT supported, so we use `$gt: ""` as the "non-empty string" test.
+        await db.agg_article_clicks.create_index(
+            [("article_id", 1), ("session_id", 1), ("bucket_5m", 1)],
+            unique=True,
+            partialFilterExpression={"session_id": {"$type": "string", "$gt": ""}},
+        )
+        await db.agg_article_clicks.create_index([("clicked_at", -1)])
+        await db.agg_article_clicks.create_index([("article_id", 1), ("clicked_at", -1)])
+        await db.agg_article_impressions.create_index([("seen_at", -1)])
+        await db.agg_article_impressions.create_index([("article_id", 1), ("seen_at", -1)])
+        # Note: we don't use a Mongo TTL index here because seen_at/clicked_at
+        # are ISO strings (TTL requires Date). Pruning is handled by an
+        # APScheduler sweep if needed; volume stays low for now.
     except Exception as _e:
         logger.warning("aggregator indexes not created: %s", _e)
 

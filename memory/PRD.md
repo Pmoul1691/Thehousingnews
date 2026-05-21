@@ -11,6 +11,58 @@ Hard guardrails: no chat widget, no popups, no follower counts, no stock photogr
 of teams.
 
 
+## 2026-02-21 — News engagement tracking & admin pulse overlay (DONE)
+
+**Feature**: real-time pulse on `/news` showing what visitors are reading.
+Most-clicked article in last 24h gets a 🔥 emoji visible to everyone. Admins
+see a floating panel listing top 10 articles by clicks + impressions + a
+"currently viewing" count.
+
+**Backend** (`/app/backend/routes/aggregator.py`):
+- `POST /api/agg/articles/{id}/click` — fire-and-forget click tracker. Dedup'd
+  to one click per (session, article, 5-min-bucket) via a partial unique index.
+- `POST /api/agg/articles/impressions` — batch impression recorder (up to 200
+  ids per call). Caps prevent payload abuse.
+- `GET /api/agg/articles/top-clicked?hours=24` — single article_id with the
+  most clicks in the window. Cached 60s. Powers the public 🔥 badge.
+- `GET /api/agg/admin/news-pulse` (admin-only) — top 10 articles by clicks +
+  impressions, total clicks/impressions/live-visitors in window. Live count =
+  distinct sessions seen in the last 60s across both clicks and impressions.
+
+**Mongo collections + indexes** (added to `server.py` startup):
+- `agg_article_clicks`: partial unique `(article_id, session_id, bucket_5m)`
+  using `$gt: ""` instead of `$ne: ""` (Mongo partialFilter doesn't support
+  `$ne`), plus `(clicked_at, -1)` and `(article_id, clicked_at, -1)`.
+- `agg_article_impressions`: `(seen_at, -1)` and `(article_id, seen_at, -1)`.
+- No TTL index (timestamps are ISO strings; pruning to be added if volume
+  becomes a concern).
+
+**Frontend**:
+- `/app/frontend/src/components/DailyCard.jsx` — fires `/click` via
+  `api.post(...).catch(()=>{})` on `<a>` click so analytics never blocks the
+  user reaching the publisher. Renders 🔥 next to the article title when the
+  card's id matches `hottestId`.
+- `/app/frontend/src/components/NewsAdminPulse.jsx` — new floating panel
+  (`fixed bottom-24 right-6`, stacked above the Write FAB so they don't
+  collide). Polls every 30s. Shows three top-line stats + ordered top-10 list.
+- `/app/frontend/src/pages/AggHome.jsx` — fetches `/articles/top-clicked` on
+  mount, batches impressions for the publisher river in a deduped
+  `useRef`-tracked set, mounts `<NewsAdminPulse enabled={!!user?.is_admin} />`.
+
+**Tests** (`/app/backend/tests/test_article_engagement.py` — all 4 passing):
+- unique sessions count correctly
+- same-session clicks dedupe to 1 within a 5-min bucket
+- impressions batch records
+- /admin/news-pulse is 401 without auth, returns proper shape with admin auth
+
+**E2E verified on preview**: simulated 5 clicks → 🔥 emoji appears on the
+correct card, admin overlay shows the right row with `5 clicks / 3 imp`
+and `LIVE NOW: 1`.
+
+**Action required**: user redeploying production to push live.
+
+
+
 ## 2026-02-20 — Production perf audit & event-loop fixes (DONE, pending redeploy)
 
 **Symptom**: production was "devastatingly slow" — landing page took 9s to load,

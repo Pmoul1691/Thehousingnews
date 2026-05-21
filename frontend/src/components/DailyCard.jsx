@@ -1,5 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import api from "@/lib/api";
 
 function timeAgo(iso) {
   if (!iso) return "";
@@ -61,7 +62,18 @@ function MarkLogo({ name, src, size = 40 }) {
  *   - { kind: "publisher", publisher: {...}, article: {...} | null }
  *   - { kind: "podcast",   podcast: {...},   episode: {...} | null }
  */
-export default function DailyCard({ entry, badge }) {
+export default function DailyCard({ entry, badge, isHottest }) {
+  // Fire a non-blocking click tracker before letting the browser open the
+  // publisher's site. Failures are swallowed — analytics never blocks UX.
+  const trackArticleClick = (articleId) => {
+    if (!articleId) return;
+    try {
+      let sid = null;
+      try { sid = sessionStorage.getItem("thn_event_session"); } catch { /* ignore */ }
+      api.post(`/agg/articles/${encodeURIComponent(articleId)}/click`, { session_id: sid }).catch(() => {});
+    } catch { /* never block UX */ }
+  };
+
   const BadgeChip = badge ? (
     <span
       data-testid={`daily-card-badge-${badge.kind}`}
@@ -173,9 +185,21 @@ export default function DailyCard({ entry, badge }) {
           target="_blank"
           rel="noopener noreferrer"
           data-testid={`daily-card-pub-headline-${pub.slug}`}
+          onClick={() => trackArticleClick(art.id)}
           className="flex-1 block group/h"
         >
           <h3 className="font-display font-semibold text-[16px] leading-snug text-agg-navy group-hover/h:text-agg-orange transition-colors">
+            {isHottest && (
+              <span
+                data-testid={`daily-card-pub-hottest-${pub.slug}`}
+                title="Most-clicked article in the last 24 hours"
+                aria-label="Most-clicked article in the last 24 hours"
+                className="inline-block mr-1.5 align-middle"
+                style={{ filter: "drop-shadow(0 1px 0 rgba(0,0,0,0.08))" }}
+              >
+                🔥
+              </span>
+            )}
             {art.title}
           </h3>
           <p className="font-sans text-[11px] text-slate-500 mt-1.5">

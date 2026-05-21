@@ -1,10 +1,11 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import api from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import NewsletterBand from "@/components/NewsletterBand";
 import AggTrendingStrip from "@/components/AggTrendingStrip";
 import DailyCard from "@/components/DailyCard";
+import NewsAdminPulse from "@/components/NewsAdminPulse";
 import { NewsCardSkeleton } from "@/components/Skeletons";
 
 const WINDOW_HOURS = 168;
@@ -283,6 +284,14 @@ export default function AggHome() {
   const [search] = useSearchParams();
   const topic = (search.get("topic") || "").trim().toLowerCase();
 
+  // Article-engagement: which article currently wears the 🔥 (most-clicked
+  // in the last 24h). One id only — we keep the badge scarce on purpose so
+  // it stays meaningful.
+  const [hottestId, setHottestId] = useState(null);
+  // Track which sets of article ids we've already reported impressions for,
+  // so a scroll/re-render doesn't double-count.
+  const reportedImpressionsRef = useRef(new Set());
+
   useEffect(() => {
     let alive = true;
     setLoadingPubs(true);
@@ -314,8 +323,32 @@ export default function AggHome() {
     api.get("/agg/network-stats")
       .then((r) => { if (alive) setRecentlyAdded(r.data?.recently_added || []); })
       .catch(() => {});
+    // Public 🔥 badge: which article has the most clicks in the last 24h?
+    // Refreshes once per page mount (cached server-side for 60s anyway).
+    api.get("/agg/articles/top-clicked", { params: { hours: 24 } })
+      .then((r) => { if (alive) setHottestId(r.data?.article_id || null); })
+      .catch(() => {});
     return () => { alive = false; };
   }, []);
+
+  // Fire a one-shot impression batch the moment publisher data lands. We only
+  // count each article once per session (the ref dedupes), so a scroll-up
+  // or React re-render doesn't inflate the impression numbers.
+  useEffect(() => {
+    if (!pubs.length) return;
+    const newIds = [];
+    for (const e of pubs) {
+      const id = e.article?.id;
+      if (id && !reportedImpressionsRef.current.has(id)) {
+        reportedImpressionsRef.current.add(id);
+        newIds.push(id);
+      }
+    }
+    if (newIds.length === 0) return;
+    let sid = null;
+    try { sid = sessionStorage.getItem("thn_event_session"); } catch { /* ignore */ }
+    api.post("/agg/articles/impressions", { article_ids: newIds, session_id: sid }).catch(() => {});
+  }, [pubs]);
 
   // Unified entries — sorted by recency, with badges assigned heuristically.
   const decorated = useMemo(() => {
@@ -454,7 +487,16 @@ export default function AggHome() {
           {woven.map((node) =>
             node.type === "essay"
               ? <MemberCommentaryCard key={node.key} essay={node.essay} />
-              : <DailyCard key={node.key} entry={node.entry} badge={node.badge} />
+              : <DailyCard
+                  key={node.key}
+                  entry={node.entry}
+                  badge={node.badge}
+                  isHottest={
+                    hottestId &&
+                    node.entry?.kind === "publisher" &&
+                    node.entry?.article?.id === hottestId
+                  }
+                />
           )}
         </section>
       )}
@@ -502,6 +544,8 @@ export default function AggHome() {
       <div className="mt-12">
         <NewsletterBand />
       </div>
+
+      <NewsAdminPulse enabled={!!user?.is_admin} />
     </div>
   );
 }

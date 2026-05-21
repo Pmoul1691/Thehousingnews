@@ -14,7 +14,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, HTTPException, Query, Request, Cookie, Header
 from pydantic import BaseModel, Field
 
 from services.agg_seed import CATEGORIES
@@ -194,6 +194,197 @@ def setup(db):
         items = await cur.to_list(limit)
         total = await db.agg_articles.count_documents(art_q)
         return {"publisher": pub, "items": items, "total": total, "offset": offset, "limit": limit}
+
+    # ─── Article engagement tracking ──────────────────────────────────────
+    # Two cheap signals: clicks (strong intent) and impressions (volume). Used
+    # for the public 🔥 badge on the most-clicked article in the last 24h and
+    # for the admin "what's hot right now" overlay on /news.
+
+    class ClickPayload(BaseModel):
+        session_id: Optional[str] = Field(default=None, max_length=80)
+
+    class ImpressionsPayload(BaseModel):
+        article_ids: list[str] = Field(default_factory=list)
+        session_id: Optional[str] = Field(default=None, max_length=80)
+
+    @router.post("/articles/{article_id}/click")
+    async def record_article_click(article_id: str, payload: ClickPayload, request: Request):
+        """Record a click on an aggregator article. Dedup'd at one click per
+        (session_id, article_id) per 5 minutes so reload abuse can't inflate
+        the leaderboard. Fire-and-forget from the frontend — failures here
+        must never block the user's navigation to the publisher's site."""
+        # Validate the article exists (and isn't hidden) but only loosely;
+        # we don't want to pay a round-trip on the hot path so we skip the
+        # check and let the analytics endpoint filter on join.
+        if not article_id or len(article_id) > 80:
+            return {"ok": False}
+        now = datetime.now(timezone.utc)
+        now_iso = now.isoformat()
+        session_id = (payload.session_id or "")[:80]
+        # Dedupe key: identical clicks within 5 min are dropped at insert time.
+        # We use a unique partial index — see server.py startup.
+        bucket_5m = now.strftime("%Y%m%d%H") + str(now.minute // 5)
+        doc = {
+            "article_id": article_id,
+            "session_id": session_id,
+            "bucket_5m": bucket_5m,
+            "clicked_at": now_iso,
+        }
+        try:
+            await db.agg_article_clicks.insert_one(doc)
+        except Exception:
+            # Duplicate key from the unique index — exactly what we want.
+            return {"ok": True, "deduped": True}
+        return {"ok": True}
+
+    @router.post("/articles/impressions")
+    async def record_article_impressions(payload: ImpressionsPayload):
+        """Batch-record impressions for the article cards that just rendered.
+        Cheap volume signal — used in the admin overlay; not used for the
+        public 🔥 badge so impression-spamming can't move that needle."""
+        ids = [a for a in (payload.article_ids or []) if isinstance(a, str) and a and len(a) <= 80][:200]
+        if not ids:
+            return {"ok": True, "count": 0}
+        now_iso = datetime.now(timezone.utc).isoformat()
+        session_id = (payload.session_id or "")[:80]
+        rows = [{"article_id": a, "session_id": session_id, "seen_at": now_iso} for a in ids]
+        try:
+            await db.agg_article_impressions.insert_many(rows, ordered=False)
+        except Exception:
+            logger.exception("impression batch insert failed")
+        return {"ok": True, "count": len(rows)}
+
+    @router.get("/articles/top-clicked")
+    async def top_clicked_article(hours: int = Query(default=24, ge=1, le=72)):
+        """Single most-clicked article in the last `hours`. Powers the public
+        🔥 badge on /news. Cached for 60s — the badge moves on human time
+        scales, not per-request. Public, no auth."""
+        import time as _time
+        cache_key = f"tc:{hours}"
+        cached = _PUBLIC_CACHE.get(cache_key)
+        now_ts = _time.time()
+        if cached and cached[1] > now_ts:
+            return cached[0]
+        cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
+        pipeline = [
+            {"$match": {"clicked_at": {"$gte": cutoff}}},
+            {"$group": {"_id": "$article_id", "clicks": {"$sum": 1}}},
+            {"$sort": {"clicks": -1}},
+            {"$limit": 1},
+        ]
+        rows = await db.agg_article_clicks.aggregate(pipeline).to_list(1)
+        result = {
+            "article_id": rows[0]["_id"] if rows else None,
+            "clicks": rows[0]["clicks"] if rows else 0,
+            "hours": hours,
+        }
+        _PUBLIC_CACHE[cache_key] = (result, now_ts + 60)
+        return result
+
+    @router.get("/admin/news-pulse")
+    async def admin_news_pulse(
+        request: Request,
+        hours: int = Query(default=24, ge=1, le=72),
+        limit: int = Query(default=10, ge=1, le=50),
+        session_token: Optional[str] = Cookie(default=None),
+        authorization: Optional[str] = Header(default=None),
+    ):
+        """Admin-only overlay payload: top articles by clicks today,
+        impressions, and a rough "currently viewing" count (distinct sessions
+        with a pageview/impression in the last 60s).
+        """
+        from services.auth_helpers import get_current_user, is_user_admin
+        try:
+            user = await get_current_user(db, session_token, authorization)
+        except HTTPException:
+            raise HTTPException(status_code=401, detail="Sign in required")
+        if not is_user_admin(user):
+            raise HTTPException(status_code=403, detail="Admin only")
+
+        cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
+        live_cutoff = (datetime.now(timezone.utc) - timedelta(seconds=60)).isoformat()
+
+        # Top articles by clicks in window
+        click_pipeline = [
+            {"$match": {"clicked_at": {"$gte": cutoff}}},
+            {"$group": {"_id": "$article_id", "clicks": {"$sum": 1}}},
+            {"$sort": {"clicks": -1}},
+            {"$limit": limit},
+        ]
+        click_rows = await db.agg_article_clicks.aggregate(click_pipeline).to_list(limit)
+        top_ids = [r["_id"] for r in click_rows]
+
+        # Impression counts for the same set
+        impressions_by_id: dict = {}
+        if top_ids:
+            imp_rows = await db.agg_article_impressions.aggregate([
+                {"$match": {"article_id": {"$in": top_ids}, "seen_at": {"$gte": cutoff}}},
+                {"$group": {"_id": "$article_id", "impressions": {"$sum": 1}}},
+            ]).to_list(len(top_ids))
+            impressions_by_id = {r["_id"]: r["impressions"] for r in imp_rows}
+
+        # Hydrate article + publisher info
+        articles_by_id: dict = {}
+        publishers_by_id: dict = {}
+        if top_ids:
+            arts = await db.agg_articles.find(
+                {"id": {"$in": top_ids}},
+                {"_id": 0, "id": 1, "title": 1, "publisher_id": 1, "original_url": 1, "published_at": 1},
+            ).to_list(len(top_ids))
+            articles_by_id = {a["id"]: a for a in arts}
+            pub_ids = list({a["publisher_id"] for a in arts})
+            pubs = await db.agg_publishers.find(
+                {"id": {"$in": pub_ids}},
+                {"_id": 0, "id": 1, "name": 1, "slug": 1},
+            ).to_list(len(pub_ids))
+            publishers_by_id = {p["id"]: p for p in pubs}
+
+        items = []
+        for r in click_rows:
+            aid = r["_id"]
+            art = articles_by_id.get(aid)
+            if not art:
+                # Click on an article we no longer have (purged) — skip.
+                continue
+            pub = publishers_by_id.get(art.get("publisher_id"), {})
+            items.append({
+                "article_id": aid,
+                "title": art.get("title"),
+                "original_url": art.get("original_url"),
+                "published_at": art.get("published_at"),
+                "publisher": {"id": pub.get("id"), "name": pub.get("name"), "slug": pub.get("slug")},
+                "clicks": r["clicks"],
+                "impressions": impressions_by_id.get(aid, 0),
+            })
+
+        # Currently viewing = distinct sessions in the last 60s across both
+        # impressions and clicks. This is a cheap proxy; not an exact figure.
+        live_sessions: set = set()
+        async for row in db.agg_article_impressions.find(
+            {"seen_at": {"$gte": live_cutoff}}, {"_id": 0, "session_id": 1},
+        ):
+            sid = row.get("session_id")
+            if sid:
+                live_sessions.add(sid)
+        async for row in db.agg_article_clicks.find(
+            {"clicked_at": {"$gte": live_cutoff}}, {"_id": 0, "session_id": 1},
+        ):
+            sid = row.get("session_id")
+            if sid:
+                live_sessions.add(sid)
+
+        # Window totals (the "overall room" numbers above the table)
+        totals = {
+            "clicks": sum(r["clicks"] for r in click_rows),
+            "impressions": sum(impressions_by_id.values()),
+            "live_visitors": len(live_sessions),
+        }
+        return {
+            "hours": hours,
+            "items": items,
+            "totals": totals,
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+        }
 
     @router.get("/categories")
     async def categories():
