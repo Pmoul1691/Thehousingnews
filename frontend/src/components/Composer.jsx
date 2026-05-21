@@ -1,9 +1,14 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import api, { API } from "@/lib/api";
 import { toast } from "sonner";
-import RichTextEditor from "@/components/RichTextEditor";
 import FloatingToolbar from "@/components/FloatingToolbar";
 import PublishDrawer from "@/components/PublishDrawer";
+
+// TipTap + ProseMirror weigh ~120 kB gzipped. They're only needed when an
+// author opens the visual essay editor, so we ship them as a separate chunk
+// that the browser fetches the first time RichTextEditor mounts. The
+// markdown editor (just a <textarea>) stays in this main composer chunk.
+const RichTextEditor = lazy(() => import("@/components/RichTextEditor"));
 
 function formatLocal(iso) {
   if (!iso) return "";
@@ -395,11 +400,25 @@ export default function Composer({ onPosted }) {
 
       {/* Writing surface */}
       {isEssay && editorMode === "visual" ? (
-        <RichTextEditor
-          value={text}
-          onChange={setText}
-          placeholder="Write the essay. Type / to insert headings, images, video, audio, or links."
-        />
+        <Suspense
+          fallback={
+            <div
+              data-testid="rte-loading"
+              className="min-h-[400px] flex items-center justify-center text-muted-ink text-sm"
+              aria-busy="true"
+              aria-live="polite"
+            >
+              <div className="w-5 h-5 rounded-full border-2 border-slate-200 border-t-slate-500 animate-spin mr-2" />
+              Loading editor…
+            </div>
+          }
+        >
+          <RichTextEditor
+            value={text}
+            onChange={setText}
+            placeholder="Write the essay. Type / to insert headings, images, video, audio, or links."
+          />
+        </Suspense>
       ) : (
         <>
           <textarea
