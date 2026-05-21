@@ -11,6 +11,42 @@ Hard guardrails: no chat widget, no popups, no follower counts, no stock photogr
 of teams.
 
 
+## 2026-02-21 — Perf sprint Day 2: code splitting + dynamic TipTap (DONE)
+
+**Goal**: cut the first-load JS bundle on production.
+
+**Shipped to preview**:
+- `/app/frontend/src/App.js` — converted 30+ pages to `React.lazy()` + a
+  central `<Suspense fallback={<RouteFallback />}>` wrapping `<Routes>`.
+  Kept Landing, SignIn, AggHome, AuthCallback eager (the four highest-
+  traffic entry points). Everything else is now its own chunk.
+- `/app/frontend/src/components/Composer.jsx` — `RichTextEditor` is now
+  `lazy(() => import("@/components/RichTextEditor"))`, wrapped in a
+  Suspense block that shows a "Loading editor…" spinner the first time
+  a user opens the essay visual editor. TipTap + ProseMirror (~120 kB
+  gzipped) no longer ship to every visitor.
+- `/app/frontend/src/components/ui/*` — confirmed only 6 of 46 shadcn
+  components are actually imported anywhere (button, dialog, label,
+  sheet, toast, toggle). Webpack tree-shaking is already dropping the
+  others. No Radix changes needed.
+
+**Production build numbers (verified locally with `yarn build`)**:
+| | Before | After | Delta |
+|---|---|---|---|
+| Main bundle (gzipped) | 711 kB | **155 kB** | **−78%** |
+| Main bundle (raw) | 2.5 MB | 526 kB | −79% |
+| Number of chunks | 1 | 41 | — |
+| Largest lazy chunk | n/a | 655 kB raw (TipTap + ProseMirror) | only loaded on /write |
+
+**Verification**: testing agent iter 30 — 100% pass on 14 routes
+(anonymous landing, /news, /signin, /about, /write incl. TipTap mount,
+/today, /admin, /profile, /members, /essays, /news/podcasts, auth
+deep-links, direct deep-link refresh). No regression.
+
+**Action required**: user redeploys production to ship the bundle cut.
+
+
+
 ## 2026-02-21 — News engagement tracking & admin pulse overlay (DONE)
 
 **Feature**: real-time pulse on `/news` showing what visitors are reading.
