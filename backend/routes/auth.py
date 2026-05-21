@@ -2,9 +2,10 @@
 import os
 import uuid
 import logging
+import asyncio
 from datetime import datetime, timedelta, timezone
 from typing import Optional
-import requests
+import httpx
 from fastapi import APIRouter, HTTPException, Response, Cookie, Header, Body
 from pydantic import BaseModel
 
@@ -31,12 +32,16 @@ def setup(db):
     async def exchange_session(payload: SessionExchange, response: Response):
         """Exchange Emergent session_id for our session cookie."""
         # REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
+        # Use async HTTP so we don't block the FastAPI event loop while waiting on the
+        # external Emergent auth provider. A blocking `requests.get` here was serializing
+        # every concurrent sign-in attempt and causing the "loops back to landing" bug
+        # under load.
         try:
-            r = requests.get(
-                SESSION_DATA_URL,
-                headers={"X-Session-ID": payload.session_id},
-                timeout=15,
-            )
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                r = await client.get(
+                    SESSION_DATA_URL,
+                    headers={"X-Session-ID": payload.session_id},
+                )
             if r.status_code != 200:
                 raise HTTPException(status_code=401, detail="Invalid session_id")
             data = r.json()
@@ -53,8 +58,21 @@ def setup(db):
         if not email or not session_token:
             raise HTTPException(status_code=400, detail="Auth payload missing fields")
 
-        # Cross-property bridge call
-        bridge = get_user_status(email)
+        # Cross-property bridge call — run the blocking `requests.get` in a thread so
+        # it doesn't freeze the event loop. The bridge has its own 10s timeout; if it
+        # exceeds 6s here we give up and continue without auto-grant — sign-in should
+        # never fail because the bridge is slow.
+        try:
+            bridge = await asyncio.wait_for(
+                asyncio.to_thread(get_user_status, email),
+                timeout=6.0,
+            )
+        except asyncio.TimeoutError:
+            logger.warning("Partners bridge timed out for %s; continuing without auto-grant", email)
+            bridge = {}
+        except Exception as e:
+            logger.warning("Partners bridge errored for %s: %s", email, e)
+            bridge = {}
         auto_grant = bridge.get("network_grant") == "auto"
         partner_name = bridge.get("name") if bridge.get("exists") else None
 
