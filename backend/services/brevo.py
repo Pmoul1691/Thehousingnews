@@ -1,4 +1,19 @@
-"""Brevo (Sendinblue) transactional email + contact list helpers."""
+"""Transactional email + audience helpers.
+
+Migration note (Feb 2026):
+  Brevo permanently suspended our campaigns. This module was rewritten to
+  call Resend (https://resend.com) under the hood, but the public function
+  signatures (send_email, add_to_list, send_essay_email, send_brief_email,
+  send_digest_email, send_application_*) are preserved so the 20+ import
+  sites across routes/ and services/ keep working without changes.
+
+  We also keep the old export names BREVO_API_KEY / SENDER_EMAIL / SENDER_NAME
+  for backward compatibility with routes/email_health.py — they now resolve
+  to the Resend values.
+
+  File name kept as brevo.py to avoid a mass-rename in this same change.
+  A follow-up refactor can rename this to services/mailer.py.
+"""
 import os
 import logging
 import requests
@@ -6,10 +21,35 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-BREVO_API_KEY = os.environ.get("BREVO_API_KEY")
-SENDER_EMAIL = os.environ.get("BREVO_SENDER_EMAIL", "peter@1691inc.com")
-SENDER_NAME = os.environ.get("BREVO_SENDER_NAME", "The Housing News")
-API_BASE = "https://api.brevo.com/v3"
+# ---------- Resend configuration ----------
+RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
+RESEND_API_BASE = "https://api.resend.com"
+
+# Sender defaults. Env vars are read in this order so existing BREVO_*
+# overrides keep working on production until the operator migrates them.
+SENDER_EMAIL = (
+    os.environ.get("RESEND_SENDER_EMAIL")
+    or os.environ.get("BREVO_SENDER_EMAIL")
+    or "hello@thehousingnews.com"
+)
+SENDER_NAME = (
+    os.environ.get("RESEND_SENDER_NAME")
+    or os.environ.get("BREVO_SENDER_NAME")
+    or "The Housing News"
+)
+
+# Backward-compat alias — routes/email_health.py reads this to flag
+# "configured / not configured". Now mirrors RESEND_API_KEY.
+BREVO_API_KEY = RESEND_API_KEY
+
+# Default Resend audience to use when add_to_list is called. Created by
+# the operator via the Resend dashboard; everyone gets dropped here for
+# the v1 cutover. Future refactor can introduce per-list audiences via
+# RESEND_AUDIENCE_<LIST>_ID env vars.
+RESEND_DEFAULT_AUDIENCE_ID = os.environ.get(
+    "RESEND_DEFAULT_AUDIENCE_ID",
+    "e680753d-e3c1-40db-9286-1418fc25bf63",  # General audience
+)
 
 # Production canonical host. The email-button URL is read from
 # APP_PUBLIC_URL but we hard-default to the production host so a missing /
@@ -36,12 +76,18 @@ def _email_body_has_stale_preview_url(html: str) -> bool:
     return "preview.emergentagent.com" in (html or "")
 
 
-def _headers() -> dict:
+def _resend_headers() -> dict:
     return {
-        "api-key": BREVO_API_KEY or "",
+        "Authorization": f"Bearer {RESEND_API_KEY}",
         "Content-Type": "application/json",
-        "accept": "application/json",
     }
+
+
+def _format_from(email: str, name: str) -> str:
+    """Resend wants `Name <email@domain>` as a single string."""
+    if name:
+        return f"{name} <{email}>"
+    return email
 
 
 def send_email(
@@ -54,7 +100,7 @@ def send_email(
     sender_email: Optional[str] = None,
     sender_name: Optional[str] = None,
 ) -> dict:
-    """Send a transactional email. Returns response dict or {'skipped': True}.
+    """Send a transactional email via Resend. Returns response dict or {'skipped': True}.
     If dispatch_id is given, the HTML is wrapped with a tracking pixel and links are rewritten."""
     if dispatch_id:
         try:
@@ -62,8 +108,8 @@ def send_email(
             html = wrap_for_tracking(html, dispatch_id)
         except Exception:
             logger.exception("tracking wrap failed; sending raw")
-    if not BREVO_API_KEY:
-        logger.warning("BREVO_API_KEY missing; skipping email to %s", to_email)
+    if not RESEND_API_KEY:
+        logger.warning("RESEND_API_KEY missing; skipping email to %s", to_email)
         return {"skipped": True}
     if _email_body_has_stale_preview_url(html):
         logger.error(
@@ -73,85 +119,125 @@ def send_email(
             to_email, PROD_APP_URL,
         )
         return {"error": "blocked: preview URL in email body", "blocked": True}
+
     from_email = sender_email or SENDER_EMAIL
     from_name = sender_name or SENDER_NAME
+
+    # Resend tag rules: keys/values must match [a-zA-Z0-9_-], values <= 256 chars.
+    # We pass the union of incoming tags + a static brand tag, but flatten the
+    # array into Resend's `{name, value}` shape with the value derived from
+    # the slugified tag string.
+    raw_tags = list(tags or ["thehousingnews"])
+    resend_tags = []
+    for t in raw_tags:
+        slug = "".join(ch if (ch.isalnum() or ch in "_-") else "_" for ch in str(t))[:256]
+        if slug:
+            resend_tags.append({"name": "tag", "value": slug})
+
     payload = {
-        "sender": {"email": from_email, "name": from_name},
-        "to": [{"email": to_email, "name": to_name or to_email}],
-        "replyTo": {"email": from_email, "name": from_name},
+        "from": _format_from(from_email, from_name),
+        "to": [to_email] if not to_name else [f"{to_name} <{to_email}>"],
+        "reply_to": from_email,
         "subject": subject,
-        "htmlContent": html,
-        "tags": tags or ["ultradian_network"],
+        "html": html,
     }
+    if resend_tags:
+        payload["tags"] = resend_tags
+
     try:
-        r = requests.post(f"{API_BASE}/smtp/email", json=payload, headers=_headers(), timeout=20)
+        r = requests.post(
+            f"{RESEND_API_BASE}/emails",
+            json=payload,
+            headers=_resend_headers(),
+            timeout=20,
+        )
         if r.status_code >= 400:
-            logger.error("Brevo send failed %s %s", r.status_code, r.text)
+            logger.error("Resend send failed %s %s", r.status_code, r.text)
             return {"error": r.text, "status": r.status_code}
         return r.json()
     except Exception as e:
-        logger.exception("Brevo exception: %s", e)
+        logger.exception("Resend exception: %s", e)
         return {"error": str(e)}
 
 
-def _get_or_create_list(name: str) -> Optional[int]:
-    """Find a Brevo contact list by name; create under default folder if missing."""
-    if not BREVO_API_KEY:
+# ---------- Audiences / contact list helpers ----------
+
+# In the Brevo era we had multiple named lists ("Network - Members",
+# "Network - Applicants", "Network - Declined"). Resend models the same
+# concept as Audiences. For the v1 cutover we drop every add_to_list
+# call into the single default audience so the operator only manages
+# one list — finer-grained segmentation can be reintroduced later by
+# passing different audience IDs via env vars.
+
+
+def _audience_id_for_list(list_name: str) -> Optional[str]:
+    """Map a legacy Brevo list name to a Resend audience ID. Falls back to
+    RESEND_DEFAULT_AUDIENCE_ID if no per-list override is set."""
+    if not list_name:
+        return RESEND_DEFAULT_AUDIENCE_ID or None
+    # Operators can set RESEND_AUDIENCE_NETWORK_MEMBERS_ID, etc.
+    slug = (
+        list_name.upper()
+        .replace(" ", "_")
+        .replace("-", "_")
+        .replace(",", "")
+    )
+    env_key = f"RESEND_AUDIENCE_{slug}_ID"
+    return os.environ.get(env_key) or RESEND_DEFAULT_AUDIENCE_ID or None
+
+
+def _get_or_create_list(name: str) -> Optional[str]:
+    """Resolve a list name to a Resend audience ID.
+
+    Kept for backward compatibility with the Brevo-era signature. Returns
+    a string (UUID) under Resend instead of the old int Brevo list ID.
+    """
+    if not RESEND_API_KEY:
         return None
-    try:
-        offset = 0
-        while True:
-            r = requests.get(
-                f"{API_BASE}/contacts/lists",
-                params={"limit": 50, "offset": offset},
-                headers=_headers(),
-                timeout=15,
-            )
-            if r.status_code >= 400:
-                return None
-            data = r.json()
-            for lst in data.get("lists", []):
-                if lst.get("name") == name:
-                    return lst.get("id")
-            if len(data.get("lists", [])) < 50:
-                break
-            offset += 50
-        # Find a folder
-        folders = requests.get(f"{API_BASE}/contacts/folders", params={"limit": 10, "offset": 0}, headers=_headers(), timeout=15)
-        folder_id = 1
-        if folders.status_code < 400:
-            fdata = folders.json().get("folders", [])
-            if fdata:
-                folder_id = fdata[0].get("id", 1)
-        create = requests.post(
-            f"{API_BASE}/contacts/lists",
-            json={"name": name, "folderId": folder_id},
-            headers=_headers(),
-            timeout=15,
-        )
-        if create.status_code < 400:
-            return create.json().get("id")
-    except Exception as e:
-        logger.warning("Brevo list lookup failed: %s", e)
-    return None
+    return _audience_id_for_list(name)
 
 
 def add_to_list(email: str, list_name: str, attributes: Optional[dict] = None) -> dict:
-    """Upsert a contact in Brevo and add to a named list."""
-    if not BREVO_API_KEY:
+    """Upsert a contact into a Resend audience.
+
+    `attributes` may carry FIRSTNAME / LASTNAME from legacy Brevo callers —
+    we map those to Resend's first_name / last_name fields.
+    """
+    if not RESEND_API_KEY:
         return {"skipped": True}
-    list_id = _get_or_create_list(list_name)
+    audience_id = _audience_id_for_list(list_name)
+    if not audience_id:
+        return {"skipped": True, "reason": "no audience id"}
+    attrs = attributes or {}
+    first = (
+        attrs.get("FIRSTNAME")
+        or attrs.get("FIRST_NAME")
+        or attrs.get("first_name")
+        or ""
+    )
+    last = (
+        attrs.get("LASTNAME")
+        or attrs.get("LAST_NAME")
+        or attrs.get("last_name")
+        or ""
+    )
     payload = {
         "email": email,
-        "attributes": attributes or {},
-        "listIds": [list_id] if list_id else [],
-        "updateEnabled": True,
+        "first_name": first,
+        "last_name": last,
+        "unsubscribed": False,
     }
     try:
-        r = requests.post(f"{API_BASE}/contacts", json=payload, headers=_headers(), timeout=15)
+        r = requests.post(
+            f"{RESEND_API_BASE}/audiences/{audience_id}/contacts",
+            json=payload,
+            headers=_resend_headers(),
+            timeout=15,
+        )
+        # Resend returns 200 on create AND on upsert of an existing contact.
         return {"status": r.status_code}
     except Exception as e:
-        logger.warning("Brevo contact upsert failed: %s", e)
+        logger.warning("Resend contact upsert failed: %s", e)
         return {"error": str(e)}
 
 
@@ -317,8 +403,16 @@ def send_digest_email(email: str, name: str, window_label: str, kind: str, posts
 
 # ---------- Daily Brief (Morning / Evening housing news digest) ----------
 
-BRIEF_SENDER_EMAIL = os.environ.get("BRIEF_SENDER_EMAIL", "briefs@thehousingnews.com")
-BRIEF_SENDER_NAME = os.environ.get("BRIEF_SENDER_NAME", "The Housing News")
+BRIEF_SENDER_EMAIL = (
+    os.environ.get("RESEND_BRIEF_SENDER_EMAIL")
+    or os.environ.get("BRIEF_SENDER_EMAIL")
+    or "briefs@thehousingnews.com"
+)
+BRIEF_SENDER_NAME = (
+    os.environ.get("RESEND_BRIEF_SENDER_NAME")
+    or os.environ.get("BRIEF_SENDER_NAME")
+    or "The Housing News"
+)
 
 
 def _esc(s: str) -> str:

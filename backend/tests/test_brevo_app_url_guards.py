@@ -21,7 +21,7 @@ import pytest
 def brevo(monkeypatch):
     """Import brevo with APP_PUBLIC_URL unset so we exercise the default."""
     monkeypatch.delenv("APP_PUBLIC_URL", raising=False)
-    monkeypatch.setenv("BREVO_API_KEY", "test-key")  # bypass the "missing key" skip
+    monkeypatch.setenv("RESEND_API_KEY", "test-key")  # bypass the "missing key" skip
     import services.brevo as b
     importlib.reload(b)
     return b
@@ -74,14 +74,14 @@ def test_send_email_refuses_preview_url_in_body(brevo, monkeypatch):
 
 
 def test_send_email_allows_clean_html(brevo, monkeypatch):
-    """A normal production URL in the body sends through to Brevo."""
+    """A normal production URL in the body sends through to Resend."""
     captured = {}
 
     class FakeResp:
-        status_code = 201
+        status_code = 200
 
         def json(self):  # noqa: D401
-            return {"messageId": "abc"}
+            return {"id": "abc"}
 
     def fake_post(url, json, headers, timeout):  # noqa: A002
         captured["url"] = url
@@ -97,5 +97,6 @@ def test_send_email_allows_clean_html(brevo, monkeypatch):
         subject="hi",
         html=clean,
     )
-    assert result == {"messageId": "abc"}
-    assert "smtp/email" in captured["url"]
+    assert result == {"id": "abc"}
+    assert "/emails" in captured["url"]
+    assert "api.resend.com" in captured["url"]

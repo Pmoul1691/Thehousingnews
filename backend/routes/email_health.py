@@ -9,7 +9,9 @@ from fastapi import APIRouter, HTTPException, Depends, Cookie, Header
 from pydantic import BaseModel, EmailStr, AnyHttpUrl
 
 from services.auth_helpers import get_current_user, is_admin_email, is_user_admin
-from services.brevo import send_email, BREVO_API_KEY, SENDER_EMAIL, SENDER_NAME
+from services.brevo import send_email, RESEND_API_KEY, SENDER_EMAIL, SENDER_NAME
+# Back-compat alias — older imports/snippets may still reference BREVO_API_KEY.
+BREVO_API_KEY = RESEND_API_KEY
 from services.admin_digest import send_admin_digest, build_admin_digest, render_admin_digest_html
 
 logger = logging.getLogger(__name__)
@@ -86,35 +88,38 @@ def setup(db):
             "sender_email": SENDER_EMAIL,
             "sender_domain": sender_domain,
             "public_domain": public_domain,
-            "brevo_configured": bool(BREVO_API_KEY),
+            "resend_configured": bool(RESEND_API_KEY),
+            # Back-compat — older UI code reads this field name.
+            "brevo_configured": bool(RESEND_API_KEY),
+            "provider": "resend",
             "records": [
                 {
-                    "name": sender_domain,
+                    "name": f"send.{sender_domain}",
                     "type": "TXT",
-                    "purpose": "SPF",
-                    "value": "v=spf1 include:spf.brevo.com ~all",
-                    "hint": "Add this TXT record at the apex. If you already have an SPF record, merge `include:spf.brevo.com` into the existing one (only one SPF TXT per domain).",
+                    "purpose": "SPF (Resend / Amazon SES)",
+                    "value": "v=spf1 include:amazonses.com ~all",
+                    "hint": "Resend signs from the `send` subdomain, so the SPF record lives at `send.<domain>`. Don't merge it into your apex SPF.",
                 },
                 {
-                    "name": f"mail._domainkey.{sender_domain}",
+                    "name": f"send.{sender_domain}",
+                    "type": "MX",
+                    "purpose": "Bounce handling (Resend)",
+                    "value": "feedback-smtp.us-east-1.amazonses.com (priority 10)",
+                    "hint": "Lets Resend receive bounce/complaint feedback from receiving mail servers.",
+                },
+                {
+                    "name": f"resend._domainkey.{sender_domain}",
                     "type": "TXT",
-                    "purpose": "DKIM (Brevo)",
-                    "value": "k=rsa; p=COPY_THE_PUBLIC_KEY_FROM_BREVO_SENDERS_AND_IP_PAGE",
-                    "hint": "Brevo generates a unique selector per account. Go to Brevo dashboard > Senders, Domains and IPs > Domains > Authenticate this domain. Copy the `mail._domainkey` value from there.",
+                    "purpose": "DKIM (Resend)",
+                    "value": "k=rsa; p=COPY_FROM_RESEND_DASHBOARD",
+                    "hint": "Resend dashboard > Domains > your domain. Copy the value next to `resend._domainkey`.",
                 },
                 {
                     "name": f"_dmarc.{sender_domain}",
                     "type": "TXT",
                     "purpose": "DMARC",
                     "value": f"v=DMARC1; p=quarantine; rua=mailto:postmaster@{sender_domain}; pct=100; aspf=s; adkim=s",
-                    "hint": "Start with `p=none` for two weeks while you watch the aggregate reports, then raise to `p=quarantine` and finally `p=reject`.",
-                },
-                {
-                    "name": public_domain,
-                    "type": "TXT",
-                    "purpose": "Brevo domain verification",
-                    "value": "brevo-code=PASTE_FROM_BREVO_DASHBOARD",
-                    "hint": "Brevo shows this token next to the DKIM key on the Authenticate Domain page.",
+                    "hint": "Start with `p=none` for two weeks while you watch aggregate reports, then raise to `p=quarantine` and finally `p=reject`.",
                 },
                 {
                     "name": f"www.{public_domain}",
@@ -125,9 +130,9 @@ def setup(db):
                 },
             ],
             "checklist": [
-                "Verify the sender domain in Brevo > Senders, Domains and IPs.",
-                "Publish the SPF, DKIM, and DMARC records above with your DNS host.",
-                "Wait 15-60 minutes for propagation, then click `Validate` inside Brevo.",
+                "Verify the sender domain in Resend > Domains.",
+                "Publish the SPF (TXT), MX, DKIM (TXT), and DMARC records above with your DNS host.",
+                "Wait 15-60 minutes for propagation, then click `Verify DNS Records` inside Resend.",
                 "Send a test email from this page and check the headers in Gmail with `Show original`. Look for `dkim=pass` and `spf=pass`.",
                 "When everything passes, raise DMARC from `p=none` to `p=quarantine`, then `p=reject`.",
             ],
@@ -152,7 +157,7 @@ def setup(db):
             html=html,
             tags=["ultradian_network", "deliverability_test"],
         )
-        return {"sent": True, "brevo_response": result}
+        return {"sent": True, "provider": "resend", "response": result}
 
     @router.get("/public-url")
     async def get_public_url(admin=Depends(_admin)):
@@ -180,53 +185,34 @@ def setup(db):
 
     @router.get("/readiness")
     async def readiness(admin=Depends(_admin)):
-        """Production launch readiness check: DNS, public URL, Brevo key."""
+        """Production launch readiness check: DNS, public URL, Resend key."""
         sender_domain = _domain_from_sender()
         public_domain = _public_domain()
         public_url = (await get_public_url(admin)).get("value") or ""
 
-        # Run DNS lookups in a thread so we don't block the loop. Brevo's
-        # dedicated DKIM selector varies by account: legacy shared signing
-        # uses `mail`, dedicated keys use `b1` or `brevo1` (newer accounts).
-        # Pass when ANY selector resolves a valid public key.
-        spf, dkim_mail, dkim_b1, dkim_brevo1, dmarc = await asyncio.gather(
-            asyncio.to_thread(_dns_txt, sender_domain),
-            asyncio.to_thread(_dns_txt, f"mail._domainkey.{sender_domain}"),
-            asyncio.to_thread(_dns_txt, f"b1._domainkey.{sender_domain}"),
-            asyncio.to_thread(_dns_txt, f"brevo1._domainkey.{sender_domain}"),
+        # Resend places SPF on `send.<domain>` and DKIM at `resend._domainkey.<domain>`.
+        spf, dkim_resend, dmarc = await asyncio.gather(
+            asyncio.to_thread(_dns_txt, f"send.{sender_domain}"),
+            asyncio.to_thread(_dns_txt, f"resend._domainkey.{sender_domain}"),
             asyncio.to_thread(_dns_txt, f"_dmarc.{sender_domain}"),
         )
-        brevo_spf_includes = ("spf.brevo.com", "sendinblue.com", "_spfm.")
+        # Resend signs via Amazon SES under the hood.
+        resend_spf_includes = ("amazonses.com", "_spf.resend.com")
         spf_ok = any(
-            "v=spf1" in v and any(inc in v for inc in brevo_spf_includes)
+            "v=spf1" in v and any(inc in v for inc in resend_spf_includes)
             for v in spf
         )
-        # DKIM selectors: dnspython follows CNAMEs and returns the TXT at
-        # the target. A valid record contains `p=<base64-key>`.
-        dkim_pairs = [
-            ("mail", dkim_mail),
-            ("b1", dkim_b1),
-            ("brevo1", dkim_brevo1),
-        ]
-        selector, dkim_records = next(
-            ((sel, recs) for sel, recs in dkim_pairs if any("p=" in v for v in recs)),
-            (None, []),
-        )
-        dkim_ok = selector is not None
-        which_dkim = (
-            f"{selector}._domainkey" if selector
-            else "b1/brevo1/mail _domainkey"
-        )
+        dkim_ok = any("p=" in v for v in dkim_resend)
         checks = [
             {
-                "name": "SPF record",
+                "name": "SPF record (send subdomain)",
                 "ok": spf_ok,
                 "detail": next((v for v in spf if "v=spf1" in v), "not found"),
             },
             {
-                "name": f"DKIM record ({which_dkim})",
+                "name": "DKIM record (resend._domainkey)",
                 "ok": dkim_ok,
-                "detail": (dkim_records[0][:80] + "...") if dkim_records else "not found",
+                "detail": (dkim_resend[0][:80] + "...") if dkim_resend else "not found",
             },
             {
                 "name": "DMARC record",
@@ -239,9 +225,9 @@ def setup(db):
                 "detail": "APP_PUBLIC_URL not set",
             },
             {
-                "name": "Brevo API key configured",
-                "ok": bool(BREVO_API_KEY),
-                "detail": "configured" if BREVO_API_KEY else "BREVO_API_KEY missing",
+                "name": "Resend API key configured",
+                "ok": bool(RESEND_API_KEY),
+                "detail": "configured" if RESEND_API_KEY else "RESEND_API_KEY missing",
             },
         ]
         if public_url:
@@ -254,6 +240,7 @@ def setup(db):
         ready = all(c["ok"] for c in checks)
         return {
             "ready": ready,
+            "provider": "resend",
             "sender_domain": sender_domain,
             "public_domain": public_domain,
             "public_url": public_url,

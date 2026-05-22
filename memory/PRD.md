@@ -11,6 +11,66 @@ Hard guardrails: no chat widget, no popups, no follower counts, no stock photogr
 of teams.
 
 
+## 2026-02-22 — Resend migration: transactional emails (DONE)
+
+**Context**: Brevo permanently suspended the campaigns account ("algorithms
+detected your email campaigns didn't do well again"). All transactional and
+broadcast sending was blocked. User confirmed they already had a Resend
+account under peter@1691inc.com with `thehousingnews.com` verified and
+contacts imported into a "General" audience.
+
+**Migration approach (hybrid cutover, Phase 1 of 2)**:
+
+Phase 1 (this commit) — transactional email cutover:
+- `services/brevo.py` rewritten internally to call Resend's `/emails`
+  endpoint. Public function signatures preserved (`send_email`,
+  `send_application_received`, `send_application_accepted`,
+  `send_application_declined`, `send_essay_email`, `send_digest_email`,
+  `send_brief_email`, `add_to_list`) so the 20+ import sites across
+  `routes/` and `services/` did not need to change.
+- `services/brevo_contacts.py` rewritten to call Resend's Audiences API
+  (`/audiences`, `/audiences/{id}/contacts`). Output shape kept compatible
+  with `routes/admin_invite.py` consumer.
+- `routes/email_health.py` DNS health check updated for Resend records:
+  SPF at `send.<domain>` (include:amazonses.com), DKIM at
+  `resend._domainkey.<domain>`, MX at `send.<domain>` →
+  feedback-smtp.us-east-1.amazonses.com.
+- All legacy Brevo lists ("Network - Applicants", "Network - Members",
+  "Network - Declined") now map to the single `General` Resend audience
+  via `RESEND_DEFAULT_AUDIENCE_ID`. Per-list overrides supported via
+  `RESEND_AUDIENCE_<SLUG>_ID` env vars for a future refactor.
+- New env vars: `RESEND_API_KEY`, `RESEND_SENDER_EMAIL`,
+  `RESEND_SENDER_NAME`, `RESEND_BRIEF_SENDER_EMAIL`,
+  `RESEND_BRIEF_SENDER_NAME`. Old `BREVO_*` vars left in `.env` but
+  inactive.
+- Existing guard-rail tests (`tests/test_brevo_app_url_guards.py`)
+  updated to assert Resend's `/emails` endpoint and `{id}` response shape.
+
+Phase 2 (next session) — broadcast draft/review UI:
+- `/admin/drafts` page listing Resend draft broadcasts.
+- "Send now" and "Schedule" actions calling
+  `POST /broadcasts/{id}/send`.
+- Saves drafts via `POST /broadcasts` (audienceId + html + subject).
+
+**Verification done**:
+- Live test send returned Resend message ID
+  `ba6eb6c1-ffd1-4d84-a9c0-bf3bc363724b` through the in-app
+  `services.brevo.send_email()` path.
+- `add_to_list` upserted a contact into the General audience (status 201,
+  audience subscriber count incremented to 1).
+- `list_brevo_lists`, `find_list_by_name`, `normalize_contact` all return
+  the Brevo-compatible shape consumed by `routes/admin_invite.py`.
+- All 6 guard-rail tests pass.
+- Backend startup clean, no import errors.
+
+**File name oddity** — `services/brevo.py` and `services/brevo_contacts.py`
+still bear the Brevo name despite calling Resend internally. Done to keep
+this change's blast radius small. Future refactor can rename to
+`services/mailer.py` / `services/mailer_contacts.py` once the
+broadcast-draft UI lands.
+
+
+
 ## 2026-02-21 — Perf sprint Day 6: UX friction audit (DONE)
 
 **Audit method**: Playwright walk-through of the 10 highest-traffic user
