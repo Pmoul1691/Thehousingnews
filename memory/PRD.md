@@ -66,6 +66,31 @@ Phase 2 (next session) — broadcast draft/review UI:
 **File name oddity** — `services/brevo.py` and `services/brevo_contacts.py`
 still bear the Brevo name despite calling Resend internally. Done to keep
 this change's blast radius small. Future refactor can rename to
+
+### 2026-02-22 — Resend pagination + rate-limit follow-up
+
+After the initial migration, user reported their dashboard showed 14,084
+subscribers but the app only saw 1. Two bugs in the first cut:
+
+1. **`iter_list_contacts` didn't paginate.** Resend's
+   `/audiences/{id}/contacts` returns at most 100 contacts per call,
+   with cursor pagination via `after=<last_id>` and `has_more`. Fixed
+   to walk all pages.
+2. **Rate limiting.** Resend caps at 5 req/sec. A naive walk of a 14k
+   audience (140 pages) instantly hit 429. Added a 250 ms gap between
+   pages plus a one-shot 429 retry honoring `ratelimit-reset`.
+3. **`list_brevo_lists` per-audience count removed.** Counting via the
+   contacts endpoint would have meant 140+ requests per dashboard load
+   for a 14k audience. Now returns `totalSubscribers: None` — the
+   admin-invite preview already iterates fully and reports the real
+   count in `result.totals.contacts_in_list`.
+4. **Env default for invite list updated** from "Your first list" →
+   "General" (the actual Resend audience name).
+
+**Verification**: `iter_list_contacts` now walks all **14,084 contacts**
+in ~63 s (~14 contacts/s, throttle-bound).
+
+
 `services/mailer.py` / `services/mailer_contacts.py` once the
 broadcast-draft UI lands.
 

@@ -14,6 +14,7 @@ Docs: https://resend.com/docs/api-reference/audiences
 """
 import logging
 import os
+import time
 from typing import Iterator, List, Optional
 
 import requests
@@ -23,6 +24,9 @@ logger = logging.getLogger(__name__)
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
 RESEND_API_BASE = "https://api.resend.com"
 HTTP_TIMEOUT = 20
+# Resend free/standard tier allows 5 requests/second. We pace at 4 req/sec
+# (250ms gap) to stay safely under the cap while walking large audiences.
+_PAGE_DELAY_S = 0.25
 
 
 def _headers() -> dict:
@@ -36,10 +40,11 @@ def list_brevo_lists() -> List[dict]:
     """Return every audience on the Resend account, formatted to match the
     legacy Brevo shape: `{id, name, totalSubscribers}`.
 
-    Resend's `/audiences` endpoint does NOT return contact counts, so we
-    call `/audiences/{id}/contacts` per audience to compute it. For large
-    accounts this can be slow — admin_invite.py caches the preview result
-    for 5 minutes so the cost is amortized.
+    Resend's `/audiences` endpoint does NOT return contact counts, and
+    walking `/audiences/{id}/contacts` to compute them would be 140+
+    round trips for a 14k audience. So `totalSubscribers` is left None
+    here — the admin-invite preview flow iterates the audience anyway
+    and reports the real count in `result.totals.contacts_in_list`.
     """
     if not RESEND_API_KEY:
         return []
@@ -57,29 +62,15 @@ def list_brevo_lists() -> List[dict]:
         logger.warning("resend /audiences exception: %s", e)
         return []
 
-    out: List[dict] = []
-    for a in audiences:
-        aid = a.get("id")
-        if not aid:
-            continue
-        total = 0
-        try:
-            rc = requests.get(
-                f"{RESEND_API_BASE}/audiences/{aid}/contacts",
-                headers=_headers(),
-                timeout=HTTP_TIMEOUT,
-            )
-            if rc.status_code == 200:
-                total = len((rc.json() or {}).get("data") or [])
-        except Exception:
-            pass
-        out.append({
-            "id": aid,
+    return [
+        {
+            "id": a.get("id"),
             "name": a.get("name") or "",
-            "totalSubscribers": total,
+            "totalSubscribers": None,
             "created_at": a.get("created_at"),
-        })
-    return out
+        }
+        for a in audiences if a.get("id")
+    ]
 
 
 def find_list_by_name(name: str) -> Optional[dict]:
@@ -93,36 +84,69 @@ def find_list_by_name(name: str) -> Optional[dict]:
     return None
 
 
-def iter_list_contacts(list_id, page_size: int = 500) -> Iterator[dict]:
-    """Yield every contact from a Resend audience.
+def iter_list_contacts(list_id, page_size: int = 100) -> Iterator[dict]:
+    """Yield every contact from a Resend audience, walking all pages.
 
     `list_id` is a Resend audience UUID (string). The legacy Brevo signature
     accepted an int — we accept either and stringify.
 
-    Resend currently returns ALL contacts in a single call (no offset/limit
-    pagination on this endpoint), so `page_size` is accepted for signature
-    compatibility but not used to chunk requests.
+    Resend uses cursor-based pagination on `/audiences/{id}/contacts`:
+      - `limit` max is 100 per page
+      - `has_more: true` in the response means there are more pages
+      - pass `after=<last_contact_id>` to fetch the next page
     """
     if not RESEND_API_KEY:
         return
     aid = str(list_id)
-    try:
-        r = requests.get(
-            f"{RESEND_API_BASE}/audiences/{aid}/contacts",
-            headers=_headers(),
-            timeout=HTTP_TIMEOUT,
-        )
-        if r.status_code != 200:
-            logger.warning(
-                "resend /audiences/%s/contacts failed: %s %s",
-                aid, r.status_code, r.text[:200],
+    page_size = min(max(int(page_size or 100), 1), 100)
+    after: Optional[str] = None
+    first_page = True
+    while True:
+        # Throttle between pages (Resend allows ~5 req/s). Skip on first
+        # page so single-page audiences don't incur extra latency.
+        if not first_page:
+            time.sleep(_PAGE_DELAY_S)
+        first_page = False
+        params: dict = {"limit": page_size}
+        if after:
+            params["after"] = after
+        try:
+            r = requests.get(
+                f"{RESEND_API_BASE}/audiences/{aid}/contacts",
+                headers=_headers(),
+                params=params,
+                timeout=HTTP_TIMEOUT,
             )
+            if r.status_code == 429:
+                # Back off and retry once when the API tells us to slow down.
+                retry_after = float(r.headers.get("ratelimit-reset", "1") or "1")
+                time.sleep(min(max(retry_after, 0.5), 5.0))
+                r = requests.get(
+                    f"{RESEND_API_BASE}/audiences/{aid}/contacts",
+                    headers=_headers(),
+                    params=params,
+                    timeout=HTTP_TIMEOUT,
+                )
+            if r.status_code != 200:
+                logger.warning(
+                    "resend /audiences/%s/contacts failed: %s %s",
+                    aid, r.status_code, r.text[:200],
+                )
+                return
+            data = r.json() or {}
+        except Exception as e:
+            logger.warning("resend /audiences/%s/contacts exception: %s", aid, e)
             return
-        for c in (r.json() or {}).get("data") or []:
+        contacts = data.get("data") or []
+        if not contacts:
+            return
+        for c in contacts:
             yield c
-    except Exception as e:
-        logger.warning("resend /audiences/%s/contacts exception: %s", aid, e)
-        return
+        if not data.get("has_more"):
+            return
+        after = contacts[-1].get("id")
+        if not after:
+            return
 
 
 def normalize_contact(c: dict) -> dict:
