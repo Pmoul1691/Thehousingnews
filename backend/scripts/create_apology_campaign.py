@@ -15,8 +15,8 @@ SENDER_EMAIL = "peter@thehousingnews.com"
 REPLY_TO = "peter@thehousingnews.com"
 SUBJECT = "A quick note about today's signin."
 CAMPAIGN_NAME = "Chicago Nurtured 0526 — Signin hiccup apology"
-HEADER_IMG = "https://news-aggregator-beta.preview.emergentagent.com/brand/email-header-thn-cream.png"
-SIGNATURE_IMG = "https://news-aggregator-beta.preview.emergentagent.com/brand/signature-pete.png"
+HEADER_IMG = "https://housing-news-perf.preview.emergentagent.com/brand/email-header-thn-cream.png"
+SIGNATURE_IMG = "https://housing-news-perf.preview.emergentagent.com/brand/signature-pete.png"
 
 HTML = """<!doctype html>
 <html lang="en">

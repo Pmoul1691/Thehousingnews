@@ -1,131 +1,154 @@
-<analysis>**original_problem_statement**: 
-Pivot The Housing News from an invite-only gated community into a free forever top-of-funnel lead generation platform. Make it publicly accessible while maintaining the core functionality (aggregator, daily briefs, writing community). Recently, the scope has expanded to include multi-modal email authentication, an admin feedback/moderation lifecycle, regional feed personalization, and UX flow optimizations.
+<analysis>### handover summary
+
+**original_problem_statement**: 
+Pivot The Housing News from an invite-only gated community into a free forever top-of-funnel lead generation platform. Make it publicly accessible while maintaining core functionality. Recent focus has heavily shifted to maximizing site performance and UX (7-day perf sprint) to ensure near-instant page loads, code splitting, image optimization (WebP), eliminating event-loop blockers, and hiding E2E test data from public surfaces.
 
 **User's preferred language**: English (INSTRUCT next agent to respond in English only)
 
 **what currently exists?**: 
-A robust React/FastAPI/MongoDB platform. Features include an aggregator (), podcast directory, twice-daily briefing dispatchers (Brevo), member profiles, and essays. The platform uses a Free Forever model (no Stripe). Recent additions include a complete Email/Password & Magic Link authentication flow alongside Google Auth, an in-app Improvement suggestion widget with an Admin triaging panel, automated Brevo email loops for feedback, regional content tagging powered by Claude, and UX flow audits (inline header navigation, empty states, optimized onboarding, email verification gates).
+A highly optimized React/FastAPI/MongoDB platform. Features include an aggregator (), podcast directory, transactional/campaign emails (Brevo), member profiles, and an essay publishing desk. The app now features a highly optimized frontend (code-split, lazy-loaded components, WebP images, optimistic UI, idle route prefetching) and a non-blocking asynchronous backend. It includes an Admin News Pulse overlay with a 🔥 badge for top-clicked daily articles.
 
 **Last working item**: 
-    - Last item agent was working: Implementing Regional filter chips on the  page. The agent successfully updated the backend () to accept region filters and added the frontend UI chips in , but hit the context limit before capturing a screenshot, running the testing agent, or officially finishing the task.
-    - Status: TESTING PENDING
-    - Agent Testing Done: N (Bash smoke test passed, but frontend screenshot/E2E test pending)
-    - Which testing method agent to use? screenshot tool followed by testing_agent_v3_fork
-    - User Testing Done: N
+    - Last item agent was working: Concluding the 7-Day Performance & UX Sprint. The agent verified that the user's latest production deployment successfully picked up all Day 1 through Day 6 code changes (Cache-Control headers, idle prefetching, optimistic UI, async auth fixes, and E2E test data filters). The user just asked Whats next?.
+    - Status: NONE
+    - Agent Testing Done: Y
+    - Which testing method agent to use? NA
+    - User Testing Done: Y
 
 **All Pending/In progress Issue list**: 
-  None active.
+  - Issue 1: Brevo Account Validation Hold & Email Deliverability (P1)
+     - Attempted fixes: User submitted a support ticket to Brevo in a previous session. Backend sync  calls were wrapped in  or  during this session to prevent them from crashing/hanging the app, but actual email delivery might still be blocked externally.
+     - Next debug checklist: Check with user if Brevo support has cleared the hold.
+     - Why fix this issue and what will be achieved with the fix? Unblocks transactional emails and campaigns.
+     - Status: BLOCKED (waiting on Brevo Support / User confirmation)
+     - Is recurring issue? Y
+     - Should Test frontend/backend/both after fix? backend
 
 **In progress Task List**: 
-  Task 1: Verify and complete Regional filter chips on 
-     - Where to resume: The code has been modified and linted. Take a  snapshot of the  page to ensure the regional chips render correctly, then invoke  to verify the frontend-to-backend integration. Finally, call the  tool.
-     - What will be achieved with this? Completes the user's requested potential improvement for regional discovery.
-     - Status: TESTING PENDING
-     - Should Test frontend/backend/both after fix? both
-     - Blocked on something: None.
+  *(None - Agent successfully completed the 7-Day Performance sprint and is waiting to propose the next tasks)*
 
 **Upcoming and Future Tasks**
+  Upcoming Tasks:
+  - Task 1: Run  script on the production database (P0).
+     - Details: Need to instruct the user or run  on production to wipe historical  test accounts from the live Members directory.
+  - Task 2: Implement Cloudflare Cache Everything Page Rule (P1).
+     - Details: Provide exact instructions to the user to add a Cloudflare Page Rule for  and  to respect the newly added backend Cache-Control headers for instant repeat-visit API responses.
+  - Task 3: Trending publishers widget under the 🔥 badge (P2).
+     - Details: A tight table of 5 publishers driving the most reads today using the newly captured click data. (Suggested by agent but deferred due to the perf sprint).
+  - Task 4: Saving draft... / Last saved indicator on the composer body (P2).
+     - Details: Add a UI indicator so users can see auto-save fire while typing. (Suggested by agent but deferred due to the perf sprint).
+
   Future Tasks:
-  - Phase B: React-joyride tooltip tour for first-time signed-in users (P2 - The user approved this as Phase B after regional feed personalization was completed).
-  - Phase 23 Epic: Full Next.js + Tailwind + TypeScript migration (P3 - User deferred until platform hits 100+ members).
+  - Feature: Hook up  JS for real-user monitoring (P3).
+  - Feature: Legacy image backfill script to convert existing DB essay covers to WebP (P3).
+  - Feature: Build-time shell guard against >50 kB PNGs added to  (P3).
+  - Phase B: React-joyride tooltip tour for first-time signed-in users (P3).
+  - Feature:  page to track  and  events (P3).
+  - Feature: Email-subject preview inside the publish drawer (P4).
 
 **Completed work in this session**
-  - Replaced Apply with Join across all UI files and routes (DONE)
-  - Created floating Suggest an improvement button and Admin Improvements panel (DONE)
-  - Added Admin Admins (promote/demote) and Admin Posts (takedown) panels (DONE)
-  - Implemented Email/Password and Magic Link authentication alongside Google Auth (DONE)
-  - Added email verification gating on  and  (DONE)
-  - Added Verify Email banner with inbox deep-links and Admin Improvements notification badge (DONE)
-  - Wired Brevo auto-reply and status-update emails for the Improvements widget (DONE)
-  - Executed 7-point UX flow audit (Header primary nav, SignIn defaults, Today's brief strip on , Back-to-Feed inline chevron,  auth redirects, empty states) (DONE)
-  - Shipped Regional Feed Personalization (54-slug taxonomy, Claude auto-tagging , Profile Settings, Onboarding checklist) (DONE)
+- Fixed critical production hang on : Made submit flow non-blocking, added a live timer indicator (Publishing... 1s), and fixed backend event loop serialization (DONE).
+- Fixed login redirect loops: Migrated  in  to  to stop freezing the FastAPI event loop (DONE).
+- Created Admin News Pulse overlay on : Added click/impression tracking, live viewing counts, and a 🔥 badge for the most-clicked article (DONE).
+- Day 1-2 Perf Sprint: Implemented React route code-splitting and dynamic TipTap imports. Main JS bundle reduced from 711 kB to 155 kB (DONE).
+- Day 3 Perf Sprint: Image optimization. Converted logos to WebP (-92% size) and added  to article/feed images (DONE).
+- Day 4 Perf Sprint: Added  headers to aggregator endpoints, and implemented auto-WebP conversion for new image uploads in  (DONE).
+- Day 5 Perf Sprint: Added optimistic UI for Follow toggles and idle route prefetching () (DONE).
+- Day 6 Perf Sprint: UX Friction audit. Implemented  and  to scrub  and test emails/essays from public directories (DONE).
+- Day 7 Perf Sprint: Final measurements recorded in  showing massive speed increases (DONE).
 
 **Earlier issues found/mentioned but not fixed**
-  - None.
+  - None
 
 **Known issue recurrence from previous fork**
-  - Recurrence count: 0
-  - Status: RESOLVED
+  - Issue recurrence in previous fork: Infinite spinner on publishing essay.
+  - Recurrence count: 1 (Fixed in this session)
+  - Status: RESOLVED (The underlying blocking event loop was resolved).
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
-React, FastAPI, MongoDB (Motor Async), Brevo API (Transactional Emails), JWT/Bcrypt (Email Auth), Emergent Integrations (Claude Sonnet 4.5 for AI Region Tagging).
+React (Code-split with React.lazy/Suspense), FastAPI (Event Loop management, httpx for async external calls), MongoDB (Motor Async, Unique partial indexes), WebP image manipulation, Stale-while-revalidate caching.
 
 **key DB schema**
   - : 
-  - : 
-  - : 
+  -  (NEW):  (Has partial unique index for 5m dedupe)
+  -  (NEW): 
   - : 
 
 **changes in tech stack**
-  - Added PyJWT and bcrypt for native email authentication handling.
-  - Added  for Claude-based regional tagging of posts.
+  - Switched from synchronous  to asynchronous  in critical auth routes to avoid event loop blocking.
+  - Enabled dynamic  for heavy frontend libraries (TipTap) and route-level code splitting.
 
 **All files of reference**
-  -  &  (New Auth Flow)
-  -  &  (Feedback Loop)
-  -  &  (Claude auto-tagging logic)
-  -  &  (Current working context for regional chips)
+  -  (Contains the critical async fixes for Google Auth callbacks)
+  -  (New Admin overlay)
+  -  (Refactored to use  and )
+  -  (Contains click/impression tracking and Cache-Control headers)
+  -  (Centralized logic to scrub e2e test accounts)
+  -  (Contains final 7-day perf metrics)
 
 **Areas that need refactoring**
-  - None immediately; the agent successfully cleaned up unused components (e.g., deleted  when migrating to the inline header layout).
+  - Code review alerts identified high cyclomatic complexity in  ().
+  - Currently, frontend  does not have a Saving draft... indicator, relying on silent autosaves.
 
 **key api endpoints**
-  - ,  (Native Auth)
-  - ,  (Feedback System)
-  -  (User regional preferences)
-  -  (Active Task API)
+  -  (Fixed async timeout issue)
+  -  (Fixed publish hanging issue)
+  -  (NEW)
+  -  (NEW)
+  -  (NEW)
 
 **Critical Info for New Agent**
-  - **Auth Implementation**: The platform now actively uses native Email/Password and Magic Link authentication alongside Google Auth. All manual auth testing must use the  flag and  logic properly.
-  - **Email Verified Gates**: Users who sign up via email *must* verify their email before hitting  or  (enforced via 403s on the backend). 
-  - **Admin Access**:  helper was replaced with a robust  checking the  flag in the DB. Test credentials have a designated admin ().
-  - **Brevo Auto-replies**:  directly pings Brevo. Submitting suggestions will actually send emails if the user provides one. 
+  - **Production vs Preview Dual Environment**: The user deploys manually to production (). You only have access to the preview pod. Ensure you clarify whether an issue is on Preview or Production. **Do not provide preview URLs in your summaries to the user.**
+  - **FastAPI Event Loop**: NEVER use synchronous  or  inside an async route without wrapping it in  or . Use  instead. This caused a massive production outage (login loops) in this session.
+  - **Test User Filtering**: Always import and use  from  when exposing user/member data to public endpoints (e.g., directory, essays) to prevent E2E artifacts from leaking.
 
 **documents and test reports created in this job**
-  -  (Updated extensively)
-  -  through  (Full E2E verifications)
+  -  (Publish drawer fix test)
+  -  (Code-split / Lazy loading test)
+  - 
+  - 
+  - 
+  - 
   - 
 
 **Last 10 User Messages and any pending HUMAN messages** 
- 1. *User*: Rename route /apply → /join? (COMPLETED)
- 2. *User*: Add Feed pill, Suggest button, admin panels for improvements/posts/admins. (COMPLETED)
- 3. *User*: Allow new members to join using email (Email/PW + Magic Link). Keep Google. (COMPLETED)
- 4. *User*: Gate POST applications/posts on email_verified. Add UI banners and admin badge. (COMPLETED)
- 5. *User*: Use Brevo for improvement auto-replies. Suggestions for site flow? (COMPLETED)
- 6. *User*: Do all 7 of your suggested UX flow audits. (COMPLETED)
- 7. *User*: P3: Inbox deep links, Onboarding tour, Regional specific feed personalization. (COMPLETED partially)
- 8. *User*: [Provided multi-choice answers for Regional/Onboarding UI design]. (COMPLETED)
- 9. *User*: Make the potential improvement (regional filtering chips on ). (IN PROGRESS)
+ 1. *User*: Day 6 — UX friction audit... Day 7 — Final Lighthouse re-run
+ 2. *Agent*: Audited UX, found E2E accounts leaking. Implemented test email filters and .
+ 3. *Agent*: Fixed tests, updated PRD. Completed Day 6.
+ 4. *User*: Day 7 — Final Lighthouse re-run + cumulative before/after memo.
+ 5. *Agent*: Checked prod deployment. Measured speed. Generated  showing -78% bundle size and -93% API latency. Recommended #1: User redeploys, #2: Cloudflare Page Rule, #3: Run suspend script on Prod.
+ 6. *User*: PRioritize these for me based on biggest effect
+ 7. *Agent*: Ranked them: 1. Final redeploy, 2. Cloudflare rule, 3. Suspend script on Prod, 4. Web-vitals, 5. Legacy image script, 6. Build guard. Recommended doing 1, 2, 3 immediately.
+ 8. *User*: (System Notif) The user has deployed this app to production.
+ 9. *User*: Whats next? (PENDING HUMAN MESSAGE)
+ 10. *Agent*: Needs to propose the next steps (verifying they set up the Cloudflare rule, running the prod script, or picking from the backlog).
 
 **Project Health Check:**
-Healthy. No broken or mocked critical systems.
+All systems Healthy. Production is extremely fast and stable. 
 
 **3rd Party Integrations**
-  - Emergent Google Auth — uses Emergent Integration / Internal
-  - Brevo (Emails) — requires User API Key (Configured)
-  - EnrichLayer (LinkedIn Import) — requires User API Key
-  - Claude Sonnet 4.5 (Moderation & Region Tagger) — uses Emergent LLM Key via 
+  - Emergent Google Auth — uses Emergent Integration
+  - Brevo (Emails) — requires User API Key (May still be under validation hold, but code handles it safely via BackgroundTasks).
+  - Google Analytics — Tag ID: 
 
 **Testing status**
-  - Testing agent used after significant changes: YES (Iterations 21 through 26)
+  - Testing agent used after significant changes: YES (iteration 29, 30)
   - Troubleshoot agent used after agent stuck in loop: NO
-  - Test files created: None manually, testing agent used extensively.
+  - Test files created: , , 
   - Known regressions: None.
 
 **Credentials to test flow:**
-  - Check  (includes specific verified/unverified test accounts and the admin user).
+  - See 
 
 **What agent forgot to execute**
-  - The agent wrote the backend logic in  and frontend UI in  for the regional filter chips task, and ran a successful Bash curl test, but the job fork occurred before the agent could take a frontend screenshot, run , or formally update  and use the  tool.
+  - The agent did not run the  script on the *production* database (requires user permission/action since the agent only has access to the preview MongoDB). 
 
 **Debugging checklist for current issue**
-    Issue: Complete and verify Regional Filter Chips on 
-    Frontend files to check: 
-    Backend files to check: 
-    Steps:
-    1. Take a screenshot using  on .
-    2. Invoke  to verify the frontend state and  parameter flow.
-    3. Use  tool and update .</analysis>
+   *(No active issue - Waiting to propose next tasks to user)*
+   Next Steps for Agent: 
+   1. Propose running  to clean up the production DB.
+   2. Ask the user if they were able to set up the Cloudflare Cache Everything Page Rule.
+   3. Ask if they want to proceed with the Backlog tasks (e.g., Trending Publishers widget, draft indicator, or web-vitals).</analysis>
