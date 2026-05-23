@@ -175,6 +175,9 @@ export default function Admin() {
         </div>
         <div className="flex items-center gap-4">
           <RssImportButton />
+          <Link to="/admin/drafts" data-testid="nav-drafts" className="font-sans text-xs uppercase tracking-wider text-gold font-semibold hover:opacity-80 transition-opacity">
+            Broadcasts →
+          </Link>
           <Link to="/admin/email-health" data-testid="nav-email-health" className="font-sans text-xs uppercase tracking-wider text-gold font-semibold hover:opacity-80 transition-opacity">
             Email health →
           </Link>

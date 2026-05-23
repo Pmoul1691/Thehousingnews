@@ -46,6 +46,7 @@ const Library = lazy(() => import("@/pages/Library"));
 const Write = lazy(() => import("@/pages/Write"));
 const Admin = lazy(() => import("@/pages/Admin"));
 const EmailHealth = lazy(() => import("@/pages/EmailHealth"));
+const AdminDrafts = lazy(() => import("@/pages/AdminDrafts"));
 const Prompts = lazy(() => import("@/pages/Prompts"));
 const PromptDetail = lazy(() => import("@/pages/PromptDetail"));
 const Search = lazy(() => import("@/pages/Search"));
@@ -132,6 +133,7 @@ function Router() {
           <Route path="/write" element={<Write />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/admin/email-health" element={<EmailHealth />} />
+          <Route path="/admin/drafts" element={<AdminDrafts />} />
           <Route path="/prompts" element={<Prompts />} />
           <Route path="/prompts/:id" element={<PromptDetail />} />
           <Route path="/search" element={<Search />} />

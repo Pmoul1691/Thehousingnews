@@ -11,6 +11,57 @@ Hard guardrails: no chat widget, no popups, no follower counts, no stock photogr
 of teams.
 
 
+## 2026-02-23 — Phase 2: `/admin/drafts` Resend broadcast UI (DONE)
+
+**Backend** — new `routes/broadcasts.py` (admin-gated):
+- `GET    /api/admin/broadcasts[?status=draft|queued|sending|sent|cancelled]`
+- `GET    /api/admin/broadcasts/audiences` — for the create-form dropdown
+- `GET    /api/admin/broadcasts/defaults` — pre-fill from/sender values
+- `GET    /api/admin/broadcasts/{id}`
+- `POST   /api/admin/broadcasts` — create draft
+- `PATCH  /api/admin/broadcasts/{id}` — update draft fields
+- `POST   /api/admin/broadcasts/{id}/send` — send now OR schedule (ISO
+  `scheduled_at`). Writes a `brief_broadcasts` audit row with
+  `kind: "manual"` so operator-initiated sends correlate alongside
+  scheduler-initiated ones.
+- `DELETE /api/admin/broadcasts/{id}`
+
+All endpoints call `services/resend_broadcasts.py` via
+`asyncio.to_thread` so the blocking HTTP doesn't freeze the event loop.
+
+**Frontend** — new `frontend/src/pages/AdminDrafts.jsx` at
+`/admin/drafts`:
+- Table with columns: Subject · Status badge · Audience · Created ·
+  Sent/Scheduled · Actions
+- Filter chips: All / Drafts / Scheduled / Sent (with live counts)
+- "+ New draft" button → side drawer with:
+  Subject · Audience dropdown · From-name · From-email ·
+  Internal name · HTML body editor (textarea) · "Preview" toggle
+  that renders the HTML inline
+- Row actions on drafts: Edit (re-opens drawer pre-populated) · Send /
+  Schedule (modal with radio: Send now OR pick datetime) · Delete
+  (confirm prompt)
+- Non-draft rows show "Locked" or "In progress" instead of actions
+- Live refresh button + auto-reload after every action
+
+Linked from `/admin` dashboard via a "Broadcasts →" nav link.
+
+**Tests** — `tests/test_broadcasts_route.py` (3 cases):
+- Admin gating (401/403 without bearer)
+- Full lifecycle: create → get → update → filtered list → send → audit
+  row written → delete
+- Empty PATCH returns 400
+
+22/22 pytest tests pass (19 existing + 3 new).
+
+**Verification**:
+- Smoke-tested every endpoint via curl with an admin bearer token
+  (create/patch/delete a real broadcast against Resend).
+- Loaded `/admin/drafts` in headless Chrome — table renders, "New draft"
+  drawer opens, audience dropdown populated, default sender pre-filled.
+
+
+
 ## 2026-02-23 — Brief layout: branding + article thumbnails (DONE)
 
 User feedback: "The layout in the test email lacks all of the branding."
