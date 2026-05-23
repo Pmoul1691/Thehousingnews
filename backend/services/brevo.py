@@ -251,12 +251,31 @@ def add_to_list(email: str, list_name: str, attributes: Optional[dict] = None) -
 # ---------- Email templates ----------
 
 def _logo_html(size: int = 72) -> str:
-    """Legacy helper — the gold bloom mark has been removed from all email
-    templates. Returns an empty string so existing call sites continue to
-    work without rendering anything.
+    """Render the gold-bloom mark as a centered <img>. Uses the canonical
+    production URL so email clients (Gmail/Outlook/Apple Mail) can fetch
+    the PNG even when this is sent from a preview deploy where
+    APP_PUBLIC_URL would point to a stale preview host.
     """
-    _ = size
-    return ""
+    return (
+        f'<div style="text-align:center; margin:0 0 20px 0;">'
+        f'<img src="{PROD_APP_URL}/brand/bloom-gold.png" alt="The Housing News" '
+        f'width="{size}" height="{size}" style="display:inline-block; width:{size}px; height:{size}px; max-width:{size}px;" />'
+        f'</div>'
+    )
+
+
+def _brief_header_html() -> str:
+    """Wordmark banner used at the top of every Morning + Evening Brief.
+    Pulls from the production host so the image renders regardless of
+    where the brief was rendered (preview, prod, scheduler).
+    """
+    return (
+        f'<div style="text-align:center; margin:0 0 12px 0;">'
+        f'<img src="{PROD_APP_URL}/brand/email-header-thn-cream.jpg" '
+        f'alt="The Housing News" width="520" '
+        f'style="display:block; margin:0 auto; max-width:520px; width:100%; height:auto;" />'
+        f'</div>'
+    )
 
 
 def _wrap(body_html: str) -> str:
@@ -534,9 +553,8 @@ def _brief_wrap(kind: str, body_html: str, app_url: str, unsubscribe_url: str = 
     <div style="font-family: Georgia, serif; color:#2C2410; background:#FDFAF4; padding:24px 0;">
       <div style="max-width:600px; margin:0 auto; background:#FDFAF4;">
         <div style="text-align:center; padding-bottom:24px; border-bottom:2px solid #2C2410;">
-          {_logo_html(72)}
-          <div style="font-family:'Plus Jakarta Sans', Arial, sans-serif; font-weight:600; color:#AD893E; letter-spacing:0.28em; text-transform:uppercase; font-size:11px;">The Housing News</div>
-          <div style="font-family:'Plus Jakarta Sans', Arial, sans-serif; font-weight:600; color:#2C2410; font-size:28px; margin-top:8px;">{label}</div>
+          {_brief_header_html()}
+          <div style="font-family:'Plus Jakarta Sans', Arial, sans-serif; font-weight:600; color:#2C2410; font-size:28px; margin-top:16px;">{label}</div>
           <div style="font-family:Georgia, serif; font-style:italic; color:#AD893E; font-size:13px; margin-top:4px;">{today} · {time_str}</div>
         </div>
         <div style="padding:24px 0;">
