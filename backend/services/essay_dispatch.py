@@ -1,4 +1,5 @@
 """Essay dispatch: send a per-essay email to each of the writer's followers."""
+import asyncio
 import logging
 import uuid
 from datetime import datetime, timezone
@@ -81,15 +82,16 @@ async def dispatch_essay_to_followers(db, post_id: str) -> dict:
         except Exception:
             pass
 
-        result = send_essay_email(
-            to_email=f["email"],
-            to_name=f.get("name") or "",
-            writer_name=writer_name,
-            essay_title=post.get("title") or "(untitled)",
-            essay_subtitle=post.get("subtitle") or "",
-            essay_body=post.get("text") or "",
-            essay_url=f"{app_url}/essays/{post_id}" if app_url else f"/essays/{post_id}",
-            dispatch_id=dispatch_id,
+        result = await asyncio.to_thread(
+            send_essay_email,
+            f["email"],
+            f.get("name") or "",
+            writer_name,
+            post.get("title") or "(untitled)",
+            post.get("subtitle") or "",
+            post.get("text") or "",
+            f"{app_url}/essays/{post_id}" if app_url else f"/essays/{post_id}",
+            dispatch_id,
         )
         await db.essay_dispatches.update_one(
             {"post_id": post_id, "recipient_user_id": f["user_id"]},

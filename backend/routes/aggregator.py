@@ -478,9 +478,15 @@ def setup(db):
             }},
             upsert=True,
         )
-        # Push to Brevo. Failure to push does NOT fail the request — we always
+        # Push to Resend. Failure to push does NOT fail the request — we always
         # have the email captured locally so we can re-sync later if needed.
-        brevo_result = brevo_add_to_list(email, NEWSLETTER_LIST_NAME, attributes={"SOURCE": payload.source_page or "thehousingnews.com"})
+        # Run the blocking HTTP call in a thread so a slow Resend call doesn't
+        # freeze the entire async event loop (and every other in-flight request).
+        import asyncio as _asyncio
+        brevo_result = await _asyncio.to_thread(
+            brevo_add_to_list,
+            email, NEWSLETTER_LIST_NAME, {"SOURCE": payload.source_page or "thehousingnews.com"},
+        )
         # Stamp result so admins can spot un-synced rows.
         await db.agg_newsletter_signups.update_one(
             {"email": email},

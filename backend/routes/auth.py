@@ -168,10 +168,14 @@ def setup(db):
             await db.users.insert_one(user_doc)
             user = {k: v for k, v in user_doc.items()}
 
-            # If approved via partners, send accepted email
+            # If approved via partners, send accepted email — in a thread so
+            # the blocking Resend HTTP call never freezes the event loop and
+            # serializes the whole sign-in route across users.
             if auto_grant and not admin:
-                # build app url from request origin via env (best-effort)
-                send_application_accepted(email, user["name"], os.environ.get("APP_PUBLIC_URL", ""))
+                await asyncio.to_thread(
+                    send_application_accepted,
+                    email, user["name"], os.environ.get("APP_PUBLIC_URL", ""),
+                )
 
         # Persist our session (mirror Emergent token)
         expires_at = datetime.now(timezone.utc) + timedelta(days=SESSION_TTL_DAYS)

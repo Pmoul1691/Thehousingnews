@@ -306,14 +306,15 @@ async def send_brief(db, kind: str, dry_run: bool = False) -> dict:
         except Exception:
             logger.exception("brief dispatch record failed for %s", r.get("email"))
         try:
-            send_brief_email(
+            await asyncio.to_thread(
+                send_brief_email,
                 r["email"],
                 r.get("name") or "",
-                subject=subject,
-                kind=kind,
-                payload=payload,
-                dispatch_id=dispatch_id,
-                unsubscribe_token=r.get("unsubscribe_token"),
+                subject,
+                kind,
+                payload,
+                dispatch_id,
+                r.get("unsubscribe_token"),
             )
             sent += 1
         except Exception:

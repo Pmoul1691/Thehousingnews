@@ -11,6 +11,60 @@ Hard guardrails: no chat widget, no popups, no follower counts, no stock photogr
 of teams.
 
 
+## 2026-02-23 — P0 fix: production-wide slowness from event-loop blocking (DONE)
+
+**Symptom (reported on production)**: every page very slow, `/today` showing
+"Couldn't load today." User had just imported 14,084 contacts into Resend.
+
+**Root cause**: Multiple background services and routes called the **sync**
+`services.brevo.send_email` / `send_brief_email` / `send_digest_email` /
+`send_essay_email` / `add_to_list` directly inside **async** functions.
+Each Resend HTTP call blocked the FastAPI event loop for ~200-300 ms per
+recipient.
+
+With 14,000 newsletter subscribers in the audience, a single brief send
+loop (`services/briefings.send_brief`) froze the entire backend for ~46
+minutes (14k × ~200 ms). During that time NO other request — `/today`,
+`/auth/me`, `/agg/articles` — could be served, manifesting as
+production-wide slowness and the "Couldn't load today." error on any
+page that timed out.
+
+This was a regression from a previous fix-attempt: the handoff summary
+noted backend sync sends were wrapped in `BackgroundTasks` /
+`asyncio.to_thread`, but only the auth and email routes were actually
+migrated. The scheduler-driven services (briefings, digests, drips,
+admin summaries, essay dispatch) and the newsletter signup / auth
+auto-grant paths were still blocking.
+
+**Fix — wrap every sync send in `asyncio.to_thread`** in these files:
+
+- `services/briefings.py` (send_brief recipient loop)
+- `services/scheduler.py` (release_batch digest loop)
+- `services/essay_dispatch.py` (follower fan-out)
+- `services/onboarding_drip.py` (drip sweep)
+- `services/admin_digest.py` (weekly admin digest)
+- `services/admin_summary.py` (daily operator summary)
+- `routes/auth.py` (Google auto-grant accepted-email)
+- `routes/aggregator.py` (newsletter signup → Resend add_to_list)
+
+Added `import asyncio` where missing.
+
+**Verification (preview)**:
+- Backend restart clean, no import errors.
+- `/api/today` returns 200 in ~1.7 s; `/api/auth/me` ~330 ms; `/api/agg/articles` ~260 ms.
+- `send_brief(dry_run=True)` returns the full payload (8 articles, 2 recipients).
+- All 19 existing tests still pass (`test_brevo_app_url_guards`,
+  `test_day4_perf`, `test_day6_friction`, `test_article_engagement`).
+
+**Action required from operator**: Redeploy to production to pick up
+these fixes plus the localStorage signin fix from earlier today.
+
+**Recurrence count for event-loop blocking class of bug**: 3
+(httpx async auth fix → previous; partial Brevo wrap → previous;
+scheduler / fan-out wrap → this one).
+
+
+
 ## 2026-02-23 — P0 fix: production login redirect loop (DONE)
 
 **Symptom**: Both Google sign-in and email/password sign-in sent users

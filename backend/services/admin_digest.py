@@ -4,6 +4,7 @@ Sends one email per admin user every Sunday 8am Chicago time summarizing the
 last 7 days: signups, applications, active members, posts, essays, top
 replies, Pete picks, top suggestion votes, and email open/click rates.
 """
+import asyncio
 import logging
 import uuid
 import os
@@ -313,13 +314,14 @@ async def send_admin_digest(db) -> dict:
             })
         except Exception:
             pass
-        send_email(
-            to_email=a["email"],
-            to_name=a.get("name") or "Admin",
-            subject=subject,
-            html=html,
-            tags=["ultradian_network", "admin_digest"],
-            dispatch_id=dispatch_id,
+        await asyncio.to_thread(
+            send_email,
+            a["email"],
+            a.get("name") or "Admin",
+            subject,
+            html,
+            ["ultradian_network", "admin_digest"],
+            dispatch_id,
         )
         sent += 1
     return {"admins_emailed": sent, "data": data}

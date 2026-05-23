@@ -1,4 +1,5 @@
 """APScheduler jobs: flip pending_release posts/replies to approved, send AM/PM digests, plus a per-minute job for scheduled essays."""
+import asyncio
 import logging
 import uuid
 from datetime import datetime, timezone
@@ -162,7 +163,11 @@ async def release_batch(db) -> dict:
             })
         except Exception:
             pass
-        send_digest_email(r["email"], r.get("name") or "", label, kind, due_posts, picks=picks, dispatch_id=dispatch_id, prompt=current_prompt)
+        await asyncio.to_thread(
+            send_digest_email,
+            r["email"], r.get("name") or "", label, kind, due_posts,
+            picks, dispatch_id, current_prompt,
+        )
         sent += 1
 
     logger.info("Digest sent for window %s to %s recipients (%s skipped by prefs)", label, sent, skipped)

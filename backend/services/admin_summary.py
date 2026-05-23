@@ -7,6 +7,7 @@ ADMIN_EMAILS.
 Persists yesterday's snapshot in `admin_summary_history` so the next day's
 email can show "+12 members vs yesterday" etc.
 """
+import asyncio
 import logging
 import os
 from datetime import datetime, timedelta, timezone
@@ -148,10 +149,14 @@ async def send_admin_summary(db) -> dict:
     sent = 0
     for to in ADMIN_EMAILS:
         try:
-            send_email(to, "Operator", subject, html,
-                       tags=["thehousingnews", "admin_summary"],
-                       sender_email=os.environ.get("BRIEF_SENDER_EMAIL", "briefs@thehousingnews.com"),
-                       sender_name="The Housing News")
+            await asyncio.to_thread(
+                send_email,
+                to, "Operator", subject, html,
+                ["thehousingnews", "admin_summary"],
+                None,
+                os.environ.get("BRIEF_SENDER_EMAIL", "briefs@thehousingnews.com"),
+                "The Housing News",
+            )
             sent += 1
         except Exception:
             logger.exception("admin summary send failed for %s", to)

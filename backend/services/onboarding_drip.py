@@ -12,6 +12,7 @@ The sweep:
   4. Calls `services.brevo.send_email` (which is already preview-URL-guarded).
 """
 import logging
+import asyncio
 import os
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -180,12 +181,13 @@ async def run_drip_sweep(db) -> dict:
             body = template.format(first_name=first_name, app_url=app_url())
             html = _wrap(body)
             try:
-                result = send_email(
-                    to_email=email,
-                    to_name=u.get("name") or email,
-                    subject=subject,
-                    html=html,
-                    tags=["thehousingnews", "onboarding_drip", dispatch_key],
+                result = await asyncio.to_thread(
+                    send_email,
+                    email,
+                    u.get("name") or email,
+                    subject,
+                    html,
+                    ["thehousingnews", "onboarding_drip", dispatch_key],
                 )
                 if result.get("error") or result.get("blocked"):
                     summary["errors"] += 1
