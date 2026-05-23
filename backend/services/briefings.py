@@ -13,13 +13,20 @@ the existing services/tracking.py wrapper.
 """
 import asyncio
 import logging
+import os
 import time
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from services.brevo import send_brief_email
+from services.brevo import (
+    BRIEF_SENDER_EMAIL,
+    BRIEF_SENDER_NAME,
+    build_brief_html,
+    send_brief_email,
+)
 from services.podcasts_directory import get_directory
+from services.resend_broadcasts import create_broadcast, send_broadcast
 from services.trending import compute_trending
 
 logger = logging.getLogger(__name__)
@@ -224,9 +231,22 @@ async def build_brief_payload(db, kind: str, use_cache: bool = True) -> dict:
 
 
 async def send_brief(db, kind: str, dry_run: bool = False) -> dict:
-    """Send the morning or evening brief to all approved + invited members.
+    """Send the morning or evening brief to the newsletter audience via the
+    Resend Broadcasts API. One API call → Resend fans out to the entire
+    audience (currently 14k contacts in "General"). Resend handles
+    per-recipient unsubscribe tokens + deliverability.
 
-    If `dry_run` is True, builds the payload + recipient list but does NOT send.
+    If `dry_run=True`, builds the payload but does NOT create or send the
+    broadcast.
+
+    The audience ID is read from `RESEND_BRIEF_AUDIENCE_ID` (defaults to the
+    General audience). Members who opted out globally (`brief_optout: True`)
+    are handled via Resend's audience `unsubscribed` flag — the per-window
+    opt-outs (`brief_morning_optout`, `brief_evening_optout`) are no longer
+    honored at send time (operator decision, 2026-02-23).
+
+    Tracking: writes a single row to `db.brief_broadcasts` per send with the
+    `broadcast_id` so the admin can look it up in the Resend dashboard.
     """
     if kind not in ("morning", "evening"):
         raise ValueError("kind must be 'morning' or 'evening'")
@@ -234,38 +254,6 @@ async def send_brief(db, kind: str, dry_run: bool = False) -> dict:
     if not payload["articles"]:
         logger.warning("Brief %s aborted — no articles available", kind)
         return {"sent": 0, "skipped_no_articles": True, "kind": kind}
-
-    recipients = await db.users.find(
-        {
-            "status": {"$in": ["approved", "invited"]},
-            "suspended": {"$ne": True},
-            "brief_optout": {"$ne": True},
-            # Per-window opt-outs added in Phase 16. Either flag suppresses
-            # just one window; the legacy `brief_optout` still suppresses both.
-            f"brief_{kind}_optout": {"$ne": True},
-        },
-        {"_id": 0, "user_id": 1, "email": 1, "name": 1},
-    ).to_list(5000)
-    # De-dup against member emails
-    member_emails = {r["email"].lower() for r in recipients if r.get("email")}
-
-    # Newsletter (non-member) subscribers — Phase 31 free-brief launch.
-    # Each row carries its own unsubscribe_token so the brief footer can
-    # one-click unsubscribe without needing to log in.
-    sub_recipients = await db.newsletter_subscribers.find(
-        {"status": "confirmed"},
-        {"_id": 0, "email": 1, "unsubscribe_token": 1},
-    ).to_list(20000)
-    for s in sub_recipients:
-        if (s.get("email") or "").lower() in member_emails:
-            continue  # never double-send to a member who also subscribed
-        recipients.append({
-            "user_id": None,
-            "email": s["email"],
-            "name": "",
-            "unsubscribe_token": s.get("unsubscribe_token"),
-            "is_subscriber": True,
-        })
 
     try:
         from services.release_window import CHICAGO
@@ -275,62 +263,82 @@ async def send_brief(db, kind: str, dry_run: bool = False) -> dict:
     label_word = "Morning" if kind == "morning" else "Evening"
     subject = f"Housing News · {label_word} Brief · {today_label}"
 
+    audience_id = os.environ.get(
+        "RESEND_BRIEF_AUDIENCE_ID",
+        "e680753d-e3c1-40db-9286-1418fc25bf63",  # default General audience
+    )
+
     if dry_run:
         return {
             "dry_run": True,
             "kind": kind,
             "subject": subject,
-            "recipients_total": len(recipients),
+            "audience_id": audience_id,
             "articles_count": len(payload["articles"]),
             "has_podcast": bool(payload.get("podcast")),
             "has_trending": bool(payload.get("trending")),
             "has_essay": bool(payload.get("essay")),
         }
 
-    sent = 0
-    failed = 0
-    for r in recipients:
-        dispatch_id = uuid.uuid4().hex
-        try:
-            await db.brief_dispatches.insert_one({
-                "dispatch_id": dispatch_id,
-                "kind": f"brief_{kind}",
-                "recipient_user_id": r.get("user_id"),
-                "recipient_email": r["email"],
-                "is_subscriber": bool(r.get("is_subscriber")),
-                "articles_count": len(payload["articles"]),
-                "first_opened_at": None,
-                "first_clicked_at": None,
-                "created_at": _now_iso(),
-            })
-        except Exception:
-            logger.exception("brief dispatch record failed for %s", r.get("email"))
-        try:
-            await asyncio.to_thread(
-                send_brief_email,
-                r["email"],
-                r.get("name") or "",
-                subject,
-                kind,
-                payload,
-                dispatch_id,
-                r.get("unsubscribe_token"),
-            )
-            sent += 1
-        except Exception:
-            logger.exception("brief send failed for %s", r.get("email"))
-            failed += 1
+    html = build_brief_html(kind, payload, broadcast=True)
+
+    # Step 1: create the broadcast (draft).
+    created = await asyncio.to_thread(
+        create_broadcast,
+        audience_id,
+        subject,
+        html,
+        BRIEF_SENDER_EMAIL,
+        BRIEF_SENDER_NAME,
+        BRIEF_SENDER_EMAIL,
+        f"Brief / {kind} / {today_label}",
+    )
+    if not created or created.get("error"):
+        logger.error("Brief %s create_broadcast failed: %s", kind, created)
+        return {
+            "sent": 0,
+            "kind": kind,
+            "error": (created or {}).get("error", "unknown"),
+            "subject": subject,
+        }
+    broadcast_id = created.get("id")
+
+    # Step 2: trigger the send.
+    triggered = await asyncio.to_thread(send_broadcast, broadcast_id)
+    if not triggered or triggered.get("error"):
+        logger.error("Brief %s send_broadcast failed (id=%s): %s", kind, broadcast_id, triggered)
+        return {
+            "sent": 0,
+            "kind": kind,
+            "broadcast_id": broadcast_id,
+            "error": (triggered or {}).get("error", "unknown"),
+            "subject": subject,
+        }
+
+    # Step 3: record locally so the admin can correlate.
+    try:
+        await db.brief_broadcasts.insert_one({
+            "broadcast_id": broadcast_id,
+            "kind": f"brief_{kind}",
+            "audience_id": audience_id,
+            "subject": subject,
+            "articles_count": len(payload["articles"]),
+            "created_at": _now_iso(),
+        })
+    except Exception:
+        logger.exception("brief_broadcasts insert failed (broadcast_id=%s)", broadcast_id)
 
     logger.info(
-        "Brief %s sent to %s recipients (%s failed) — articles=%s",
-        kind, sent, failed, len(payload["articles"]),
+        "Brief %s broadcast queued (id=%s, articles=%s)",
+        kind, broadcast_id, len(payload["articles"]),
     )
     return {
-        "sent": sent,
-        "failed": failed,
+        "sent": 1,
         "kind": kind,
-        "recipients_total": len(recipients),
+        "broadcast_id": broadcast_id,
+        "subject": subject,
         "articles_count": len(payload["articles"]),
+        "audience_id": audience_id,
     }
 
 

@@ -123,16 +123,23 @@ def send_email(
     from_email = sender_email or SENDER_EMAIL
     from_name = sender_name or SENDER_NAME
 
-    # Resend tag rules: keys/values must match [a-zA-Z0-9_-], values <= 256 chars.
-    # We pass the union of incoming tags + a static brand tag, but flatten the
-    # array into Resend's `{name, value}` shape with the value derived from
-    # the slugified tag string.
+    # Resend tag rules: each {name, value} pair must have a unique `name`.
+    # Both `name` and `value` must match [a-zA-Z0-9_-] and be <= 256 chars.
+    # We turn the incoming string list into uniquely-named tags
+    # (`tag_0`, `tag_1`, ...) plus a canonical `category` tag for the
+    # first/primary tag so Resend dashboard filtering stays useful.
     raw_tags = list(tags or ["thehousingnews"])
     resend_tags = []
-    for t in raw_tags:
+    seen_names = set()
+    for i, t in enumerate(raw_tags):
         slug = "".join(ch if (ch.isalnum() or ch in "_-") else "_" for ch in str(t))[:256]
-        if slug:
-            resend_tags.append({"name": "tag", "value": slug})
+        if not slug:
+            continue
+        name = "category" if i == 0 else f"tag_{i}"
+        if name in seen_names:
+            continue
+        seen_names.add(name)
+        resend_tags.append({"name": name, "value": slug})
 
     payload = {
         "from": _format_from(from_email, from_name),
@@ -493,16 +500,27 @@ def _brief_essay_block(essay: dict, app_url: str) -> str:
     """
 
 
-def _brief_wrap(kind: str, body_html: str, app_url: str, unsubscribe_url: str = "") -> str:
+def _brief_wrap(kind: str, body_html: str, app_url: str, unsubscribe_url: str = "", broadcast: bool = False) -> str:
     """Brief-specific shell. Uses cream/gold/ink palette.
     `unsubscribe_url` is passed for non-member newsletter subscribers and
     swaps the footer to a one-click unsubscribe link instead of the
     member-only "manage preferences" link.
+
+    When `broadcast=True`, the footer uses Resend's native unsubscribe merge
+    tag `{{{RESEND_UNSUBSCRIBE_URL}}}` — Resend replaces it per-recipient at
+    send time. This is what we use for the daily fan-out broadcast to the
+    14k+ newsletter audience (no per-row unsubscribe_token needed).
     """
     label = "Morning Brief" if kind == "morning" else "Evening Brief"
     time_str = "7:30 AM CT" if kind == "morning" else "5:30 PM CT"
     today = datetime_now_label()
-    if unsubscribe_url:
+    if broadcast:
+        # Resend swaps this merge tag for a unique per-contact unsub URL.
+        footer_html = (
+            'You receive these briefs because you subscribed at thehousingnews.com.<br/>'
+            '<a href="{{{RESEND_UNSUBSCRIBE_URL}}}" style="color:#AD893E; text-decoration:underline;">Unsubscribe</a>'
+        )
+    elif unsubscribe_url:
         footer_html = (
             'You receive these briefs because you subscribed at thehousingnews.com.<br/>'
             f'<a href="{unsubscribe_url}" style="color:#AD893E; text-decoration:underline;">Unsubscribe</a>'
@@ -533,6 +551,28 @@ def _brief_wrap(kind: str, body_html: str, app_url: str, unsubscribe_url: str = 
       </div>
     </div>
     """
+
+
+def build_brief_html(kind: str, payload: dict, broadcast: bool = False) -> str:
+    """Render the Morning or Evening Brief HTML without sending.
+
+    Used by:
+      - `send_brief_email` (transactional, per-recipient)
+      - `services.briefings.send_brief_via_broadcast` (Resend Broadcasts)
+        which passes `broadcast=True` so the footer uses Resend's native
+        `{{{RESEND_UNSUBSCRIBE_URL}}}` merge tag.
+    """
+    link_base = app_url()
+    articles = payload.get("articles") or []
+    items_html = "".join(_brief_article_row(i + 1, a) for i, a in enumerate(articles[:8]))
+    extras_html = ""
+    if kind == "morning" and payload.get("podcast"):
+        extras_html += _brief_podcast_block(payload["podcast"])
+    if kind == "evening" and payload.get("trending"):
+        extras_html += _brief_trending_block(payload["trending"])
+    essay_html = _brief_essay_block(payload.get("essay"), link_base)
+    body = items_html + extras_html + essay_html
+    return _brief_wrap(kind, body, link_base, broadcast=broadcast)
 
 
 def datetime_now_label() -> str:

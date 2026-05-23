@@ -11,6 +11,61 @@ Hard guardrails: no chat widget, no popups, no follower counts, no stock photogr
 of teams.
 
 
+## 2026-02-23 — Daily briefs migrated to Resend Broadcasts API (DONE)
+
+**Why**: The per-recipient transactional send loop wouldn't scale to the
+14,084 newsletter audience (~47 minutes per brief, 14k API calls each,
+no native unsubscribe handling).
+
+**Operator decisions** (chosen in conversation):
+- **Send strategy**: Resend Broadcasts API — single call → Resend fans out.
+- **Per-window opt-out**: Dropped. Global unsubscribe via Resend's native
+  one-click link replaces the legacy `brief_morning_optout` /
+  `brief_evening_optout` Mongo flags.
+- **Verification**: send a transactional preview to peter@1691inc.com,
+  plus create-then-delete a smoke-test draft to confirm the broadcast
+  path works end-to-end.
+
+**Changes**:
+- New `services/resend_broadcasts.py` with `create_broadcast`,
+  `send_broadcast`, `get_broadcast`, `list_broadcasts`,
+  `delete_broadcast` helpers (used by `send_brief` today and by the
+  Phase 2 `/admin/drafts` UI next).
+- `services/briefings.py::send_brief` rewritten. Now:
+  1. Builds the brief payload (articles + podcast/trending + essay)
+  2. Renders HTML via `build_brief_html(kind, payload, broadcast=True)`
+  3. Calls `create_broadcast` → gets `broadcast_id`
+  4. Calls `send_broadcast(broadcast_id)`
+  5. Records a single `brief_broadcasts` doc with the id for tracking
+  - Removed the per-recipient loop, the `brief_dispatches` insert path,
+    the newsletter_subscribers join, and the per-window opt-out filters.
+- New `build_brief_html(kind, payload, broadcast=False)` exported from
+  `services/brevo.py`. `broadcast=True` swaps the footer's unsubscribe
+  link to Resend's `{{{RESEND_UNSUBSCRIBE_URL}}}` merge tag so each
+  recipient gets a unique per-contact unsubscribe URL.
+- Fixed a `send_email` bug where Resend returned 422
+  ("`tag` tag is duplicated") because we were sending multiple
+  `{name: "tag", value: ...}` entries with the same name. Tags now get
+  unique names (`category`, `tag_1`, `tag_2`, ...).
+- New env var `RESEND_BRIEF_AUDIENCE_ID` (default: General audience UUID).
+
+**Verification**:
+- `send_brief(dry_run=True)` returns subject + audience_id + content
+  counts.
+- Transactional preview email sent to peter@1691inc.com using the new
+  `build_brief_html` (Resend ID `c541b01e-8efb-4410-9dd3-0d6416b14030`).
+- `create_broadcast` round-tripped and `delete_broadcast` cleaned up
+  the smoke-test draft.
+- All 19 existing pytest cases still pass.
+
+**Action required from operator** (after redeploy):
+- Eyeball the preview email layout that just landed in your inbox.
+- If the layout looks right, hit `POST /api/admin/briefings/send?kind=morning`
+  on production with your admin cookie to fire a real broadcast — or
+  just let the scheduler do it tomorrow at 7:30 AM CT.
+
+
+
 ## 2026-02-23 — P0 fix: production-wide slowness from event-loop blocking (DONE)
 
 **Symptom (reported on production)**: every page very slow, `/today` showing
