@@ -11,6 +11,64 @@ Hard guardrails: no chat widget, no popups, no follower counts, no stock photogr
 of teams.
 
 
+## 2026-02-23 — P0 fix: production login redirect loop (DONE)
+
+**Symptom**: Both Google sign-in and email/password sign-in sent users
+back to `/signin` in an infinite loop on **production only**. Preview
+worked fine.
+
+**Root cause**: Production has a cross-origin API path. Frontend lives on
+`thehousingnews.com` but `/api/*` proxies to `*.emergent.host`. axios is
+configured `withCredentials: false`, so the browser does NOT send the
+`session_token` HttpOnly cookie on cross-origin requests. The app's
+fallback is to pull the token from `localStorage` and add an
+`Authorization: Bearer ...` header (`src/lib/api.js` interceptor).
+
+That fallback only worked for the Google OAuth flow because **only
+`AuthCallback.jsx` called `setSessionToken(r.data.session_token)`**.
+The email/password sign-in (`SignIn.jsx`) and magic-link consume
+(`MagicLinkConsume.jsx`) both received `session_token` in the response
+body but never persisted it. Result: after sign-in, every subsequent
+`/auth/me` call returned 401 → AuthContext set `user=null` → header
+showed "Sign in" → user clicked it → looped.
+
+Preview didn't loop because preview is **same-origin** — the cookie
+worked there. Production's cross-origin layer (Cloudflare →
+`*.emergent.host`) silently broke the same code path.
+
+**Fix**:
+- `src/pages/SignIn.jsx::submitPassword` now calls
+  `setSessionToken(r.data.session_token)` immediately after a successful
+  `/auth/email/signin` or `/auth/email/signup`.
+- `src/pages/MagicLinkConsume.jsx` now calls
+  `setSessionToken(r.data.session_token)` immediately after a successful
+  `/auth/magic-link/consume`.
+
+`VerifyEmail.jsx` was checked but doesn't need the fix — `/auth/email/verify`
+intentionally doesn't return a session_token (verifying an email is a
+separate operation from signing in).
+
+`ResetPassword.jsx` was checked — it redirects to `/signin` after a
+successful reset and doesn't establish a session itself.
+
+**Verification** (Playwright on the preview deploy):
+1. Created a fresh user via `/auth/email/signup`.
+2. Submitted credentials at `/signin`.
+3. `localStorage.ultradian_session_token` now persisted (len=48).
+4. Navigated to `/news`, hard-reloaded.
+5. `/auth/me` returns 200 on every subsequent call.
+6. "Sign in" link no longer appears in the header (user is authenticated).
+
+**Recurrence count for redirect loop**: 2 (first fixed by httpx async
+migration on the backend; this is the second, fixed by localStorage
+persistence on the frontend).
+
+**Action required from operator**: Redeploy to production. The Brevo→Resend
+migration and Day 6 friction filters from the perf sprint should ship in
+the same deploy.
+
+
+
 ## 2026-02-22 — Resend migration: transactional emails (DONE)
 
 **Context**: Brevo permanently suspended the campaigns account ("algorithms

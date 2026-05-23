@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import api from "@/lib/api";
+import api, { setSessionToken } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 
 export default function MagicLinkConsume() {
@@ -15,8 +15,11 @@ export default function MagicLinkConsume() {
     if (!token) { setState("err"); setErr("This link is missing its token."); return; }
     let alive = true;
     api.post("/auth/magic-link/consume", { token })
-      .then(async () => {
+      .then(async (r) => {
         if (!alive) return;
+        // Persist token for cross-origin production where the response
+        // cookie is dropped by the browser (withCredentials: false).
+        if (r?.data?.session_token) setSessionToken(r.data.session_token);
         await refresh();
         setState("ok");
         setTimeout(() => navigate("/news", { replace: true }), 150);

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import api from "@/lib/api";
+import api, { setSessionToken } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 
@@ -59,6 +59,12 @@ export default function SignIn() {
         ? { email: email.trim().toLowerCase(), password, name: name.trim() || undefined }
         : { email: email.trim().toLowerCase(), password };
       const r = await api.post(path, payload);
+      // Persist token so the Authorization header works on cross-origin
+      // production deploys (frontend at thehousingnews.com, API at
+      // *.emergent.host). Without this, axios's `withCredentials: false`
+      // means the Set-Cookie response cookie is never sent on follow-up
+      // /auth/me calls and the user appears logged out → redirect loop.
+      if (r?.data?.session_token) setSessionToken(r.data.session_token);
       if (pwMode === "signup" && r?.data?.verification_email_sent) {
         toast.success("Account created. Check your inbox to verify your email.");
       } else {
