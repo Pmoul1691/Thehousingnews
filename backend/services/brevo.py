@@ -460,14 +460,46 @@ def _brief_article_row(idx: int, art: dict) -> str:
         f'<p style="font-family:Georgia, serif; font-size:14px; line-height:1.55; color:#2C2410; margin:6px 0 0 0;">{snippet}</p>'
         if snippet else ""
     )
+    thumb = (art.get("thumbnail_url") or "").strip()
+    # Some RSS thumbs are protocol-relative or http; force https where we can
+    # so Gmail (which proxies images) doesn't block them as mixed content.
+    if thumb.startswith("//"):
+        thumb = "https:" + thumb
+    elif thumb.startswith("http://"):
+        thumb = "https://" + thumb[len("http://"):]
+
+    text_block = f"""
+      <div style="font-family:'Plus Jakarta Sans', Arial, sans-serif; font-size:10px; letter-spacing:0.18em; text-transform:uppercase; color:#AD893E; font-weight:600;">
+        {idx:02d} · {pub_name}
+      </div>
+      <a href="{href}" style="display:block; font-family:'Plus Jakarta Sans', Arial, sans-serif; font-size:17px; line-height:1.3; font-weight:600; color:#2C2410; text-decoration:none; margin:6px 0 0 0;">{title}</a>
+      {snippet_html}
+    """
+
+    if thumb:
+        # Two-column email-safe table: thumb left, headline + snippet right.
+        # Width=110 keeps the image small enough to look like a magazine
+        # rail thumbnail even on narrow Gmail mobile rendering.
+        return f"""
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-top:1px solid #E8D4A0; border-collapse:collapse;">
+          <tr>
+            <td valign="top" width="110" style="padding:18px 14px 18px 0;">
+              <a href="{href}" style="text-decoration:none; display:block;">
+                <img src="{thumb}" alt="" width="110" height="80"
+                  style="display:block; width:110px; height:80px; object-fit:cover; border:1px solid #E8D4A0; background:#FBF6E8;" />
+              </a>
+            </td>
+            <td valign="top" style="padding:18px 0;">
+              {text_block}
+            </td>
+          </tr>
+        </table>
+        """
+
+    # Fallback: no thumbnail → original full-width text-only row.
     return f"""
     <div style="border-top:1px solid #E8D4A0; padding:18px 0;">
-      <div style="display:flex; align-items:baseline; gap:10px;">
-        <span style="font-family:'Plus Jakarta Sans', Arial, sans-serif; font-weight:600; color:#AD893E; font-size:13px;">{idx:02d}</span>
-        <span style="font-family:'Plus Jakarta Sans', Arial, sans-serif; font-size:10px; letter-spacing:0.18em; text-transform:uppercase; color:#AD893E; font-weight:600;">{pub_name}</span>
-      </div>
-      <a href="{href}" style="display:block; font-family:'Plus Jakarta Sans', Arial, sans-serif; font-size:18px; line-height:1.3; font-weight:600; color:#2C2410; text-decoration:none; margin:6px 0 0 0;">{title}</a>
-      {snippet_html}
+      {text_block}
     </div>
     """
 

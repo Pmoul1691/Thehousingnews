@@ -11,6 +11,45 @@ Hard guardrails: no chat widget, no popups, no follower counts, no stock photogr
 of teams.
 
 
+## 2026-02-23 — Brief layout: branding + article thumbnails (DONE)
+
+User feedback: "The layout in the test email lacks all of the branding."
+And follow-up: "Is there a way to add the thumbnail images from the
+source of the article?"
+
+**Branding restored**:
+- `services/brevo.py::_logo_html` no longer returns the empty stub. It
+  now renders the gold-bloom mark (`/brand/bloom-gold.png`) on the
+  production host, used by the generic `_wrap` (essay / digest /
+  application emails).
+- New `_brief_header_html` renders the cream-background wordmark banner
+  (`/brand/email-header-thn-cream.jpg`) as a 520-wide responsive image
+  at the top of every Morning + Evening Brief.
+
+**Article thumbnails added**:
+- `_brief_article_row` switched to an email-safe two-column table:
+  thumbnail on the left (110×80, with `object-fit:cover` and a thin
+  gold border), headline + snippet on the right. Outlook-compatible
+  (uses `<table>` + `role="presentation"`, not flex).
+- Articles without `thumbnail_url` fall back gracefully to the original
+  full-width text-only row — no broken-image placeholders.
+- Thumbs sourced from `agg_articles.thumbnail_url`, which
+  `services/rss_ingest._extract_thumbnail` already populates from RSS
+  `media:thumbnail` / `media:content` / `<enclosure>` / first inline
+  `<img>` fallback. 7 of 8 articles in today's morning brief had
+  thumbnails on preview.
+- Tags fix: Resend rejects multiple `{name: "tag", value: ...}` entries
+  with the same `name`. Each incoming tag now gets a unique name
+  (`category`, `tag_1`, `tag_2`, ...) to satisfy Resend's validation.
+
+**Verification**:
+- 3 preview emails sent to peter@1691inc.com (each better than the
+  previous): layout-only → branded → branded + thumbnails. Resend IDs
+  `c541b01e-...`, `8eb23d59-...`, `f6d9dd58-...`.
+- All 19 existing pytest cases pass.
+
+
+
 ## 2026-02-23 — Daily briefs migrated to Resend Broadcasts API (DONE)
 
 **Why**: The per-recipient transactional send loop wouldn't scale to the
