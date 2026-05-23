@@ -183,6 +183,19 @@ async def on_startup():
             [("title_signature", 1), ("published_at", -1)],
             sparse=True,
         )
+        # Hot-path compound index used by both the public /api/agg/articles
+        # listing AND services.briefings._fetch_top_articles. Production has
+        # ~50x more articles than preview; without this index Mongo had to
+        # walk the published_at index and post-filter on publisher_id /
+        # hidden, which made cold /api/today hits 8-10s instead of 200ms.
+        await db.agg_articles.create_index(
+            [("publisher_id", 1), ("published_at", -1)],
+        )
+        # Anti-pattern guard: covering common queries that scope by hidden.
+        await db.agg_articles.create_index(
+            [("hidden", 1), ("published_at", -1)],
+            partialFilterExpression={"hidden": False},
+        )
         await db.agg_newsletter_signups.create_index("email", unique=True)
         # Article engagement tracking — clicks & impressions per article.
         # Click dedupe via partial unique index on (article_id, session_id, bucket_5m).

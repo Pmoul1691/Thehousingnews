@@ -11,6 +11,53 @@ Hard guardrails: no chat widget, no popups, no follower counts, no stock photogr
 of teams.
 
 
+## 2026-02-23 — Production query perf: missing compound index (DONE)
+
+**Symptom (production)**: every page slow; landing 14s, navigation 21s.
+
+**Measurement**:
+- Anonymous timings showed production API endpoints **8-9× slower** than
+  preview despite identical code: `/api/agg/articles` 1.4s vs 0.15s,
+  `/api/today` 0.82s vs 0.10s.
+- Root cause = production has ~50× more articles in `agg_articles`, and
+  the hot query (`publisher_id $in + published_at $gte + hidden $ne`)
+  had no covering compound index. Mongo was scanning `published_at`
+  index then post-filtering. Cold-cache `/api/today` was multi-second
+  every time `_BRIEF_CACHE` (5-min TTL) expired and one user happened to
+  trigger the rebuild — blocking everyone else on the same worker.
+
+**Fix**:
+- New compound index on `agg_articles`:
+  `[("publisher_id", 1), ("published_at", -1)]` — covers
+  `_fetch_top_articles` (briefs) AND the public `/api/agg/articles`
+  listing.
+- Second compound index: `[("hidden", 1), ("published_at", -1)]` with
+  `partialFilterExpression={"hidden": False}` — for the
+  cutoff-only fallback queries (newsletter trending, etc.).
+- Both indexes auto-create at backend startup (`server.py` lines
+  181-196), idempotent.
+- `/api/agg/articles` listing now sets `Cache-Control: public,
+  max-age=60, s-maxage=60, stale-while-revalidate=60`. With the
+  Cloudflare "Cache Everything" page rule the operator will set on
+  `thehousingnews.com/api/agg/*`, repeat visitors hit the edge
+  cache (~0ms) instead of the origin.
+- `total` count on `/api/agg/articles` switched from `count_documents`
+  (expensive) to `estimated_document_count` (collection metadata,
+  O(1)). For search queries we still do a real count but capped at
+  2000 docs.
+
+**Verification on preview**:
+- After index warms: `/api/agg/articles?limit=20` 132ms (was 510ms),
+  `/api/today` 97ms.
+- 22/22 backend tests still pass.
+
+**Action required from operator**: Redeploy production. The indexes
+build automatically on next backend startup against the existing
+~50k articles — a one-time ~5-10s build, then queries run on the
+covering index. No data migration needed.
+
+
+
 ## 2026-02-23 — Phase 2: `/admin/drafts` Resend broadcast UI (DONE)
 
 **Backend** — new `routes/broadcasts.py` (admin-gated):

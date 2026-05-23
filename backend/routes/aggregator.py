@@ -113,7 +113,21 @@ def setup(db):
                 "slug": p["slug"], "name": p["name"], "category": p["category"],
                 "logo_url": p.get("logo_url"), "homepage_url": p.get("homepage_url"),
             } if p else None
-        total = await db.agg_articles.count_documents(art_q)
+        # Pagination metadata. We avoid count_documents on the production
+        # data set because — even with the new compound index — a count over
+        # the full query (publisher_id $in + published_at $gte + hidden) is
+        # noticeably slow once there are tens of thousands of articles.
+        # For the public listing the frontend only needs "are there more?",
+        # which is determined by `items.length == limit`. We still expose a
+        # capped count when the user is searching so the empty-state copy
+        # ("3 matches for X") still works.
+        if search:
+            total = await db.agg_articles.count_documents(art_q, limit=2000)
+        else:
+            # estimated_document_count is O(1) (reads collection metadata),
+            # so it cannot reflect the cutoff/hidden filters — but for the
+            # public listing UI we only need a ballpark "lots of articles".
+            total = await db.agg_articles.estimated_document_count()
         return {"items": items, "total": total, "hours": hours, "offset": offset, "limit": limit, "search": search}
 
     @router.get("/publishers")
