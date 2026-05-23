@@ -11,6 +11,51 @@ Hard guardrails: no chat widget, no popups, no follower counts, no stock photogr
 of teams.
 
 
+## 2026-02-23 — Perf + code-bloat sweep (DONE)
+
+User direction: "Only focus on site performance and lets look at code
+bloat."
+
+**Perf — finished the cache-header coverage for Landing/AggHome calls**:
+- `/api/agg/network-stats` now sets `Cache-Control: public, max-age=300,
+  s-maxage=300, stale-while-revalidate=300` (publisher count changes
+  slowly, 5min is safe).
+- `/api/agg/trending` now sets `Cache-Control: public, max-age=90,
+  s-maxage=90, stale-while-revalidate=90`.
+- Six other public endpoints already had cache headers from the
+  Day 4 sprint (`/agg/articles`, `/agg/publishers-latest`,
+  `/agg/podcasts`, `/agg/trending-tags`, `/agg/recent-members`,
+  `/agg/new-members`, `/essays` first page).
+- That closes the loop for Cloudflare's "Cache Everything" page rule:
+  every Landing-page API call now exposes a public Cache-Control so
+  the edge can serve repeat visitors in ~0ms.
+
+**Code bloat — removed 5 unused dependencies + 1 dead file**:
+- `recharts` (8 MB) — verified zero imports across `src/`.
+- `date-fns` (39 MB) — zero direct imports; only referenced by the
+  unused shadcn `form.jsx`.
+- `zod` (5 MB) — same.
+- `react-hook-form` (~5 MB) — same.
+- `@hookform/resolvers` (2.5 MB) — same.
+- Deleted `frontend/src/components/ui/form.jsx` (the shadcn form
+  wrapper) — never imported by any page or component.
+- Net `node_modules` reduction: ~52 MB. Production build re-verified
+  clean (main 528 kB, biggest lazy chunk 655 kB, 13 MB total chunked
+  JS).
+
+**Verification**:
+- 22/22 backend tests pass.
+- ESLint passes across `src/`.
+- `yarn build` succeeds.
+- All Landing-tier endpoints respond in 95-135 ms on preview.
+
+**Action required from operator**: Redeploy production. The Cloudflare
+"Cache Everything" page rule (still on the operator TODO) becomes
+fully effective with this deploy because every relevant endpoint now
+emits a public Cache-Control header.
+
+
+
 ## 2026-02-23 — Production query perf: missing compound index (DONE)
 
 **Symptom (production)**: every page slow; landing 14s, navigation 21s.

@@ -3,7 +3,6 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
-    "@hookform/resolvers": "^5.0.1",
     "@radix-ui/react-accordion": "^1.2.8",
     "@radix-ui/react-alert-dialog": "^1.1.11",
     "@radix-ui/react-aspect-ratio": "^1.1.4",
@@ -43,7 +42,6 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "cra-template": "1.2.0",
-    "date-fns": "^4.1.0",
     "embla-carousel-react": "^8.6.0",
     "hls.js": "^1.6.16",
     "input-otp": "^1.4.2",
@@ -53,12 +51,10 @@
     "react-day-picker": "8.10.1",
     "react-dom": "^19.0.0",
     "react-helmet-async": "^3.0.0",
-    "react-hook-form": "^7.56.2",
     "react-markdown": "^10.1.0",
     "react-resizable-panels": "^3.0.1",
     "react-router-dom": "^7.5.1",
     "react-scripts": "5.0.1",
-    "recharts": "^3.6.0",
     "rehype-raw": "^7.0.0",
     "rehype-sanitize": "^6.0.0",
     "remark-gfm": "^4.0.1",
@@ -66,8 +62,7 @@
     "tailwind-merge": "^3.2.0",
     "tailwindcss-animate": "^1.0.7",
     "tiptap-markdown": "^0.9.0",
-    "vaul": "^1.1.2",
-    "zod": "^3.24.4"
+    "vaul": "^1.1.2"
   },
   "scripts": {
     "start": "craco start",

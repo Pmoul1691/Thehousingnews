@@ -428,12 +428,14 @@ def setup(db):
         }
 
     @router.get("/network-stats")
-    async def network_stats():
+    async def network_stats(response: Response):
         """Live source-count + most-recently-added publishers for the /news
         hero subtext. The frontend renders something like
         "Recently added: r/RealEstate · Inman · WSJ Real Estate" under the
         stat block — concrete social proof that the network keeps growing.
+        Edge-cached for 5 min — publisher count changes slowly.
         """
+        _set_public_cache(response, 300)
         pub_total = await db.agg_publishers.count_documents({"active": True})
         pod_total = await db.agg_podcasts.count_documents({"active": True})
         recent = await db.agg_publishers.find(
@@ -450,11 +452,13 @@ def setup(db):
 
     @router.get("/trending")
     async def trending(
+        response: Response,
         hours: int = Query(default=24, ge=1, le=168),
         limit: int = Query(default=8, ge=1, le=20),
     ):
         """Trending topics today: top bigrams / trigrams across article titles
-        from the last `hours` window. No auth, fully public."""
+        from the last `hours` window. No auth, fully public. Edge-cached 90s."""
+        _set_public_cache(response, 90)
         cutoff_iso = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
         pub_ids = [
             p["id"]
