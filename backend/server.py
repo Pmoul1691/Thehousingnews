@@ -329,11 +329,16 @@ async def on_startup():
         logger.info("Podcast directory cache warmup scheduled")
     except Exception as _e:
         logger.warning("Podcast warmup failed to schedule: %s", _e)
-    # Start scheduler
-    try:
-        app.state.scheduler = start_scheduler(db)
-    except Exception as e:
-        logger.warning("Scheduler start failed: %s", e)
+    # Start scheduler — unless explicitly disabled (e.g. preview pods that
+    # would otherwise race the production pod and create duplicate Resend
+    # drafts / send digests twice).
+    if os.environ.get("DISABLE_SCHEDULER", "").lower() in ("1", "true", "yes"):
+        logger.info("Scheduler disabled via DISABLE_SCHEDULER env var")
+    else:
+        try:
+            app.state.scheduler = start_scheduler(db)
+        except Exception as e:
+            logger.warning("Scheduler start failed: %s", e)
     logger.info("Startup complete")
 
 

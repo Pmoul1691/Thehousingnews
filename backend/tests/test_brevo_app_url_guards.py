@@ -60,7 +60,7 @@ def test_send_email_refuses_preview_url_in_body(brevo, monkeypatch):
     monkeypatch.setattr(brevo.requests, "post", fake_post)
 
     poisoned = (
-        '<a href="https://housing-news-perf.preview.emergentagent.com/news">Open The Daily</a>'
+        '<a href="https://news-lead-gen.preview.emergentagent.com/news">Open The Daily</a>'
     )
     result = brevo.send_email(
         to_email="test@example.com",

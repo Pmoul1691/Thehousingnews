@@ -1,154 +1,162 @@
 <analysis>### handover summary
 
 **original_problem_statement**: 
-Pivot The Housing News from an invite-only gated community into a free forever top-of-funnel lead generation platform. Make it publicly accessible while maintaining core functionality. Recent focus has heavily shifted to maximizing site performance and UX (7-day perf sprint) to ensure near-instant page loads, code splitting, image optimization (WebP), eliminating event-loop blockers, and hiding E2E test data from public surfaces.
+Pivot The Housing News from an invite-only gated community into a free forever top-of-funnel lead generation platform. Make it publicly accessible while maintaining core functionality. Recent focus involves migrating transactional and broadcast emails from Brevo to Resend, maximizing production site performance (MongoDB indexing, edge caching, code bloat removal), and cleaning up automated aggregator feeds.
 
 **User's preferred language**: English (INSTRUCT next agent to respond in English only)
 
 **what currently exists?**: 
-A highly optimized React/FastAPI/MongoDB platform. Features include an aggregator (), podcast directory, transactional/campaign emails (Brevo), member profiles, and an essay publishing desk. The app now features a highly optimized frontend (code-split, lazy-loaded components, WebP images, optimistic UI, idle route prefetching) and a non-blocking asynchronous backend. It includes an Admin News Pulse overlay with a 🔥 badge for top-clicked daily articles.
+A highly optimized React/FastAPI/MongoDB platform. The app has been fully migrated from Brevo to Resend for all emails (transactional + broadcasts). Features include an aggregator (), member profiles, daily briefs (morning/evening) sent via Resend Broadcasts API, and a new  dashboard to manage email campaigns. The frontend bundle has been stripped of unused heavy dependencies, and MongoDB queries for the aggregator feed are optimized with compound indexing. 
 
 **Last working item**: 
-    - Last item agent was working: Concluding the 7-Day Performance & UX Sprint. The agent verified that the user's latest production deployment successfully picked up all Day 1 through Day 6 code changes (Cache-Control headers, idle prefetching, optimistic UI, async auth fixes, and E2E test data filters). The user just asked Whats next?.
-    - Status: NONE
-    - Agent Testing Done: Y
-    - Which testing method agent to use? NA
-    - User Testing Done: Y
+    - Last item agent was working: Removing Reddit feeds from the aggregator. The user stated Reddit feeds are not producing good content. The agent had just run a database query to identify the 8 active Reddit publishers in the database, but hasn't performed the deletion/deactivation yet.
+    - Status: IN PROGRESS
+    - Agent Testing Done: N
+    - Which testing method agent to use? backend testing agent / manual testing by python -c (Verify database state to ensure publishers are deactivated/deleted and related articles removed).
+    - User Testing Done: N
 
 **All Pending/In progress Issue list**: 
-  - Issue 1: Brevo Account Validation Hold & Email Deliverability (P1)
-     - Attempted fixes: User submitted a support ticket to Brevo in a previous session. Backend sync  calls were wrapped in  or  during this session to prevent them from crashing/hanging the app, but actual email delivery might still be blocked externally.
-     - Next debug checklist: Check with user if Brevo support has cleared the hold.
-     - Why fix this issue and what will be achieved with the fix? Unblocks transactional emails and campaigns.
-     - Status: BLOCKED (waiting on Brevo Support / User confirmation)
+  - Issue 1: Resend quota exceeded for Broadcasts (P0)
+     - Attempted fixes: Agent wired up daily briefs to Resend Broadcasts API and it successfully queued drafts. However, when trying to send, Resend returns HTTP 403: You have reached your contacts quota.
+     - Next debug checklist: Inform the user. The audience has 14,084 contacts, but the Resend account is on a free tier (100 emails/day). The user *must* upgrade their Resend plan.
+     - Why fix this issue and what will be achieved with the fix? Unblocks the daily morning/evening briefs, which are the core retention mechanism.
+     - Status: BLOCKED (Requires user action to upgrade Resend plan)
+     - Is recurring issue? N
+     - Should Test frontend/backend/both after fix? backend
+     - Blocked on other issue: None
+  
+  - Issue 2: Preview pod scheduler conflicts with Production (P1)
+     - Attempted fixes: Agent noticed the preview pod's scheduler is firing daily brief drafts and polluting the Resend account with test/preview URLs. 
+     - Next debug checklist: Check  and . Introduce an environment variable (e.g., ) specifically for the preview environment so it does not race with production.
+     - Why fix this issue and what will be achieved with the fix? Prevents the dev environment from triggering real production emails or creating duplicate drafts in Resend.
+     - Status: NOT STARTED
      - Is recurring issue? Y
      - Should Test frontend/backend/both after fix? backend
 
+  - Issue 3: Remove Reddit Feeds (P1)
+     - Attempted fixes: Identified 8 Reddit publishers in the DB.
+     - Next debug checklist: Write a script or MongoDB command to set  (or delete) these 8 publishers in , and delete all their corresponding articles in .
+     - Why fix this issue and what will be achieved with the fix? Improves aggregator feed quality by removing low-value content as requested by the user.
+     - Status: IN PROGRESS
+     - Is recurring issue? N
+     - Should Test frontend/backend/both after fix? backend
+
 **In progress Task List**: 
-  *(None - Agent successfully completed the 7-Day Performance sprint and is waiting to propose the next tasks)*
+  - Task 1: Remove Reddit Feeds
+     - Where to resume: Agent just queried the DB to find the publishers. Next step is to execute the database removal/deactivation and clear out their articles.
+     - What will be achieved with this? Cleans up the news feed.
+     - Status: IN PROGRESS
+     - Should Test frontend/backend/both after fix? backend
+     - Blocked on something: No
 
 **Upcoming and Future Tasks**
-  Upcoming Tasks:
-  - Task 1: Run  script on the production database (P0).
-     - Details: Need to instruct the user or run  on production to wipe historical  test accounts from the live Members directory.
-  - Task 2: Implement Cloudflare Cache Everything Page Rule (P1).
-     - Details: Provide exact instructions to the user to add a Cloudflare Page Rule for  and  to respect the newly added backend Cache-Control headers for instant repeat-visit API responses.
-  - Task 3: Trending publishers widget under the 🔥 badge (P2).
-     - Details: A tight table of 5 publishers driving the most reads today using the newly captured click data. (Suggested by agent but deferred due to the perf sprint).
-  - Task 4: Saving draft... / Last saved indicator on the composer body (P2).
-     - Details: Add a UI indicator so users can see auto-save fire while typing. (Suggested by agent but deferred due to the perf sprint).
-
-  Future Tasks:
-  - Feature: Hook up  JS for real-user monitoring (P3).
-  - Feature: Legacy image backfill script to convert existing DB essay covers to WebP (P3).
-  - Feature: Build-time shell guard against >50 kB PNGs added to  (P3).
-  - Phase B: React-joyride tooltip tour for first-time signed-in users (P3).
-  - Feature:  page to track  and  events (P3).
-  - Feature: Email-subject preview inside the publish drawer (P4).
+    Upcoming Tasks:
+    - Task 1: Run  script on the production database (P0). Need user to execute this on their live DB.
+    - Task 2: Implement Cloudflare Cache Everything Page Rule (P1). Provide exact instructions to the user for the Cloudflare dashboard.
+    - Task 3: Disable scheduler on preview pod (P1) to prevent draft duplication.
+    
+    Future Tasks:
+    - Task 4: Add Resend webhook receiver () for unified analytics into  (P2).
+    - Task 5: Lazy-load TipTap's extensions via deferred chunking to improve JS load time for read-only visitors (P2).
+    - Task 6: Trending publishers widget under the 🔥 badge (P3).
+    - Task 7: Saving draft... / Last saved indicator on the composer body (P3).
+    - Task 8: Hook up  JS for real-user monitoring (P3).
 
 **Completed work in this session**
-- Fixed critical production hang on : Made submit flow non-blocking, added a live timer indicator (Publishing... 1s), and fixed backend event loop serialization (DONE).
-- Fixed login redirect loops: Migrated  in  to  to stop freezing the FastAPI event loop (DONE).
-- Created Admin News Pulse overlay on : Added click/impression tracking, live viewing counts, and a 🔥 badge for the most-clicked article (DONE).
-- Day 1-2 Perf Sprint: Implemented React route code-splitting and dynamic TipTap imports. Main JS bundle reduced from 711 kB to 155 kB (DONE).
-- Day 3 Perf Sprint: Image optimization. Converted logos to WebP (-92% size) and added  to article/feed images (DONE).
-- Day 4 Perf Sprint: Added  headers to aggregator endpoints, and implemented auto-WebP conversion for new image uploads in  (DONE).
-- Day 5 Perf Sprint: Added optimistic UI for Follow toggles and idle route prefetching () (DONE).
-- Day 6 Perf Sprint: UX Friction audit. Implemented  and  to scrub  and test emails/essays from public directories (DONE).
-- Day 7 Perf Sprint: Final measurements recorded in  showing massive speed increases (DONE).
+- Migrated all emails from Brevo to Resend, including setting up Resend Audiences pagination (DONE)
+- Fixed P0 production login redirect loop caused by cross-origin cookies missing in . Explicitly saving  to  (DONE)
+- Fixed P0 FastAPI event loop freeze caused by synchronous  calls in background workers. Wrapped all dispatches in  (DONE)
+- Implemented  frontend page and  backend endpoints for Resend Broadcasts API (DONE)
+- Transitioned Daily Briefs to use Resend Broadcasts API, restored email branding, and added article thumbnails (DONE)
+- Fixed production API slowness by adding a compound index  to  (DONE)
+- Removed 52MB of unused frontend dependencies (, , , ) to fix code bloat (DONE)
 
 **Earlier issues found/mentioned but not fixed**
   - None
 
 **Known issue recurrence from previous fork**
-  - Issue recurrence in previous fork: Infinite spinner on publishing essay.
-  - Recurrence count: 1 (Fixed in this session)
-  - Status: RESOLVED (The underlying blocking event loop was resolved).
+  - Issue recurrence in previous fork: Blocking the FastAPI event loop with synchronous HTTP requests.
+  - Recurrence count: 2 (First was  in auth, this session was  in background schedulers).
+  - Status: RESOLVED (Wrapped all email calls in ). Next agent must strictly ensure no synchronous HTTP requests exist in async blocks.
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
-React (Code-split with React.lazy/Suspense), FastAPI (Event Loop management, httpx for async external calls), MongoDB (Motor Async, Unique partial indexes), WebP image manipulation, Stale-while-revalidate caching.
+React, FastAPI (AsyncIO threading limits), MongoDB (Compound Indexing, Motor Async), Resend API (Broadcasts, Audiences), Cloudflare Edge Caching.
 
 **key DB schema**
   - : 
-  -  (NEW):  (Has partial unique index for 5m dedupe)
-  -  (NEW): 
+  - :  
+    *New Index: *
+  - : 
   - : 
 
 **changes in tech stack**
-  - Switched from synchronous  to asynchronous  in critical auth routes to avoid event loop blocking.
-  - Enabled dynamic  for heavy frontend libraries (TipTap) and route-level code splitting.
+  - Removed , , ,  from frontend.
+  - Switched entirely to Resend (Brevo is deprecated, though wrappers retain the name for compatibility).
 
-**All files of reference**
-  -  (Contains the critical async fixes for Google Auth callbacks)
-  -  (New Admin overlay)
-  -  (Refactored to use  and )
-  -  (Contains click/impression tracking and Cache-Control headers)
-  -  (Centralized logic to scrub e2e test accounts)
-  -  (Contains final 7-day perf metrics)
+**All files of reference** 
+  -  (New Resend core service)
+  -  (New backend logic for admin email drafts)
+  -  (New Drafts UI)
+  -  (Background jobs; needs preview disablement)
+  -  and  (Crucial for production Auth token setting)
 
 **Areas that need refactoring**
-  - Code review alerts identified high cyclomatic complexity in  ().
-  - Currently, frontend  does not have a Saving draft... indicator, relying on silent autosaves.
+  - The preview pod scheduler is actively running and interfering with production services (like sending drafts to Resend). Need a conditional gate ( or similar) in  or .
 
 **key api endpoints**
-  -  (Fixed async timeout issue)
-  -  (Fixed publish hanging issue)
-  -  (NEW)
-  -  (NEW)
-  -  (NEW)
+  - 
+  - 
+  - 
+  - 
 
 **Critical Info for New Agent**
-  - **Production vs Preview Dual Environment**: The user deploys manually to production (). You only have access to the preview pod. Ensure you clarify whether an issue is on Preview or Production. **Do not provide preview URLs in your summaries to the user.**
-  - **FastAPI Event Loop**: NEVER use synchronous  or  inside an async route without wrapping it in  or . Use  instead. This caused a massive production outage (login loops) in this session.
-  - **Test User Filtering**: Always import and use  from  when exposing user/member data to public endpoints (e.g., directory, essays) to prevent E2E artifacts from leaking.
+  - **Production vs Preview**: The user deploys manually to production. Production runs on a cross-origin API domain, which means  with  drops cookies. The  MUST be saved manually to  (via ) on all auth paths for prod to work.
+  - **FastAPI Event Loop Safety**: Never perform synchronous network requests (e.g., legacy , ) inside async methods without .
+  - **Resend Quota Issue**: The user's Resend account is blocked from sending broadcasts because they have 14k contacts but are on a free tier (100/day). Communicate this clearly; it cannot be fixed via code.
 
 **documents and test reports created in this job**
-  -  (Publish drawer fix test)
-  -  (Code-split / Lazy loading test)
-  - 
-  - 
-  - 
-  - 
-  - 
+  -  (Updated)
+  -  (Check for latest)
 
 **Last 10 User Messages and any pending HUMAN messages** 
- 1. *User*: Day 6 — UX friction audit... Day 7 — Final Lighthouse re-run
- 2. *Agent*: Audited UX, found E2E accounts leaking. Implemented test email filters and .
- 3. *Agent*: Fixed tests, updated PRD. Completed Day 6.
- 4. *User*: Day 7 — Final Lighthouse re-run + cumulative before/after memo.
- 5. *Agent*: Checked prod deployment. Measured speed. Generated  showing -78% bundle size and -93% API latency. Recommended #1: User redeploys, #2: Cloudflare Page Rule, #3: Run suspend script on Prod.
- 6. *User*: PRioritize these for me based on biggest effect
- 7. *Agent*: Ranked them: 1. Final redeploy, 2. Cloudflare rule, 3. Suspend script on Prod, 4. Web-vitals, 5. Legacy image script, 6. Build guard. Recommended doing 1, 2, 3 immediately.
- 8. *User*: (System Notif) The user has deployed this app to production.
- 9. *User*: Whats next? (PENDING HUMAN MESSAGE)
- 10. *Agent*: Needs to propose the next steps (verifying they set up the Cloudflare rule, running the prod script, or picking from the backlog).
+ 1. *Agent*: Fixed cache headers, dep bloat, and DB indexes. Production speed is fixed.
+ 2. *User*: Send another test email
+ 3. *Agent*: Sent test brief to peter@1691inc.com. Looks good.
+ 4. *User*: Why aren't the newsletters being sent to the subscribers through resend?
+ 5. *Agent*: Let me check scheduler and DB. (Noticed aborting due to old preview DB data, but checked Resend API).
+ 6. *Agent*: Discovered Drafts are being created but failing to send. Error: You have reached your contacts quota. You have 14k contacts but are on a free plan. Also noticed preview scheduler is racing with production. What do you want to do?
+ 7. *User*: Lets remove the reddit feeds. They are not producing good content (PENDING TASK)
+ 8. *Agent*: Searched DB and found 8 Reddit publishers. (Agent stopped here)
 
 **Project Health Check:**
-All systems Healthy. Production is extremely fast and stable. 
+- Broken: Resend broadcasts are failing due to third-party quota limit.
+- Mocked/Interference: Preview pod scheduler is currently interfering with production by creating duplicate Resend drafts.
 
 **3rd Party Integrations**
   - Emergent Google Auth — uses Emergent Integration
-  - Brevo (Emails) — requires User API Key (May still be under validation hold, but code handles it safely via BackgroundTasks).
-  - Google Analytics — Tag ID: 
+  - Resend (Emails/Broadcasts) — requires User API Key (Currently blocked by quota).
 
 **Testing status**
-  - Testing agent used after significant changes: YES (iteration 29, 30)
+  - Testing agent used after significant changes: NO
   - Troubleshoot agent used after agent stuck in loop: NO
-  - Test files created: , , 
-  - Known regressions: None.
+  - Test files created: 
+  - Known regressions: None, but preview scheduler needs disabling.
 
 **Credentials to test flow:**
   - See 
 
 **What agent forgot to execute**
-  - The agent did not run the  script on the *production* database (requires user permission/action since the agent only has access to the preview MongoDB). 
+  - The agent did not disable the scheduler on the preview environment before testing the Resend drafts, leading to duplicate drafts with preview URLs.
+  - The agent ran the DB query to find the 8 Reddit publishers but did not execute the logic to remove them before the context window ended.
 
 **Debugging checklist for current issue**
-   *(No active issue - Waiting to propose next tasks to user)*
-   Next Steps for Agent: 
-   1. Propose running  to clean up the production DB.
-   2. Ask the user if they were able to set up the Cloudflare Cache Everything Page Rule.
-   3. Ask if they want to proceed with the Backlog tasks (e.g., Trending Publishers widget, draft indicator, or web-vitals).</analysis>
+    Issue: Remove Reddit Feeds
+    Backend files to check:  (Maybe write a quick cleanup script) or just use Python REPL via  to run a MongoDB Motor script.
+    Database to check:  (slugs starting with  or name containing ), .
+    Steps:
+    1. Update  for the 8 Reddit publishers (or delete them).
+    2. Delete all documents in  matching those s.
+    3. Ensure no future RSS ingests occur for them.</analysis>

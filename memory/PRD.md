@@ -11,6 +11,33 @@ Hard guardrails: no chat widget, no popups, no follower counts, no stock photogr
 of teams.
 
 
+## 2026-05-26 — Reddit cleanup + preview scheduler gate (DONE)
+
+User direction: "Lets remove the reddit feeds. They are not producing
+good content."
+
+**Reddit feeds removed from aggregator**:
+- Wrote `backend/scripts/remove_reddit_feeds.py` (idempotent, matches by
+  `rss_url` regex / slug prefix `r-` / name prefix `r/`).
+- Ran against preview DB: deactivated 5 publishers
+  (r/RealEstate, r/Realtors, r/FirstTimeHomeBuyer, r/realestateinvesting,
+  r/RealEstateTechnology) and deleted 143 cached articles.
+- Sets `active=False` rather than hard-deleting publisher rows, so the
+  15-min ingest job skips them while preserving audit history.
+- **Action item for user**: run the same script on production DB
+  (`python scripts/remove_reddit_feeds.py` with prod MONGO_URL).
+
+**Preview scheduler gate**:
+- Added `DISABLE_SCHEDULER` env check in `server.py` startup hook.
+  When `DISABLE_SCHEDULER=true`, the scheduler is not started — prevents
+  preview pod from racing production (no more duplicate Resend drafts,
+  duplicate morning/evening briefs, duplicate aggregator ingests).
+- Set `DISABLE_SCHEDULER=true` in preview `/app/backend/.env`.
+- Verified in logs: "Scheduler disabled via DISABLE_SCHEDULER env var".
+- **Action item for user**: do NOT set this in production .env.
+
+
+
 ## 2026-02-23 — Perf + code-bloat sweep (DONE)
 
 User direction: "Only focus on site performance and lets look at code
