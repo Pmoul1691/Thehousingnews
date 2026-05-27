@@ -27,6 +27,19 @@ good content."
 - **Action item for user**: run the same script on production DB
   (`python scripts/remove_reddit_feeds.py` with prod MONGO_URL).
 
+**Auto-migration on redeploy (added 2026-05-27)**:
+- Added `backend/services/migrations.py` with idempotent migration runner.
+  Each entry writes a marker doc to `db.migrations` so it runs once,
+  ever, per environment.
+- First entry `001_remove_reddit_feeds` performs the same deactivation +
+  article purge as the standalone script.
+- Wired into `server.py` startup before the scheduler.
+- Verified locally: ran on a re-seeded preview DB → deactivated 5
+  publishers, wrote marker, second restart skipped (no-op).
+- **Action item for user**: just redeploy production. The migration
+  runs automatically on first boot. No manual mongosh / script run
+  required.
+
 **Preview scheduler gate**:
 - Added `DISABLE_SCHEDULER` env check in `server.py` startup hook.
   When `DISABLE_SCHEDULER=true`, the scheduler is not started — prevents
