@@ -311,6 +311,14 @@ async def on_startup():
     except Exception as _e:
         logger.warning("auth_tokens / login_attempts indexes not created: %s", _e)
 
+    # Run one-time data migrations (idempotent — each migration writes a
+    # marker doc and is skipped on subsequent boots).
+    try:
+        from services.migrations import run_pending_migrations
+        await run_pending_migrations(db)
+    except Exception:
+        logger.exception("Pending migrations failed")
+
     # Load DB-stored APP_PUBLIC_URL override into the process env so tracking links use it
     try:
         row = await db.app_settings.find_one({"key": "APP_PUBLIC_URL"}, {"_id": 0})
