@@ -5,6 +5,7 @@ De-branded: no Substack attribution surfaced in the UI. We strip the trailing
 hashtag cluster Substack/LinkedIn syndication adds because it does not fit the
 calm-by-design voice of the Network.
 """
+import asyncio
 import logging
 import os
 import re
@@ -101,7 +102,7 @@ async def import_substack_feed(db, feed_url: Optional[str] = None) -> dict:
         logger.warning("No admin user available to attribute imported essays")
         return {"ok": False, "reason": "no_admin_user", "imported": 0, "skipped": 0}
 
-    parsed = feedparser.parse(url)
+    parsed = await asyncio.to_thread(feedparser.parse, url)
     if parsed.bozo and not parsed.entries:
         logger.warning("Feed parse error: %s", getattr(parsed, "bozo_exception", "unknown"))
         return {"ok": False, "reason": "feed_parse_error", "imported": 0, "skipped": 0}

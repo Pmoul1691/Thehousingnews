@@ -10,8 +10,11 @@ Hard rules enforced here (NOT in CSS):
 Respects each publisher's robots.txt with a descriptive User-Agent. Failures in one
 publisher never cascade into others.
 """
+import asyncio
 import logging
+import os
 import re
+import time
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Tuple
@@ -29,6 +32,11 @@ SNIPPET_MAX_CHARS = 280
 ITEM_TTL_DAYS = 90
 ITEM_HARD_DELETE_DAYS = 120
 FETCH_TIMEOUT_SECONDS = 10
+
+# Per-run concurrency limit for ingest_all_active. Defaults to 6 — enough
+# to drop wall-clock 3-6x vs. serial without thrashing source publishers.
+# Override via env if you ever need to dial it up or down.
+INGEST_CONCURRENCY = int(os.environ.get("RSS_INGEST_CONCURRENCY", "6"))
 
 # Tracking-param patterns stripped from canonical article URLs so the same
 # article shared with utm_* / fbclid / gclid / mc_* etc. doesn't double-store.
@@ -316,15 +324,19 @@ async def ingest_publisher(db, publisher: dict) -> dict:
 
     # robots.txt (skippable per publisher when bypass_robots is set; used for
     # sources where we have a separate editorial decision to ingest).
-    if not bypass_robots and not _robots_allows(feed_url):
-        await db.agg_publishers.update_one(
-            {"id": pub_id},
-            {"$set": {"last_fetched_at": _now_iso(), "last_fetch_status": "robots_disallowed"},
-             "$inc": {"error_count": 1}},
-        )
-        return {"publisher_id": pub_id, "ok": False, "reason": "robots_disallowed", "inserted": 0}
+    # _robots_allows does sync requests.get — must run off the event loop or
+    # every other request stalls behind a single slow publisher.
+    if not bypass_robots:
+        allowed = await asyncio.to_thread(_robots_allows, feed_url)
+        if not allowed:
+            await db.agg_publishers.update_one(
+                {"id": pub_id},
+                {"$set": {"last_fetched_at": _now_iso(), "last_fetch_status": "robots_disallowed"},
+                 "$inc": {"error_count": 1}},
+            )
+            return {"publisher_id": pub_id, "ok": False, "reason": "robots_disallowed", "inserted": 0}
 
-    xml, err = fetch_feed_xml(feed_url, user_agent=custom_ua)
+    xml, err = await asyncio.to_thread(fetch_feed_xml, feed_url, custom_ua)
     if err:
         await db.agg_publishers.update_one(
             {"id": pub_id},
@@ -334,7 +346,7 @@ async def ingest_publisher(db, publisher: dict) -> dict:
         return {"publisher_id": pub_id, "ok": False, "reason": err, "inserted": 0}
 
     try:
-        entries = parse_entries(xml, publisher)
+        entries = await asyncio.to_thread(parse_entries, xml, publisher)
     except Exception as e:
         logger.exception("parse failure for %s: %s", pub_id, e)
         await db.agg_publishers.update_one(
@@ -479,14 +491,23 @@ async def ingest_publisher(db, publisher: dict) -> dict:
 
 
 async def ingest_all_active(db) -> dict:
-    """Iterate every active publisher whose refresh window has elapsed. Each
-    publisher runs in isolation — exceptions are caught and reported."""
+    """Iterate every active publisher whose refresh window has elapsed.
+
+    Each publisher runs in isolation — exceptions are caught and reported.
+    Publishers are fetched concurrently with a semaphore (default 6, env
+    RSS_INGEST_CONCURRENCY) so a slow source can't gate everyone else.
+
+    Logs elapsed wall-clock time at INFO so we can spot regressions.
+    """
+    started = time.perf_counter()
     now = _now()
     cur = db.agg_publishers.find({"active": True}, {"_id": 0})
     publishers = await cur.to_list(500)
-    results = []
+
+    # Apply per-publisher refresh window filter up front so the semaphore
+    # only gates publishers we're actually fetching this run.
+    due: list[dict] = []
     for p in publishers:
-        # Refresh window check
         last = p.get("last_fetched_at")
         refresh_minutes = int(p.get("refresh_minutes") or 30)
         if last:
@@ -496,20 +517,40 @@ async def ingest_all_active(db) -> dict:
                     continue
             except Exception:
                 pass
-        try:
-            r = await ingest_publisher(db, p)
-        except Exception as e:
-            logger.exception("ingest crashed for %s: %s", p.get("id"), e)
-            r = {"publisher_id": p.get("id"), "ok": False, "reason": "crash"}
+        due.append(p)
+
+    if not due:
+        logger.info("ingest_all_active: 0 publishers due (skipped %s)", len(publishers))
+        return {"ran": 0, "results": [], "elapsed_s": 0.0}
+
+    sem = asyncio.Semaphore(INGEST_CONCURRENCY)
+
+    async def _run_one(p: dict) -> dict:
+        async with sem:
             try:
-                await db.agg_publishers.update_one(
-                    {"id": p["id"]},
-                    {"$set": {"last_fetched_at": _now_iso(), "last_fetch_status": f"crash:{type(e).__name__}"}},
-                )
-            except Exception:
-                pass
-        results.append(r)
-    return {"ran": len(results), "results": results}
+                return await ingest_publisher(db, p)
+            except Exception as e:
+                logger.exception("ingest crashed for %s: %s", p.get("id"), e)
+                try:
+                    await db.agg_publishers.update_one(
+                        {"id": p["id"]},
+                        {"$set": {"last_fetched_at": _now_iso(), "last_fetch_status": f"crash:{type(e).__name__}"}},
+                    )
+                except Exception:
+                    pass
+                return {"publisher_id": p.get("id"), "ok": False, "reason": "crash"}
+
+    results = await asyncio.gather(
+        *(_run_one(p) for p in due),
+        return_exceptions=False,
+    )
+    elapsed = round(time.perf_counter() - started, 2)
+    logger.info(
+        "ingest_all_active: ran=%s due=%s skipped=%s concurrency=%s elapsed=%.2fs",
+        len(results), len(due), len(publishers) - len(due),
+        INGEST_CONCURRENCY, elapsed,
+    )
+    return {"ran": len(results), "results": results, "elapsed_s": elapsed}
 
 
 async def prune_expired(db) -> dict:
@@ -530,13 +571,14 @@ async def prune_expired(db) -> dict:
 async def test_feed(feed_url: str, display_mode: str = "headline_and_snippet") -> dict:
     """Used by /admin to validate a feed before activation. Returns the first
     3 parsed items so the operator can eyeball them."""
-    if not _robots_allows(feed_url):
+    allowed = await asyncio.to_thread(_robots_allows, feed_url)
+    if not allowed:
         return {"ok": False, "reason": "robots_disallowed", "items": []}
-    xml, err = fetch_feed_xml(feed_url)
+    xml, err = await asyncio.to_thread(fetch_feed_xml, feed_url)
     if err:
         return {"ok": False, "reason": err, "items": []}
     try:
-        entries = parse_entries(xml, {"display_mode": display_mode})
+        entries = await asyncio.to_thread(parse_entries, xml, {"display_mode": display_mode})
     except Exception as e:
         return {"ok": False, "reason": f"parse_error:{type(e).__name__}", "items": []}
     return {"ok": True, "count": len(entries), "items": entries[:3]}

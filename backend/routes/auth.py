@@ -214,9 +214,14 @@ def setup(db):
 
     @router.get("/me")
     async def get_me(
+        response: Response,
         session_token: Optional[str] = Cookie(default=None),
         authorization: Optional[str] = Header(default=None),
     ):
+        # Personalized — never edge-cache. Vary on both Authorization and
+        # Cookie so a misbehaving cache layer can't conflate users.
+        response.headers["Cache-Control"] = "private, no-store"
+        response.headers["Vary"] = "Authorization, Cookie"
         user = await get_current_user(db, session_token, authorization)
         # Attach profile if any
         profile = await db.profiles.find_one({"user_id": user["user_id"]}, {"_id": 0})

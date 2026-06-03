@@ -13,13 +13,21 @@ Single endpoint that returns:
 import logging
 from datetime import datetime, timezone
 from typing import Optional
-from fastapi import APIRouter, Cookie, Header
+from fastapi import APIRouter, Cookie, Header, Response
 
 from services.auth_helpers import get_current_user
 from services.briefings import build_brief_payload
 from services.release_window import now_chicago
 
 logger = logging.getLogger(__name__)
+
+
+def _set_private_no_store(response: Response) -> None:
+    """Personalized payload — never let any cache (browser, Cloudflare, CDN)
+    keep this. Two users on the same edge POP must NEVER see each other's
+    notifications, drafts, or last-seen counters."""
+    response.headers["Cache-Control"] = "private, no-store"
+    response.headers["Vary"] = "Authorization, Cookie"
 
 
 def _now_iso() -> str:
@@ -41,9 +49,11 @@ def setup(db):
 
     @router.get("")
     async def today_bundle(
+        response: Response,
         session_token: Optional[str] = Cookie(default=None),
         authorization: Optional[str] = Header(default=None),
     ):
+        _set_private_no_store(response)
         user = await get_current_user(db, session_token, authorization)
         user_id = user["user_id"]
         last_seen = user.get("last_today_seen_at")

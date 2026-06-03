@@ -11,6 +11,59 @@ Hard guardrails: no chat widget, no popups, no follower counts, no stock photogr
 of teams.
 
 
+## 2026-06-03 — Perf sprint (P1-P4) (DONE)
+
+User direction: "ROLE & MINDSET: senior performance engineer ... Stop
+blocking the FastAPI event loop, parallelize ingestion, make manual
+refresh non-blocking, finish the edge-cache story."
+
+### Shipped
+- **P1 — event-loop unblocked**: wrapped every sync `requests.get` /
+  `feedparser.parse` inside `async def` in `asyncio.to_thread` across
+  `services/rss_ingest.py` and `services/substack_import.py`. A
+  regression test asserts a concurrent ticker keeps firing while a
+  1.0s synchronous fetch runs.
+- **P2 — concurrent ingest**: rewrote `ingest_all_active` with
+  `asyncio.Semaphore(6, env RSS_INGEST_CONCURRENCY)` +
+  `asyncio.gather`. Full RSS ingest dropped from **35.81s → 13.83s
+  (2.6×)**. Wall-clock logged at INFO every run.
+- **P3 — 202 manual refresh**: `POST /api/refresh-feeds` now returns
+  in <300ms via BackgroundTasks. In-process overlap guard prevents
+  double-fetch. New `GET /api/refresh-feeds/status` for cron probes.
+- **P4 — edge cache coverage**: every public GET under `/api/agg/*`
+  carries `Cache-Control: public, max-age=N, s-maxage=N,
+  stale-while-revalidate=60`. Personalized endpoints carry
+  `private, no-store` + `Vary: Authorization, Cookie` via a
+  middleware (so 401s also stay uncacheable). Wrote
+  `memory/PERF_EDGE_CACHE.md` with the exact Cloudflare Page Rule.
+
+### Big latency wins (p95, 20 sequential hits)
+- `/api/essays?limit=10`: 1070.9ms → **46.9ms (22.8×)**
+- `/api/agg/articles`: 330ms → **46.1ms (7.2×)**
+- `/api/agg/trending`: 195ms → **48ms (4.1×)**
+- `/api/agg/network-stats`: 151ms → **44.1ms (3.4×)**
+
+The endpoints didn't get faster individually — they're just no longer
+queued behind the blocking 15-min ingest cron.
+
+### Deferred (per agreed scope 1=B, 2=A)
+- **P5 (web-vitals RUM)** — next sprint.
+- **P6 (frontend bundle trim)** — no >40kB gzipped offender remained
+  in the initial chunk after the previous dep removal pass, so no
+  cuts were warranted under the brief's "only if measured" gate.
+
+### Action items for user (cannot be done from code)
+1. **Redeploy** to push the new headers and the rewritten
+   `/api/refresh-feeds` endpoint to production.
+2. **Add the Cloudflare Page Rule** documented in
+   `memory/PERF_EDGE_CACHE.md` — without it, `s-maxage` is on every
+   response but Cloudflare returns `DYNAMIC` and bypasses the cache.
+3. (Optional) If you have an external cron hitting `/api/refresh-feeds`,
+   it now returns 202 instead of a summary. Switch the cron to poll
+   `/api/refresh-feeds/status` for the result.
+
+
+
 ## 2026-05-26 — Reddit cleanup + preview scheduler gate (DONE)
 
 User direction: "Lets remove the reddit feeds. They are not producing

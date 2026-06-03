@@ -64,6 +64,7 @@ def setup(db):
 
     @router.get("/articles")
     async def list_articles(
+        response: Response,
         category: Optional[str] = Query(default=None),
         publisher_slug: Optional[str] = Query(default=None),
         search: Optional[str] = Query(default=None, min_length=2, max_length=120),
@@ -72,6 +73,15 @@ def setup(db):
         limit: int = Query(default=DEFAULT_LIMIT, ge=1, le=MAX_LIMIT),
     ):
         """River of items, newest first, attributed to publisher. No internal article view."""
+        # Edge cache: 60s on Cloudflare is plenty — articles only change on
+        # the 15-min ingest cron. swr keeps p95 fast during the refresh tick.
+        # `search` queries are user-typed and cardinality-explosive, so opt
+        # them out of edge caching to avoid polluting the cache with one-hit
+        # variants that crowd out the common no-search reads.
+        if not search:
+            _set_public_cache(response, 60)
+        else:
+            response.headers["Cache-Control"] = "public, max-age=30"
         cutoff_iso = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
         pub_q: dict = {"active": True}
         if category and category in CATEGORIES:
@@ -131,7 +141,9 @@ def setup(db):
         return {"items": items, "total": total, "hours": hours, "offset": offset, "limit": limit, "search": search}
 
     @router.get("/publishers")
-    async def list_publishers():
+    async def list_publishers(response: Response):
+        # Publisher list mutates only on admin add/remove; 5-min edge TTL is safe.
+        _set_public_cache(response, 300)
         cur = db.agg_publishers.find(
             {"active": True},
             {"_id": 0, "id": 1, "slug": 1, "name": 1, "category": 1, "logo_url": 1, "homepage_url": 1, "permission_status": 1},
@@ -413,7 +425,9 @@ def setup(db):
         }
 
     @router.get("/categories")
-    async def categories():
+    async def categories(response: Response):
+        # Category counts change only when admin toggles a publisher; long TTL.
+        _set_public_cache(response, 300)
         # Count active publishers per category
         pipeline = [
             {"$match": {"active": True}},

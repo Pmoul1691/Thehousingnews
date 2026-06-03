@@ -98,6 +98,31 @@ else:
     )
 
 
+# Personalized endpoints — never edge-cache. Two users on the same
+# Cloudflare POP must never see each other's notifications/profile.
+# Applied via middleware so the headers stick even when the route
+# raises HTTPException(401) before its own response.headers assignment.
+_PRIVATE_PATH_PREFIXES = (
+    "/api/auth/",
+    "/api/today",
+    "/api/feed",
+    "/api/posts/mine",
+    "/api/posts/by-user/",
+    "/api/notifications",
+    "/api/admin/",
+)
+
+
+@app.middleware("http")
+async def _set_private_cache_headers(request, call_next):
+    response = await call_next(request)
+    path = request.url.path
+    if any(path.startswith(p) for p in _PRIVATE_PATH_PREFIXES):
+        response.headers["Cache-Control"] = "private, no-store"
+        response.headers["Vary"] = "Authorization, Cookie"
+    return response
+
+
 @app.on_event("startup")
 async def on_startup():
     try:
