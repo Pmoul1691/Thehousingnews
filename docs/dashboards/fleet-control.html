@@ -1,0 +1,1112 @@
+<title>Fleet Control — Pete's AI Engines</title>
+<style>
+  :root {
+    --bg: #F5F1E8;
+    --surface: #FFFDF8;
+    --surface-2: #EFE9DB;
+    --surface-3: #E7DFCC;
+    --border: #E2D9C6;
+    --border-strong: #D2C6AC;
+    --ink: #2A2620;
+    --ink-soft: #6B6355;
+    --ink-faint: #978D79;
+    --gold: #B8893B;
+    --gold-strong: #92671F;
+    --gold-wash: #F0E6CF;
+    --live: #4E7C4A;
+    --warn: #B57F26;
+    --alert: #B4472F;
+    --live-wash: #E4EEDF;
+    --warn-wash: #F3E9D2;
+    --alert-wash: #F3DFD7;
+    --shadow: 0 1px 2px rgba(42,38,32,.06), 0 8px 24px rgba(42,38,32,.05);
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  :root:not([data-theme="light"]) {
+    @media (prefers-color-scheme: dark) {
+      --bg: #15120C;
+      --surface: #201C14;
+      --surface-2: #29241A;
+      --surface-3: #322C20;
+      --border: #3A3324;
+      --border-strong: #4A4230;
+      --ink: #F1EAD9;
+      --ink-soft: #B4A98F;
+      --ink-faint: #857C68;
+      --gold: #D8B25C;
+      --gold-strong: #ECC978;
+      --gold-wash: #2E2717;
+      --live: #74B063;
+      --warn: #E0B152;
+      --alert: #E4744F;
+      --live-wash: #212B1C;
+      --warn-wash: #2E2814;
+      --alert-wash: #2E1D16;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.28);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #15120C;
+    --surface: #201C14;
+    --surface-2: #29241A;
+    --surface-3: #322C20;
+    --border: #3A3324;
+    --border-strong: #4A4230;
+    --ink: #F1EAD9;
+    --ink-soft: #B4A98F;
+    --ink-faint: #857C68;
+    --gold: #D8B25C;
+    --gold-strong: #ECC978;
+    --gold-wash: #2E2717;
+    --live: #74B063;
+    --warn: #E0B152;
+    --alert: #E4744F;
+    --live-wash: #212B1C;
+    --warn-wash: #2E2814;
+    --alert-wash: #2E1D16;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.28);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: inherit; }
+  .mono { font-family: var(--mono); }
+
+  .shell {
+    display: grid;
+    grid-template-columns: 268px minmax(0, 1fr);
+    max-width: 1240px;
+    margin: 0 auto;
+    min-height: 100vh;
+  }
+
+  /* ---------- RAIL ---------- */
+  .rail {
+    border-right: 1px solid var(--border);
+    padding: 26px 18px 40px;
+    position: sticky;
+    top: 0;
+    align-self: start;
+    height: 100vh;
+    overflow-y: auto;
+    background: var(--bg);
+  }
+  .brand { display: flex; align-items: center; gap: 11px; padding: 0 8px 4px; }
+  .brand-mark {
+    width: 34px; height: 34px; border-radius: 9px; flex: none;
+    background: linear-gradient(150deg, var(--gold), var(--gold-strong));
+    display: grid; place-items: center;
+    color: #fff; font-size: 17px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.35);
+  }
+  :root[data-theme="dark"] .brand-mark, :root:not([data-theme="light"]) .brand-mark { color: #1a1508; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .brand-mark { color: #1a1508; } }
+  .brand-name { font-weight: 700; letter-spacing: -.01em; font-size: 15px; }
+  .brand-sub { font-family: var(--mono); font-size: 10.5px; color: var(--ink-faint); letter-spacing: .04em; text-transform: uppercase; }
+
+  .rail-label {
+    font-family: var(--mono); font-size: 10px; letter-spacing: .13em;
+    text-transform: uppercase; color: var(--ink-faint);
+    padding: 22px 10px 8px;
+  }
+  .nav { display: flex; flex-direction: column; gap: 2px; }
+  .nav-item {
+    display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 11px;
+    padding: 9px 10px; border-radius: 9px; cursor: pointer;
+    border: 1px solid transparent; text-align: left; width: 100%;
+    background: none; color: inherit; font-family: inherit; font-size: 13.5px;
+    transition: background .14s, border-color .14s;
+  }
+  .nav-item:hover { background: var(--surface-2); }
+  .nav-item.active { background: var(--surface); border-color: var(--border-strong); box-shadow: var(--shadow); }
+  .nav-glyph { font-size: 15px; width: 20px; text-align: center; }
+  .nav-text { min-width: 0; }
+  .nav-title { font-weight: 600; letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .nav-cadence { font-family: var(--mono); font-size: 10px; color: var(--ink-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+  .dot.live { background: var(--live); box-shadow: 0 0 0 3px var(--live-wash); }
+  .dot.weekly { background: var(--warn); box-shadow: 0 0 0 3px var(--warn-wash); }
+
+  .rail-foot { margin-top: 26px; padding: 12px 10px 0; border-top: 1px solid var(--border); }
+  .rail-foot .wall {
+    font-family: var(--mono); font-size: 10.5px; color: var(--ink-soft);
+    display: flex; gap: 7px; align-items: baseline;
+  }
+  .rail-foot .wall b { color: var(--gold-strong); }
+
+  /* ---------- MAIN ---------- */
+  .main { padding: 26px 34px 64px; min-width: 0; }
+  .topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 4px; }
+  .topbar .clock { font-family: var(--mono); font-size: 11.5px; color: var(--ink-faint); letter-spacing: .02em; }
+  .theme-btn {
+    border: 1px solid var(--border-strong); background: var(--surface); color: var(--ink-soft);
+    border-radius: 8px; padding: 6px 11px; cursor: pointer; font-family: var(--mono);
+    font-size: 11px; letter-spacing: .03em; display: inline-flex; align-items: center; gap: 6px;
+  }
+  .theme-btn:hover { color: var(--ink); border-color: var(--gold); }
+
+  .view { display: none; animation: fade .28s ease; }
+  .view.active { display: block; }
+  @keyframes fade { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .view, .view.active { animation: none; } }
+
+  .eyebrow { font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--gold-strong); }
+  h1 { font-size: 30px; letter-spacing: -.025em; margin: 6px 0 4px; text-wrap: balance; font-weight: 700; }
+  .lede { color: var(--ink-soft); font-size: 15.5px; max-width: 62ch; margin: 0 0 4px; }
+
+  .status-line { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 22px; align-items: center; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 7px; font-family: var(--mono);
+    font-size: 11px; padding: 5px 10px; border-radius: 20px; border: 1px solid var(--border-strong);
+    background: var(--surface); letter-spacing: .02em;
+  }
+  .pill.live { color: var(--live); border-color: color-mix(in srgb, var(--live) 40%, var(--border)); background: var(--live-wash); }
+  .pill.weekly { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 40%, var(--border)); background: var(--warn-wash); }
+  .pill .dot { width: 7px; height: 7px; box-shadow: none; }
+
+  .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 0 0 24px; }
+  .metric { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 15px 16px; box-shadow: var(--shadow); }
+  .metric .mlabel { font-family: var(--mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-faint); }
+  .metric .mval { font-size: 25px; font-weight: 700; letter-spacing: -.02em; margin-top: 5px; font-variant-numeric: tabular-nums; }
+  .metric .mnote { font-size: 12px; color: var(--ink-soft); margin-top: 2px; }
+  .metric.accent .mval { color: var(--gold-strong); }
+
+  .grid { display: grid; grid-template-columns: 1.35fr 1fr; gap: 18px; align-items: start; }
+  @media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px 22px; box-shadow: var(--shadow); }
+  .card + .card { margin-top: 18px; }
+  .card h3 { margin: 0 0 12px; font-size: 12px; font-family: var(--mono); letter-spacing: .09em; text-transform: uppercase; color: var(--ink-faint); font-weight: 600; }
+
+  .does { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+  .does li { display: grid; grid-template-columns: auto 1fr; gap: 11px; font-size: 14px; align-items: baseline; }
+  .does li::before { content: ""; width: 6px; height: 6px; border-radius: 2px; background: var(--gold); transform: translateY(-1px); }
+
+  .cadence-list { display: flex; flex-direction: column; gap: 9px; }
+  .cad { display: grid; grid-template-columns: 116px 1fr; gap: 12px; font-size: 13px; align-items: baseline; padding-bottom: 9px; border-bottom: 1px dashed var(--border); }
+  .cad:last-child { border-bottom: 0; padding-bottom: 0; }
+  .cad .when { font-family: var(--mono); font-size: 11.5px; color: var(--gold-strong); letter-spacing: .01em; }
+  .cad .what { color: var(--ink-soft); }
+
+  .pending { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 9px; }
+  .pending li { display: grid; grid-template-columns: auto 1fr; gap: 10px; font-size: 13px; align-items: baseline; color: var(--ink-soft); }
+  .pending li::before { content: "→"; color: var(--alert); font-family: var(--mono); font-size: 12px; }
+  .pending.clear li::before { content: "✓"; color: var(--live); }
+
+  .wallbox { background: var(--gold-wash); border: 1px solid color-mix(in srgb, var(--gold) 30%, var(--border)); border-radius: 12px; padding: 13px 16px; font-size: 13px; color: var(--ink-soft); margin-top: 18px; }
+  .wallbox b { color: var(--gold-strong); font-family: var(--mono); font-size: 11px; letter-spacing: .05em; text-transform: uppercase; }
+
+  /* quick-launch bar (overview) — open any engine dashboard in one click */
+  .launch-panel { background: var(--surface); border: 1px solid var(--border-strong); border-radius: 14px; padding: 16px 18px; box-shadow: var(--shadow); margin: 4px 0 24px; }
+  .launch-head { font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--gold-strong); margin: 0 0 12px; display: flex; align-items: center; gap: 8px; }
+  .launch-head .glyph { font-size: 14px; }
+  .launchbar { display: flex; flex-wrap: wrap; gap: 9px; }
+  .launch { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; font-size: 13px; font-weight: 600;
+    padding: 9px 14px; border-radius: 10px; border: 1px solid var(--border-strong); background: var(--surface-2); color: var(--ink);
+    cursor: pointer; font-family: inherit; transition: border-color .14s, transform .1s, background .14s; }
+  .launch:hover { border-color: var(--gold); transform: translateY(-1px); background: var(--surface); }
+  .launch .lg { font-size: 15px; }
+  .launch .arr { font-family: var(--mono); color: var(--gold-strong); }
+  .launch.digest { color: var(--ink-soft); }
+
+  .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px; text-decoration: none;
+    font-size: 13px; font-weight: 600; padding: 10px 16px; border-radius: 10px;
+    border: 1px solid var(--border-strong); background: var(--surface); color: var(--ink);
+    transition: border-color .14s, transform .1s;
+  }
+  .btn:hover { border-color: var(--gold); transform: translateY(-1px); }
+  .btn.primary { background: linear-gradient(150deg, var(--gold), var(--gold-strong)); color: #fff; border-color: transparent; }
+  :root[data-theme="dark"] .btn.primary { color: #1a1508; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .btn.primary { color: #1a1508; } }
+  .btn .arr { font-family: var(--mono); }
+  .btn.disabled { opacity: .55; pointer-events: none; }
+  .btn small { font-weight: 400; color: var(--ink-faint); }
+
+  /* overview fleet cards */
+  .fleet { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; margin-top: 6px; }
+  .fcard { text-align: left; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 17px 18px; box-shadow: var(--shadow); color: inherit; transition: border-color .14s; }
+  .fcard:hover { border-color: var(--border-strong); }
+  .fcard-top { display: flex; align-items: center; justify-content: space-between; }
+  .fcard-glyph { font-size: 20px; }
+  .fcard h4 { margin: 12px 0 3px; font-size: 15.5px; letter-spacing: -.01em; }
+  .fcard p { margin: 0; font-size: 12.5px; color: var(--ink-soft); }
+  .fcard .fcad { font-family: var(--mono); font-size: 10.5px; color: var(--ink-faint); margin-top: 11px; display: block; letter-spacing: .01em; }
+  .fcard-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 13px; padding-top: 12px; border-top: 1px solid var(--border); }
+  .fcard-open {
+    display: inline-flex; align-items: center; gap: 6px; text-decoration: none;
+    font-size: 12px; font-weight: 600; color: var(--gold-strong); font-family: var(--mono);
+    letter-spacing: .01em; padding: 3px 4px; border-radius: 6px;
+  }
+  .fcard-open:hover { text-decoration: underline; }
+  .fcard-open.disabled { color: var(--ink-faint); font-weight: 400; }
+  .fcard-panel { font-family: var(--mono); font-size: 10.5px; color: var(--ink-faint); background: none; border: 0; padding: 3px 4px; cursor: pointer; letter-spacing: .02em; border-radius: 6px; }
+  .fcard-panel:hover { color: var(--gold-strong); }
+
+  .divider { height: 1px; background: var(--border); margin: 30px 0 24px; border: 0; }
+  .sec-head { font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-faint); margin: 0 0 14px; }
+
+  .countdown { display: flex; align-items: baseline; gap: 10px; font-variant-numeric: tabular-nums; }
+  .countdown b { font-size: 25px; font-weight: 700; letter-spacing: -.02em; color: var(--gold-strong); }
+
+  /* mobile */
+  @media (max-width: 760px) {
+    .shell { grid-template-columns: 1fr; }
+    .rail { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--border); padding: 18px 14px; }
+    .rail-foot { display: none; }
+    .rail-label { padding: 16px 10px 8px; }
+    .nav { flex-direction: row; overflow-x: auto; gap: 8px; padding-bottom: 4px; }
+    .nav-item { grid-template-columns: auto auto; flex: none; }
+    .nav-item .nav-cadence { display: none; }
+    .main { padding: 20px 18px 50px; }
+    .grid { grid-template-columns: 1fr; }
+    h1 { font-size: 25px; }
+  }
+</style>
+
+<div class="shell">
+  <aside class="rail">
+    <div class="brand">
+      <div class="brand-mark">◆</div>
+      <div>
+        <div class="brand-name">Fleet Control</div>
+        <div class="brand-sub">1691 Inc · Ultradian</div>
+      </div>
+    </div>
+    <div class="rail-label">Mission Control</div>
+    <nav class="nav" id="nav"></nav>
+    <div class="rail-foot">
+      <div class="wall"><b>The Wall</b> Every engine drafts &amp; tracks only. None sends, posts, or moves money.</div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div class="clock" id="clock"></div>
+      <button class="theme-btn" id="themeBtn">◐ Theme</button>
+    </div>
+    <div id="views"></div>
+  </main>
+</div>
+
+<style>
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin:20px 0 6px}
+  .chip{font:inherit;font-size:13px;padding:6px 14px;border-radius:99px;cursor:pointer;
+        border:1px solid var(--line,#e7e0d5);background:transparent;color:var(--muted,#78716c);transition:.15s}
+  .chip:hover{border-color:var(--gold,#b8863b);color:var(--ink,#1c1917)}
+  .chip.on{background:var(--gold,#b8863b);border-color:var(--gold,#b8863b);color:#fff}
+  .tablecard{padding:0;overflow-x:auto}
+  .ctable{width:100%;border-collapse:collapse;font-size:14px}
+  .ctable th{text-align:left;font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+             color:var(--muted,#78716c);font-weight:600;padding:12px 14px;border-bottom:1px solid var(--line,#e7e0d5);white-space:nowrap}
+  .ctable td{padding:11px 14px;border-bottom:1px solid var(--line,#e7e0d5);vertical-align:top}
+  .ctable tr:last-child td{border-bottom:none}
+  .crow.dim{opacity:.5}
+  .cname code,.cname{font-size:13px;font-weight:600;white-space:nowrap}
+  .ccad{white-space:nowrap;color:var(--muted,#78716c);font-size:13px}
+  .ceng{color:var(--muted,#78716c);font-size:13px;white-space:nowrap}
+  .cwhat{color:var(--muted,#78716c);min-width:280px}
+  .risk{display:inline-block;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;
+        padding:3px 9px;border-radius:99px;white-space:nowrap;font-weight:600}
+  .rg{background:rgba(22,120,70,.14);color:#167846}
+  .ra{background:rgba(184,134,59,.18);color:#8a6220}
+  .rr{background:rgba(179,52,31,.15);color:#b3341f}
+  .rx{background:rgba(120,113,108,.16);color:#78716c}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .rg{background:rgba(52,180,110,.18);color:#5fd39b}
+    :root:not([data-theme="light"]) .ra{background:rgba(217,167,90,.2);color:#d9a75a}
+    :root:not([data-theme="light"]) .rr{background:rgba(225,90,66,.2);color:#f08a72}
+    :root:not([data-theme="light"]) .rx{background:rgba(168,162,158,.18);color:#a8a29e}}
+  :root[data-theme="dark"] .rg{background:rgba(52,180,110,.18);color:#5fd39b}
+  :root[data-theme="dark"] .ra{background:rgba(217,167,90,.2);color:#d9a75a}
+  :root[data-theme="dark"] .rr{background:rgba(225,90,66,.2);color:#f08a72}
+  :root[data-theme="dark"] .rx{background:rgba(168,162,158,.18);color:#a8a29e}
+  @media (max-width:700px){.ctable{font-size:13px}.cwhat{min-width:200px}}
+</style>
+<script>
+/* ---------- FULL CATALOG: every skill, automation, and app ---------- */
+/* Source of truth: Chief AI Officer/FLEET.md. Risk: g=draft/report only, a=writes somewhere, r=acts autonomously, x=retired. */
+const CATALOG = [
+  // Engines
+  {n:"daily-ten",             c:"Engines", cad:"Weekday 7:30a", risk:"g", eng:"Daily Ten", w:"NEW Aug 20. Harvests the whole fleet into ten time-estimated tasks a day on a checkable board, rolls what is missed, books 2-3 calendar blocks."},
+  {n:"prospect-engine",       c:"Engines", cad:"Weekday 6:37a · Sun 7:00p", risk:"g", eng:"Prospect", w:"Finds RE pros in visible pain, scores on a 5-question rubric, drafts unsent outreach."},
+  {n:"deal-engine",           c:"Engines", cad:"Weekday 6:49a + 5:09p",     risk:"g", eng:"Deal",     w:"Generates and tracks sales opportunities across all 3 properties, sets the day's 3 actions."},
+  {n:"delivery-engine",       c:"Engines", cad:"Weekday 7:49a + 5:28p · Fri 3:34p", risk:"g", eng:"Delivery", w:"Onboarding, session prep, client health board, proof pipeline, Friday debrief + content pack."},
+  {n:"visibility-engine",     c:"Engines", cad:"Daily 7:22a",  risk:"g", eng:"Visibility", w:"AEO/SEO/GEO across the 3 sites: measure, create one answer-shaped asset, list fixes, draft distribution."},
+  {n:"book-launch-engine",    c:"Engines", cad:"Daily 8:15a · Sun 4:39p", risk:"g", eng:"Book Launch", w:"Runs the Oct 1 launch runway, drafts every asset, hands Pete 3 human-only actions a day."},
+  {n:"finance-engine",        c:"Engines", cad:"On demand · live QB", risk:"g", eng:"Ledger", w:"Live QuickBooks read: cash, YTD P&L, balance sheet, revenue vs goal. Read-only."},
+  {n:"front-door",            c:"Engines", cad:"Manual · 6:30a proposed", risk:"g", eng:"Front Door", w:"NEW Aug 18. Catches inbound hand-raises, scores them, drafts the first response. Replaced booking-handler."},
+  {n:"chief-ai-officer-weekly",c:"Engines",cad:"Monday 7:00a", risk:"g", eng:"CAIO", w:"Weekly fleet audit, strategy, new-AI research, refreshes this dashboard."},
+
+  // Sonja
+  {n:"sonja-morning-brief",   c:"Sonja", cad:"Weekday 7:00a", risk:"r", eng:"-", w:"Phase-2 autonomy: sends outreach, replies, posts social, sends broadcasts, updates HubSpot, books meetings."},
+  {n:"sonja-evening-report",  c:"Sonja", cad:"Weekday 5:00p", risk:"g", eng:"-", w:"Reconciles the day and the growth lane."},
+  {n:"sonja-weekly-growth-numbers", c:"Sonja", cad:"Monday 7:30a", risk:"g", eng:"-", w:"Last week's marketing numbers and what drove ultradia.io."},
+  {n:"sonja-weekly-content-queue",  c:"Sonja", cad:"Monday 8:00a", risk:"r", eng:"-", w:"Publishes launch posts via Buffer and sends the nurture broadcast."},
+
+  // Content
+  {n:"daily-execution-column",c:"Content", cad:"Weekday 8:30a", risk:"r", eng:"-", w:"Canonical daily publisher: auto-publishes the column to 3 sites + LinkedIn + Substack."},
+  {n:"re-as-small-business-weekly-draft", c:"Content", cad:"Sunday 8:00a", risk:"g", eng:"-", w:"Drafts the week's 3 RE-as-small-business articles. Approval gate added Aug 12."},
+  {n:"weekly-content-prep",   c:"Content", cad:"Monday 7:00a", risk:"g", eng:"-", w:"Researches and drafts 2 research posts, mirrors to Drive. Demoted to draft-only Aug 12."},
+  {n:"ultradia-daily-video-script", c:"Content", cad:"Daily", risk:"g", eng:"-", w:"Pete's daily 25-second morning video script with hook and CTA."},
+  {n:"waitlist-nurture-content",    c:"Content", cad:"Tuesday", risk:"g", eng:"-", w:"Drafts the ultradia.io waitlist nurture email for Pete to load into Brevo."},
+
+  // Sales
+  {n:"daily-revenue-ideas",   c:"Sales", cad:"Weekday morning", risk:"g", eng:"-", w:"Three revenue ideas for Ultradian Partners: quick win, medium-term, strategic play."},
+
+  // Coaching
+  {n:"auto-coaching-report",  c:"Coaching", cad:"Hourly", risk:"g", eng:"Delivery reads it", w:"Turns new coaching transcripts into a branded report plus the client follow-up draft."},
+  {n:"pre-meeting-research",  c:"Coaching", cad:"Before events", risk:"a", eng:"Front Door reads it", w:"Researches attendees and writes '## ATTENDEE RESEARCH' into the calendar event description."},
+
+  // Research
+  {n:"icp-interview-0826",    c:"Research", cad:"On demand · per transcript", risk:"g", eng:"ICP Study", w:"Turns a discovery interview transcript into a branded Ultradian record, a coded row in the study workbook, and a send-ready recap for the interviewee. Capture only, never advice."},
+  {n:"icp-questionnaire-0826",c:"Research", cad:"On demand · per form pull", risk:"g", eng:"ICP Study", w:"Reads the 'How Your Week Actually Goes' form responses, codes them against the same codebook, appends to the same workbook, and refreshes the rolling brief across both routes."},
+
+  // Podcast / PR
+  {n:"podcast-pitch-daily",   c:"Podcast / PR", cad:"Mon–Sat 6:00a", risk:"g", eng:"Book Launch hands off", w:"Researches 3 podcasts and drafts 3 ready-to-send guest pitches. The single podcast engine."},
+  {n:"brand-mention-monitor", c:"Podcast / PR", cad:"Daily 6:00a", risk:"g", eng:"-", w:"Scans the web for mentions of the book, brand, and software."},
+
+  // Ultradia
+  {n:"ultradia-daily-pace-to-20k",  c:"Ultradia", cad:"Daily 7:00a", risk:"g", eng:"-", w:"Unified daily dashboard: paid subs + MRR from Stripe, visits, cross-platform scoreboard. Ramp to 1,000 by Jan 2027."},
+  {n:"ultradia-post-scoreboard-pm", c:"Ultradia", cad:"Daily 6:00p", risk:"g", eng:"-", w:"Evening check on how today's short clip is performing."},
+
+  // Finance / ops
+  {n:"execution-summary",     c:"Finance / Ops", cad:"Daily 6:30a", risk:"g", eng:"-", w:"Builds Pete's prioritized Execution Summary from Gmail and calendar."},
+  {n:"weekly-business-snapshot", c:"Finance / Ops", cad:"Friday 6:00a", risk:"g", eng:"Ledger", w:"Pulls QuickBooks P&L into a one-page business snapshot."},
+  {n:"monthly-close-reminder",c:"Finance / Ops", cad:"28th 6:00a", risk:"g", eng:"Ledger", w:"Pulls QB P&L, flags missing or uncategorized months ahead of close."},
+
+  // Retired
+  {n:"booking-handler",       c:"Retired", cad:"was every 30m", risk:"x", eng:"→ front-door", w:"RETIRED Aug 18 2026. Broke on stale tool names, a 30-min window instead of a ledger, duplicated pre-meeting-research, and wrote to the live calendar."},
+  {n:"sonja-daily-growth",    c:"Retired", cad:"was weekday 6:00a", risk:"x", eng:"→ sonja-morning-brief", w:"Overlapped the 7am brief; folded in."},
+  {n:"daily-morning-briefing",c:"Retired", cad:"was 6:00a", risk:"x", eng:"→ sonja-morning-brief", w:"Superseded."},
+  {n:"daily-auto-publish-research-posts", c:"Retired", cad:"was daily 8:00a", risk:"x", eng:"→ daily-execution-column", w:"Duplicate publisher."},
+  {n:"daily-focus-ultradian-research-scan", c:"Retired", cad:"was daily", risk:"x", eng:"→ weekly-content-prep", w:"Emergent-era publisher; superseded."},
+  {n:"podcast-outreach-pipeline", c:"Retired", cad:"was Monday", risk:"x", eng:"→ podcast-pitch-daily", w:"Duplicate with a separate dedup log; double-pitch risk."},
+  {n:"coaching-session-followup", c:"Retired", cad:"was every 2h", risk:"x", eng:"→ auto-coaching-report", w:"Merged; transcript-grounded follow-up replaced the calendar guess."},
+  {n:"ultradia-post-scoreboard-am", c:"Retired", cad:"was daily 7:30a", risk:"x", eng:"→ ultradia-daily-pace-to-20k", w:"Folded into one morning read."},
+  {n:"ultradia-ga4-ads-conversion-check", c:"Retired", cad:"was every 4h", risk:"x", eng:"-", w:"Transient one-time GA4-to-Ads watcher; job done."},
+  {n:"check-petermoulton-redirect", c:"Retired", cad:"was every 15m", risk:"x", eng:"-", w:"Site is live; job done."},
+  {n:"twilio-a2p-approval-watch", c:"Retired", cad:"was watch", risk:"x", eng:"-", w:"Twilio/A2P function killed at Pete's request Aug 12."},
+  {n:"twilio-a2p-brand-watch",    c:"Retired", cad:"was every 2h", risk:"x", eng:"-", w:"Twilio/A2P function killed at Pete's request Aug 12."},
+  {n:"ultradia-a2p-profile-watch",c:"Retired", cad:"was watch", risk:"x", eng:"-", w:"Twilio/A2P function killed at Pete's request Aug 12."}
+];
+
+const APPS = [
+  {n:"Gmail",            s:"on", w:"Reads inbound, stages unsent drafts. Used by nearly every engine."},
+  {n:"Google Drive",     s:"on", w:"Every brief, report, and content pack lands here. Meet Recordings folder feeds Delivery."},
+  {n:"Google Calendar",  s:"on", w:"Bookings, session prep, attendee research blocks."},
+  {n:"QuickBooks",       s:"on", w:"The Ledger reads 1691 Inc books. Read-only, all write tools off."},
+  {n:"HubSpot",          s:"on", w:"Free tier on the ultradia funnel. CRM write is a stub, off pending Pete's CRM decision."},
+  {n:"Calendly",         s:"on", w:"Three booking types. Front Door catches the resulting events."},
+  {n:"Stripe",           s:"on", w:"ultradia.io MRR and 8hourplan pre-orders. Read-only."},
+  {n:"Otter.ai",         s:"on", w:"Conversation transcripts for coaching reports and future content mining."},
+  {n:"Canva",            s:"on", w:"Design assets for launch and social."},
+  {n:"Bitly",            s:"on", w:"Tracked links. Will carry the Amplifier's distribution ledger."},
+  {n:"Zapier",           s:"on", w:"The bridge to anything without a native connector, including Brevo and Buffer."},
+  {n:"Attio",            s:"on", w:"CRM, connected but cancelled. Superseded by the HubSpot decision."},
+  {n:"Replit",           s:"on", w:"Hosts the three sites. Publish tokens need rotating."},
+  {n:"Ahrefs",           s:"on", w:"Search and Brand Radar data for the Visibility Engine."},
+  {n:"ElevenLabs",       s:"on", w:"Speech generation for audio and video assets."},
+  {n:"Supermetrics",     s:"warn", w:"License 1822846 LAPSES SEP 6 2026. Deliberately not renewing. Free Google direct pipe must be finished first."},
+  {n:"Brevo",            s:"ext", w:"Email sending for the ultradia waitlist. Not a connector; Pete loads drafts manually."},
+  {n:"Buffer",           s:"ext", w:"Social scheduling used by sonja-weekly-content-queue."},
+  {n:"Notion",           s:"off", w:"Not authorized. Optional. Drive already does this job."},
+  {n:"Slack / ClickUp",  s:"off", w:"Not authorized and not recommended. The class stack; you do not run on these."}
+];
+
+const RISK = {
+  g:{cls:"rg", t:"draft only"},
+  a:{cls:"ra", t:"writes"},
+  r:{cls:"rr", t:"autonomous"},
+  x:{cls:"rx", t:"retired"}
+};
+
+const ENGINES = [
+  {
+    id: "overview", nav: "Overview", glyph: "▦", cadence: "the whole fleet",
+    status: "live", overview: true
+  },
+  {
+    id: "dailyten", glyph: "✅", nav: "The Daily Ten", cadence: "weekday · 7:30a",
+    status: "live", statusLabel: "Live · the board you work from",
+    title: "The Daily Ten",
+    lede: "The only engine that does not generate work. Every other engine hands Pete its own recommendations, so by 8:30 there are five briefs and no single answer. The Daily Ten is the funnel they all drain into: it harvests candidates from the whole fleet, scores them, and hands Pete exactly ten specific tasks that fit the day he actually has, each with a time estimate and a total at the bottom. He checks them off on a live board. What he misses rolls to tomorrow.",
+    metrics: [
+      { label: "Tasks / day", val: "10", note: "scored, deduped, budget-fitted", accent: true },
+      { label: "Time budget", val: "3h", note: "about 18 min a task" },
+      { label: "Calendar", val: "2-3", note: "execution blocks in real free gaps" },
+      { label: "Milestone", val: "Ten finished", accent: true }
+    ],
+    cadences: [
+      { when: "Weekday 7:30a", what: "Grade yesterday's board, roll what was missed, harvest the fleet, publish today's ten, book the blocks" },
+      { when: "On demand", what: "\"rebuild my afternoon\", \"did I finish yesterday\", \"what's on the board\"" }
+    ],
+    does: [
+      "Reads the published board back each morning to see what Pete actually checked off, then grades and rolls from that, never from a guess",
+      "Harvests ledger-first from all nine other engines plus the calendar, dedupes the overlaps, and caps how many tasks any one engine can contribute",
+      "Writes every task so it can be started without thinking: the first physical move, the done condition, and the source record it came from",
+      "Says out loud when the day cannot hold the work, and names which tasks have no block, rather than quietly overbooking"
+    ],
+    wall: "Reads and ranks only. Never sends, never writes another engine's ledger, never invents a task or an estimate or a completion, never marks anything done that Pete did not check off. Never books over a meeting or inside the 7:00-9:00 Founder Sprint. A padded ten is worse than an honest eight.",
+    pending: [
+      "Run one full 7:30 cycle so the first real grade-and-rollover happens end to end",
+      "Deal Engine and Delivery Engine ledgers have not been written since Aug 14 though both standups fire daily, so the pipeline candidates are running stale"
+    ],
+    dash: "https://claude.ai/code/artifact/fffc7abf-a7d5-4643-9caa-b6d2732c1601",
+    dashLabel: "today's board",
+    lives: "~/Documents/Claude/Scheduled/daily-ten/"
+  },
+  {
+    id: "bullseye", glyph: "🧭", nav: "Bullseye Engine", cadence: "weekly · Sun 4:00p",
+    status: "live", statusLabel: "Live · allocation layer",
+    title: "The Bullseye Engine",
+    lede: "The channel portfolio layer for ultradia.io. All 19 acquisition channels from Traction, scored and sorted across three rings, re-decided every week. It decides where acquisition effort goes and routes each approved test to whichever engine owns that channel. It never runs a campaign itself.",
+    metrics: [
+      { label: "Inner ring", val: "1 / 3", note: "only Sales is proven", accent: true },
+      { label: "Under test", val: "6", note: "middle-ring slots, all filled" },
+      { label: "On the board", val: "19", note: "channels scored 0 to 20" },
+      { label: "Measured CAC", val: "0", note: "Google data pipe still pending" }
+    ],
+    cadences: [
+      { when: "Sun 4:00p", what: "Weekly sweep: rescore all 19, kill expired tests, fill open slots, route the cards" },
+      { when: "On demand", what: "Ad-hoc: where should the next unit of effort go" }
+    ],
+    does: [
+      "Scores every channel on promise, cost, targeting, and speed, then ranks the whole board",
+      "Enforces pre-registered test cards: a kill number is written before a test starts, and expiry kills automatically",
+      "Guards the inner ring at max 3. A fourth qualifier forces an explicit swap instead of quietly widening focus",
+      "Routes approved tests to the owning engine, and turns owner-less channels into build specs for Agent School"
+    ],
+    wall: "Allocates and routes only. Never spends, sends, posts, or runs a campaign. Never writes another engine ledger. Never invents a CAC: unmeasured reports as unmeasured.",
+    pending: [
+      "Review one real weekly sweep, then wire the Sunday cron",
+      "Install the Google service-account JSON so channel economics stop being estimates",
+      "Attach a tracked signup URL to the Sept 4 workshop before the date, or the top-ranked test yields nothing"
+    ],
+    dash: "https://claude.ai/code/artifact/e9022db4-1f30-4b84-ab93-fc5672e40816",
+    lives: "~/Documents/Claude/Scheduled/bullseye-engine/"
+  },
+  {
+    id: "prospect", nav: "Prospect Engine", glyph: "🎯", cadence: "daily · 6:30a",
+    status: "live", statusLabel: "Live · draft-only",
+    title: "The Prospect Engine",
+    lede: "Finds real-estate professionals in urgent, visible pain about focus and pipeline, scores them against a fixed rubric, and puts drafted, unsent outreach in front of Pete every morning.",
+    metrics: [
+      { label: "Prospects / day", val: "25", note: "ranked by YoY volume decline" },
+      { label: "Queue threshold", val: "7 / 10", note: "5-question rubric" },
+      { label: "Source list", val: "999", note: "Courted MRED $3–20M" },
+      { label: "Milestone", val: "More customers", accent: true }
+    ],
+    cadences: [
+      { when: "Weekday 6:30a", what: "Daily light sweep — 3–7 prospects, before Sonja's 7a brief" },
+      { when: "Weekday 6:54a", what: "Reply loop — classifies Gmail replies, drafts responses" },
+      { when: "Sun 7:00p", what: "Weekly deep sweep + competitor-review pain report" }
+    ],
+    does: [
+      "Ranks established producers by sharpest year-over-year volume decline, caps ~2 per brokerage, dedupes via ledger",
+      "Three tiers: plateau agents → team leads → brokerage owners, each with its own offer ladder",
+      "Writes curious, never-accusatory email in Pete's voice; asks for a 15-min Meet within 10 days",
+      "Stages real unsent Gmail drafts and a 7-day calendar follow-up per batch"
+    ],
+    wall: "Drafts only — no send code path exists. CRM write is a stub, off pending Pete's CRM decision. Suppressions honored permanently.",
+    pending: [
+      "Register the engine with Sonja's morning brief (one routing line)",
+      "Turn on the HubSpot stub once the CRM decision settles"
+    ],
+    dash: null,
+    lives: "~/Documents/Claude/Scheduled/prospect-engine/"
+  },
+  {
+    id: "frontdoor", glyph: "🚪", nav: "The Front Door", cadence: "manual · 6:30a proposed",
+    status: "weekly", statusLabel: "Built · not yet on cron",
+    title: "The Front Door",
+    lede: "The first engine a stranger touches. It catches every inbound hand-raise, scores it on the shared Deal Engine rubric, and drafts the tier-matched first response. Built Aug 18 2026 to replace booking-handler, which failed on every run.",
+    metrics: [
+      { label: "Runs so far", val: "0", note: "never executed, inbox is empty" },
+      { label: "Catches", val: "2", note: "Calendly + unknown-sender Gmail" },
+      { label: "Hot tier", val: "8 / 10", note: "shared Deal Engine rubric" },
+      { label: "Milestone", val: "Nothing unanswered", accent: true }
+    ],
+    cadences: [
+      { when: "Manual", what: "Run on demand until Pete reviews one real brief" },
+      { when: "6:30a proposed", what: "Morning catch, ahead of the Deal Engine standup so the handoff is fresh" },
+      { when: "12:45p proposed", what: "Midday catch for same-day arrivals" }
+    ],
+    does: [
+      "Catches Calendly bookings read-only from Calendar plus unread Gmail from unknown senders",
+      "Scores on the Deal Engine rubric verbatim: 8-10 hot, 5-7 warm, 3-4 nurture, 0-2 archive",
+      "Writes ledger/handoff.json for the 6:49a standup to ingest, and never writes the Deal Engine pipeline itself",
+      "Reads the pre-meeting-research calendar block rather than re-researching, and reports research_status pending when it is absent"
+    ],
+    wall: "Never sends, never posts, never writes a calendar event, never cold-touches. Ledger-based dedup by permanent id, never a time window. Only auto-send is the brief to Pete.",
+    pending: [
+      "Toggle booking-handler off in the desktop Scheduled panel",
+      "Run once manually to pre-approve tools, then tune the booking exclude patterns",
+      "Read one brief, then decide on create_gmail_drafts, then wire the cron"
+    ],
+    dash: null,
+    lives: "~/Documents/Claude/Scheduled/front-door/"
+  },
+  {
+    id: "deal", glyph: "📊", nav: "Deal Engine", cadence: "daily · 6:49a / 5:09p",
+    status: "live", statusLabel: "Live · draft & track",
+    title: "The Deal Engine",
+    lede: "Generates and tracks sales opportunities across all three properties and holds Pete accountable to a small daily action list. The pipeline and accountability layer that sits on top of the demand generators.",
+    metrics: [
+      { label: "Current MRR", val: "$13,583", note: "5 active clients", accent: true },
+      { label: "Run-rate ARR", val: "$163K", note: "→ $178.6K w/ 2 pending" },
+      { label: "2026 goal", val: "$200K", note: "gross · 2027: $400K" },
+      { label: "Pipeline", val: "9 opps", note: "seeded from real inbound" }
+    ],
+    cadences: [
+      { when: "Weekday 6:49a", what: "Morning standup — grades yesterday, sets today's 3 actions, flags stalled deals" },
+      { when: "Weekday 5:09p", what: "Evening check-in — confirms actions, updates stages + streak" },
+      { when: "On demand", what: "Full sweep — regenerate opportunities across all segments" }
+    ],
+    does: [
+      "Scores opportunities on a 5-factor rubric (fit, heat, value, urgency, winnability); 7+ is hot",
+      "Tracks a book-of-business layer: active clients, MRR, renewals due, at-risk accounts",
+      "Rolls up three revenue streams — coaching, ultradia.io, book — toward the gross goal",
+      "Hard anti-collision rule with the Prospect Engine: never cold-touches an RE agent already in that ledger"
+    ],
+    wall: "Drafts and tracks only, no send path to any customer. Revenue is manual — the engine records only what Pete reports, never bills or prices.",
+    pending: [
+      "Fill YTD gross booked to make progress-to-goal real",
+      "Provide ultradia.io product MRR to fold into the goal math",
+      "Review one real standup, then flip create_gmail_drafts on"
+    ],
+    dash: "https://claude.ai/code/artifact/5154cb88-9bf3-4c12-91a5-a484dc9759a1",
+    lives: "~/Documents/Claude/Scheduled/deal-engine/"
+  },
+  {
+    id: "delivery", glyph: "🤝", nav: "Delivery Engine", cadence: "daily 7:49a / 5:28p · Fri debrief",
+    status: "live", statusLabel: "Live · draft & coordinate",
+    title: "The Delivery Engine",
+    lede: "The client success layer that sits after the sale. It onboards new clients, preps every session with continuity, runs a delivery-health early-warning board, and turns delivered results into testimonials, referrals, and book blurbs. The flywheel that makes every future sale cheaper.",
+    metrics: [
+      { label: "Active clients", val: "5", note: "coaching + consulting", accent: true },
+      { label: "Onboarding", val: "2", note: "Hingle Sep 1 · J. Reagan" },
+      { label: "Book health", val: "5·0·0", note: "green / yellow / red" },
+      { label: "Milestone", val: "Renew & refer" }
+    ],
+    cadences: [
+      { when: "Weekday 7:49a", what: "Morning brief — preps every client session, sets 3 care actions, shows the health board" },
+      { when: "Weekday 5:28p", what: "Evening wrap — logs sessions, updates health, advances proof, holds the streak" },
+      { when: "Friday 3:30p", what: "Weekly client debrief + content pack — reads the week's Meet Recordings notes, summarizes every client conversation, and drafts an anonymized video script and article (a thematic summary of the week's topics) for Pete to post Saturday" },
+      { when: "On demand", what: "Full sweep — health trend, renewal-window recaps, proof captured this week" }
+    ],
+    does: [
+      "Onboards new clients: welcome, intake, kickoff one-pager, first-90-days delivery plan",
+      "Builds session-prep continuity — last session's commitments and whether they were kept, plus three things to push on",
+      "Runs a green/yellow/red delivery-health board and feeds renewal + at-risk + expansion signals to the Deal Engine",
+      "Works a proof pipeline — turns wins into testimonials, case studies, and blurbs, then hands them to Visibility + Book Launch",
+      "Every Friday, reads the week's Gemini meeting notes from Drive and hands Pete one comprehensive client debrief: per client, cross-week themes, and what he owes before next week"
+    ],
+    wall: "Drafts and coordinates only, no send path to any client. Never publishes proof, never writes the roster, never re-drafts what auto-coaching-report owns. Only auto-send is the heads-up email to Pete.",
+    pending: [
+      "Run each task once from the Scheduled panel to pre-approve its tools",
+      "Review one real brief, then flip create_gmail_drafts on",
+      "Confirm remaining roster gaps: Molly's email, Hingle + Reagan start details (Lewis = Lewis Maschmedt, now known)"
+    ],
+    dash: "https://claude.ai/code/artifact/a0dc7c31-58f5-4cb0-8045-efb3a0a3a7c4",
+    lives: "~/Documents/Claude/Scheduled/delivery-engine/"
+  },
+  {
+    id: "ledger", glyph: "📒", nav: "The Ledger", cadence: "on demand · live QB",
+    status: "live", statusLabel: "Live · read-only dashboard",
+    title: "The Ledger",
+    lede: "The money view. It pulls cash, YTD P&L, balance sheet, receivables, and sales straight from QuickBooks (1691 Inc) and tells the honest story the P&L alone hides: profitable, but cash-light.",
+    metrics: [
+      { label: "Cash in bank", val: "$1,401", note: "the number that runs the business", accent: true },
+      { label: "Net income YTD", val: "$63,090", note: "57.9% margin" },
+      { label: "Revenue YTD", val: "$108,879", note: "of $200K goal (54%)" },
+      { label: "As of", val: "Aug 14", note: "accrual · QuickBooks" }
+    ],
+    cadences: [
+      { when: "On demand", what: "Refresh the live QuickBooks pull: cash, P&L, balance sheet, A/R" },
+      { when: "Pending", what: "Scheduled sweeps to build: daily cash snapshot, weekly P&L, month-end close prep" }
+    ],
+    does: [
+      "Pulls cash, YTD P&L, balance sheet, A/R, and sales straight from QuickBooks, read-only",
+      "Headline: profitable ($63K net, 58% margin) but cash-light ($1,401 in the bank) after $107K distributions",
+      "Flags the data-hygiene gap: 66% of income ($71K) sits in Uncategorized Income",
+      "Gives the Deal Engine a real YTD revenue figure for progress-to-goal"
+    ],
+    wall: "Reads QuickBooks and drafts only. Never creates or sends an invoice, never takes a payment, never moves money or files anything.",
+    pending: [
+      "Build the scheduled sweeps: daily cash snapshot, weekly P&L, month-end close prep",
+      "Categorize the $71K in Uncategorized Income for sharper reports",
+      "Confirm all revenue (coaching, Fulton Grace, book) flows into 1691 Inc books"
+    ],
+    dash: "https://claude.ai/code/artifact/4d7ab13c-fa48-4322-a155-5699b7434c2c",
+    lives: "~/Documents/Claude/Scheduled/finance-engine/"
+  },
+  {
+    id: "booklaunch", glyph: "🚀", nav: "Book Launch Engine", cadence: "daily · 8:15a",
+    status: "live", statusLabel: "Live · draft & coordinate",
+    title: "The Book Launch Engine",
+    lede: "Runs the entire launch for The 8-Hour Business Plan in the Age of AI the way a Big-3 publisher would: a phased runway, all assets drafted, every milestone tracked, and exactly 3 human-only actions handed to Pete each day.",
+    launchCountdown: true,
+    metrics: [
+      { label: "Launch day", val: "Oct 1 '26", note: "8hourplan.com", accent: true },
+      { label: "Pre-orders", val: "6", note: "direct on-site" },
+      { label: "Runway tasks", val: "34", note: "T-48 → T+45, 5 phases" },
+      { label: "Targets", val: "150 / 25", note: "launch team / reviews" }
+    ],
+    cadences: [
+      { when: "Daily 8:15a", what: "Standup — the 3 human-only actions + executes the other ~85%" },
+      { when: "Sun 4:39p", what: "Weekly phase-gate review + next week's plan" }
+    ],
+    does: [
+      "Grounded in the real 387-page manuscript — hook “Growth is surrender,” byline, appendices as pre-order bonuses",
+      "Owns the runway, asset production, pre-order campaign, launch/street team, review generation, launch-day war room",
+      "Two levers: concentrate the buy into launch week, stack social proof before day one",
+      "Hands off cleanly — podcasts, bulk/speaking revenue, SEO, and cold outreach each route to the right engine"
+    ],
+    wall: "Drafts, tracks, coordinates only. Pete clicks publish, records video, sends emails. Only auto-send is the heads-up email to Pete himself.",
+    pending: [
+      "Decide the channel strategy — Amazon-rank vs direct-primary vs hybrid (due Aug 18)",
+      "Confirm launch-day formats and the primary goal",
+      "Approve use of the 14k / 20k / 148 owned lists"
+    ],
+    dash: "https://claude.ai/code/artifact/1f9d0b7c-a136-4318-94fe-47fae10fdecb",
+    lives: "~/Documents/Claude/Scheduled/book-launch-engine/"
+  },
+  {
+    id: "visibility", glyph: "📡", nav: "Visibility Engine", cadence: "daily · 7:22a",
+    status: "live", statusLabel: "Live · draft-only",
+    title: "The Visibility Engine",
+    lede: "Grows search and AI-answer visibility for Pete's three properties every day. The compounding, penalty-safe play: measure, create, optimize, and draft distribution — not mass posting.",
+    metrics: [
+      { label: "Properties", val: "3", note: "ultradia · partners · 8hour" },
+      { label: "Cadence", val: "Daily", note: "~7:22a CT" },
+      { label: "Asset / day", val: "1", note: "answer-shaped, JSON-LD" },
+      { label: "Discipline", val: "White-hat", accent: true, note: "no live-site changes" }
+    ],
+    cadences: [
+      { when: "Daily 7:22a", what: "Six-step loop → daily brief (markdown + Google Doc + HTML) + heads-up email" }
+    ],
+    does: [
+      "Measures visibility scoreboard across SEO / AEO / GEO, then finds the day's opportunities",
+      "Creates one answer-shaped asset with structured data and lists the on-site fixes",
+      "Drafts distribution — auto-posts only to owned channels explicitly enabled",
+      "Running free on a direct Google pull (GA4 + Search Console); Supermetrics retired"
+    ],
+    wall: "Draft-only for all third-party outbound. White-hat only: no live-site or DNS changes, no fabricated metrics.",
+    pending: [
+      "One-time Google Cloud setup + drop the service-account JSON to enable the live data pipe",
+      "Wire a Zapier action for owned-social auto-post"
+    ],
+    dash: "https://claude.ai/code/artifact/bad0bdc4-72f0-4a04-a0e9-6298e5d9a3b1",
+    lives: "~/Documents/Claude/Scheduled/visibility-engine/"
+  },
+  {
+    id: "caio", glyph: "🛰️", nav: "Chief AI Officer", cadence: "weekly · Mon 7a",
+    status: "weekly", statusLabel: "Weekly · Mon 7:00a",
+    title: "The Chief AI Officer",
+    lede: "Pete's weekly AI-operations advisor. It audits the whole fleet for tune-ups, gives strategic recommendations across his four audiences, researches new AI tooling, and writes fresh prompts for Pete and his clients.",
+    metrics: [
+      { label: "Live skills", val: "25", note: "of 37 total", accent: true },
+      { label: "Soft-retired", val: "12", note: "awaiting panel toggle" },
+      { label: "Cron engines", val: "6", note: "under management" },
+      { label: "Cadence", val: "Weekly", note: "Mon 7:00a CT" }
+    ],
+    cadences: [
+      { when: "Mon 7:00a", what: "Fleet audit + strategy + AI research → dated report, Google Doc, heads-up email; refreshes the fleet dashboard" }
+    ],
+    does: [
+      "Maintains the living FLEET registry and the redundancy audit across every skill and cron task",
+      "Locks canonical facts so every skill aligns (launch date, revenue goals, audiences)",
+      "Consolidates redundant publishers and coaching skills; soft-retires duplicates via reversible guards",
+      "Keeps the fleet dashboard current — republishes to the same URL each Monday"
+    ],
+    wall: "Only auto-send permitted is the heads-up email to Pete. Never touches Prospect Engine drafts. Soft-retirement is reversible.",
+    pending: [
+      "Toggle OFF the 7 soft-retired tasks + apply 3 time-moves in the desktop Scheduled panel (CLI can't reach it)",
+      "Rotate the publish bearer tokens on the 3 sites and move them to a secrets store"
+    ],
+    dash: "https://claude.ai/code/artifact/340a5d32-df8d-493f-93f0-8d8fe76c5da5",
+    dashLabel: "Fleet dashboard",
+    lives: "~/.claude/scheduled-tasks/chief-ai-officer-weekly/"
+  },
+  {
+    id: "proforma", glyph: "\ud83d\udcc8", nav: "Ultradia Pro Forma", cadence: "on demand \u00b7 live model",
+    status: "live", statusLabel: "Live \u00b7 model, not an engine", tool: true, railLabel: "Models & Tools",
+    title: "Ultradia Pro Forma",
+    lede: "A five-year, three-scenario financial model for ultradia.io that you drive from the browser. Change any assumption and every projection, unit economic and sensitivity rank recomputes instantly. This is not an agent \u2014 nothing runs on a schedule, nothing is drafted, nothing is sent.",
+    metrics: [
+      { label: "Base \u00b7 Y5 revenue", val: "$201K", note: "720 paid accounts" },
+      { label: "Base \u00b7 break-even", val: "Never", note: "not within 60 months" },
+      { label: "Capital required", val: "$283K", note: "deepest cumulative FCF, Base" },
+      { label: "Seats at Jan-2027", val: "28 / 1,000", accent: true, note: "vs the stated goal" }
+    ],
+    cadences: [
+      { when: "On demand", what: "Open the model, change an assumption, read the answer \u2014 or use Goal Seek to name the answer and solve backwards" },
+      { when: "Static inputs", what: "Stripe + QuickBooks reads dated 18-Aug-2026; it does not re-pull them" }
+    ],
+    does: [
+      "Runs a 60-month engine across Downside / Base / Upside from one shared assumption set",
+      "MRR bridge, deferred revenue, working capital and a balance sheet that ties to zero every month",
+      "Live sensitivity \u2014 re-runs the whole engine per driver to rank what actually moves cumulative free cash flow",
+      "Plan vs Pitch: designate the case you hire against and the case in the deck, and reconcile the gap",
+      "Goal Seek solves backwards: name a target and it finds what a driver would have to be",
+      "Actuals tab logs what really happened and computes your true trial \u2192 paid conversion",
+      "Reconciliation badge proves the browser engine still matches the delivered workbook"
+    ],
+    wall: "Read-only and offline. It models; it never prices, bills, invoices, or moves money. Ultradia has zero external paying customers today \u2014 every customer in it is one not yet won.",
+    pending: [
+      "Measure trial \u2192 paid conversion \u2014 daily logging is now wired into the ultradia pace skill; it needs ~30 runs",
+      "Decide on a card-required trial \u2014 the switch is on the Assumptions tab and it is the highest-leverage change available",
+      "Fix dunning \u2014 one subscription died after 9 failed retries; see the Stripe findings",
+      "Set the Team price tiers in Stripe \u2014 team_monthly / team_annual still have no amounts configured"
+    ],
+    dash: "https://claude.ai/code/artifact/3aea8bb1-419c-4aa0-986f-5e7342f9493c",
+    dashLabel: "live model",
+    lives: "My Drive/Ultradia Pro Forma/"
+  },
+  {
+    id: "icp", glyph: "🔬", nav: "ICP Interview 0826", cadence: "on demand · rolling study",
+    status: "weekly", statusLabel: "Live · research capture · 7 of 100 records",
+    study: true, railLabel: "Research & Studies", pillLabel: "Open study",
+    title: "ICP Interview 0826",
+    lede: "The customer discovery study underneath everything the fleet sells. Two routes feed one codebook: recorded discovery interviews, and the \u201cHow Your Week Actually Goes\u201d questionnaire. Every record is coded against the same guide, and the dashboard will not let a claim outrun its evidence \u2014 seven records in, nothing has reached FINDING yet. This is research capture, not coaching: it produces no action items, no agenda, and no advice for the subject.",
+    metrics: [
+      { label: "Interviews", val: "2 / 50", note: "100% show rate, 0 no-shows" },
+      { label: "Questionnaires", val: "5 / 50", note: "\u201cHow Your Week Actually Goes\u201d" },
+      { label: "Both routes", val: "7 / 100", note: "counted separately, never pooled", accent: true },
+      { label: "Claims at FINDING", val: "0", note: "5 more coded records before any can promote" }
+    ],
+    cadences: [
+      { when: "On demand", what: "Pete hands over a transcript \u2192 branded record, coded workbook row, send-ready recap for the interviewee" },
+      { when: "On demand", what: "Pull and code new form responses, then re-read the rolling findings brief across both routes" },
+      { when: "Rolling", what: "Last record landed Aug 20 2026, 6:33p. The dashboard states the date rather than implying freshness" }
+    ],
+    does: [
+      "Codes every record against one Discovery Interview Guide, and keeps the two routes in separate denominators so interview and questionnaire coverage are never compared",
+      "Labels every claim by the weight behind it \u2014 ANECDOTE at n=1, SIGNAL below a majority, FINDING only once a value holds a majority across enough coded records",
+      "Tracks whether Pete's own vocabulary lands: 1 of 7 reached for a house word unaided, 5 of 5 accepted one when it was offered. The gap is the finding, not either number",
+      "Reports the numbers as medians and never as impressions \u2014 longest uninterrupted stretch 45 min, 4 interruptions yesterday",
+      "Shows the whole roster on one page with no pagination, every respondent openable down to their own words and best quote"
+    ],
+    wall: "Research capture only. It records what people actually said and never writes action items, agendas, or advice for the subject. No claim is stated more strongly than its n allows, and the one moderator-contaminated interview is excluded from the vocabulary count rather than quietly averaged in.",
+    pending: [
+      "Code the 16 open fields across 5 questionnaire rows, including the_something_else and icp_fit",
+      "Book the next 48 interviews \u2014 the study is at 4% of its interview target",
+      "Decide what to do with the two V2-guide interviews, which ran before Sections 4 and 8 existed"
+    ],
+    dash: "https://claude.ai/code/artifact/9cbb8b14-69bf-47f9-9585-574c16c57af4",
+    dashLabel: "the study dashboard",
+    lives: "Ultradian Partners \u00b7 ICP Interview 0826"
+  },
+  {
+    id: "catalog", nav: "All Skills", glyph: "🗂", cadence: "43 skills · 12 on cron",
+    status: "live", catalog: true
+  },
+  {
+    id: "apps", nav: "Apps & Connectors", glyph: "🔌", cadence: "20 integrations",
+    status: "live", apps: true
+  }
+];
+
+const LAUNCH = new Date("2026-10-01T00:00:00-05:00");
+
+/* what counts as what, used by the rail, the overview and the launch bar */
+const isPanel  = e => e.overview || e.catalog || e.apps;
+const isEngine = e => !isPanel(e) && !e.tool && !e.study;
+const isStudy  = e => !!e.study;
+
+/* ---------- render rail ---------- */
+const nav = document.getElementById("nav");
+const views = document.getElementById("views");
+
+let railGroup = null;
+ENGINES.forEach((e, i) => {
+  if (e.railLabel && e.railLabel !== railGroup) {
+    railGroup = e.railLabel;
+    const l = document.createElement("div");
+    l.className = "rail-label";
+    l.textContent = e.railLabel;
+    nav.appendChild(l);
+  }
+  const b = document.createElement("button");
+  b.className = "nav-item" + (i === 0 ? " active" : "");
+  b.dataset.target = e.id;
+  b.innerHTML = `
+    <span class="nav-glyph">${e.glyph}</span>
+    <span class="nav-text">
+      <span class="nav-title">${e.nav}</span>
+      <span class="nav-cadence">${e.cadence}</span>
+    </span>
+    <span class="dot ${e.status}"></span>`;
+  b.addEventListener("click", () => select(e.id));
+  nav.appendChild(b);
+});
+
+/* ---------- render views ---------- */
+ENGINES.forEach((e, i) => {
+  const v = document.createElement("section");
+  v.className = "view" + (i === 0 ? " active" : "");
+  v.id = "view-" + e.id;
+  v.innerHTML = e.overview ? overviewHTML() : e.catalog ? catalogHTML() : e.apps ? appsHTML() : engineHTML(e);
+  views.appendChild(v);
+});
+
+function metricHTML(m) {
+  return `<div class="metric${m.accent ? " accent" : ""}">
+    <div class="mlabel">${m.label}</div>
+    <div class="mval">${m.val}</div>
+    ${m.note ? `<div class="mnote">${m.note}</div>` : ""}
+  </div>`;
+}
+
+function engineHTML(e) {
+  return `
+    <div class="eyebrow">${e.statusLabel}</div>
+    <h1>${e.title}</h1>
+    <p class="lede">${e.lede}</p>
+    <div class="status-line">
+      <span class="pill ${e.status}"><span class="dot ${e.status}"></span>${e.pillLabel || (e.status === "live" ? "Running" : "Weekly")}</span>
+      <span class="pill mono">${e.lives}</span>
+      ${e.launchCountdown ? `<span class="pill" id="cd-pill"></span>` : ""}
+    </div>
+    <div class="metrics">${e.metrics.map(metricHTML).join("")}</div>
+    <div class="grid">
+      <div>
+        <div class="card">
+          <h3>What it does</h3>
+          <ul class="does">${e.does.map(d => `<li><span>${d}</span></li>`).join("")}</ul>
+        </div>
+        <div class="wallbox"><b>The Wall</b> &nbsp;${e.wall}</div>
+      </div>
+      <div>
+        <div class="card">
+          <h3>Cadence</h3>
+          <div class="cadence-list">${e.cadences.map(c => `<div class="cad"><span class="when">${c.when}</span><span class="what">${c.what}</span></div>`).join("")}</div>
+        </div>
+        <div class="card">
+          <h3>Waiting on Pete</h3>
+          <ul class="pending${e.pending.length ? "" : " clear"}">${e.pending.map(p => `<li><span>${p}</span></li>`).join("")}</ul>
+        </div>
+      </div>
+    </div>
+    <div class="actions">
+      ${e.dash
+        ? `<a class="btn primary" href="${e.dash}" target="_blank" rel="noopener">Open ${e.dashLabel || "live dashboard"} <span class="arr">↗</span></a>`
+        : `<span class="btn disabled">Digest-based — no standalone dashboard</span>`}
+    </div>`;
+}
+
+function overviewHTML() {
+  const live    = ENGINES.filter(isEngine).length;
+  const studies = ENGINES.filter(isStudy).length;
+  const active  = CATALOG.filter(k => k.risk !== "x").length;
+  const gone    = CATALOG.filter(k => k.risk === "x").length;
+  return `
+    <div class="eyebrow">Mission Control · ${live} engines + 1 model + ${studies} study</div>
+    <h1>Pete's AI Engine Fleet</h1>
+    <p class="lede">Ten draft-only engines across daily execution, channel allocation, prospecting, inbound, sales, delivery, finance, book launch, visibility, and AI operations. The Daily Ten sits on top of the other nine: they each produce recommendations, it turns all of them into one ten-item board with a time budget. One wall applies to all of them: they draft and track, they never send, post, or move money. Alongside them sits the Ultradia Pro Forma \u2014 a live financial model, not an agent \u2014 and ICP Interview 0826, the customer discovery study the whole offer rests on. Every skill, automation, and connector underneath the engines is listed under <b>All Skills</b> and <b>Apps &amp; Connectors</b> in the rail.</p>
+    <div class="launch-panel">
+      <div class="launch-head"><span class="glyph">🚀</span> Open any live dashboard</div>
+      <div class="launchbar">
+        ${ENGINES.filter(e => isEngine(e) || isStudy(e)).map(e => e.dash
+          ? `<a class="launch" href="${e.dash}" target="_blank" rel="noopener"><span class="lg">${e.glyph}</span>${e.nav}<span class="arr">↗</span></a>`
+          : `<button class="launch digest" type="button" data-open="${e.id}"><span class="lg">${e.glyph}</span>${e.nav}<span class="arr">→</span></button>`
+        ).join("")}
+      </div>
+      <div class="launchbar" style="margin-top:10px">
+        <button class="launch digest" type="button" data-open="catalog"><span class="lg">🗂</span>All Skills &amp; Automations<span class="arr">→</span></button>
+        <button class="launch digest" type="button" data-open="apps"><span class="lg">🔌</span>Apps &amp; Connectors<span class="arr">→</span></button>
+      </div>
+    </div>
+    <div class="metrics">
+      <div class="metric accent"><div class="mlabel">Engines live</div><div class="mval">${live}</div><div class="mnote">+ ${active} active skills · ${gone} retired</div></div>
+      <div class="metric"><div class="mlabel">Run-rate ARR</div><div class="mval">$163K</div><div class="mnote">→ $178.6K committed</div></div>
+      <div class="metric"><div class="mlabel">2026 revenue goal</div><div class="mval">$200K</div><div class="mnote">2027: $400K gross</div></div>
+      <div class="metric"><div class="mlabel">To book launch</div><div class="mval" id="cd-days">—</div><div class="mnote">Oct 1, 2026</div></div>
+    </div>
+    <div class="sec-head">Toggle into any engine</div>
+    <div class="fleet" id="fleet"></div>
+    <hr class="divider">
+    <div class="sec-head">Models &amp; tools · not agents</div>
+    <p class="lede" style="margin:-6px 0 14px;font-size:14px">Nothing here runs on a schedule, drafts, or sends. These are things you open and drive yourself.</p>
+    <div class="fleet" id="tools"></div>
+    <hr class="divider">
+    <div class="sec-head">Research &amp; studies</div>
+    <p class="lede" style="margin:-6px 0 14px;font-size:14px">Evidence, not opinion. Coded records with the weight of each claim stated on its face, so nothing here can be quoted more strongly than it was earned.</p>
+    <div class="fleet" id="studies"></div>
+    <hr class="divider">
+    <div class="sec-head">Daily rhythm · America/Chicago</div>
+    <div class="card">
+      <div class="cadence-list">
+        <div class="cad"><span class="when">6:00a d</span><span class="what">podcast-pitch-daily · brand-mention-monitor</span></div>
+        <div class="cad"><span class="when">6:30a d</span><span class="what">execution-summary — Pete's prioritized day</span></div>
+        <div class="cad"><span class="when">6:30a wd</span><span class="what">Front Door — inbound catch (proposed, not yet on cron)</span></div>
+        <div class="cad"><span class="when">6:37a wd</span><span class="what">Prospect Engine — daily sweep</span></div>
+        <div class="cad"><span class="when">6:49a wd</span><span class="what">Deal Engine — morning standup</span></div>
+        <div class="cad"><span class="when">6:54a wd</span><span class="what">Prospect Engine — reply loop</span></div>
+        <div class="cad"><span class="when">7:00a wd</span><span class="what">sonja-morning-brief — autonomous · ultradia-daily-pace</span></div>
+        <div class="cad"><span class="when">7:00a Mon</span><span class="what">Chief AI Officer — weekly fleet audit</span></div>
+        <div class="cad"><span class="when">7:30a Mon</span><span class="what">sonja-weekly-growth-numbers</span></div>
+        <div class="cad"><span class="when">7:22a daily</span><span class="what">Visibility Engine — daily sweep</span></div>
+        <div class="cad"><span class="when">7:30a wd</span><span class="what">The Daily Ten — grade, roll, publish the board, book the blocks</span></div>
+        <div class="cad"><span class="when">7:49a wd</span><span class="what">Delivery Engine — morning brief (session prep)</span></div>
+        <div class="cad"><span class="when">8:15a daily</span><span class="what">Book Launch Engine — standup + 3 actions</span></div>
+        <div class="cad"><span class="when">8:30a wd</span><span class="what">daily-execution-column — autonomous publish</span></div>
+        <div class="cad"><span class="when">12:45p wd</span><span class="what">Front Door — midday catch (proposed)</span></div>
+        <div class="cad"><span class="when">5:00p wd</span><span class="what">sonja-evening-report</span></div>
+        <div class="cad"><span class="when">5:09p wd</span><span class="what">Deal Engine — evening check-in</span></div>
+        <div class="cad"><span class="when">5:28p wd</span><span class="what">Delivery Engine — evening wrap</span></div>
+        <div class="cad"><span class="when">6:00p d</span><span class="what">ultradia-post-scoreboard-pm</span></div>
+        <div class="cad"><span class="when">3:34p Fri</span><span class="what">Delivery Engine — weekly client debrief + content pack</span></div>
+        <div class="cad"><span class="when">7:00p Sun</span><span class="what">Prospect Engine — weekly deep sweep</span></div>
+      </div>
+    </div>`;
+}
+
+/* fleet cards on overview */
+function buildFleet() {
+  fillFleet("fleet", isEngine);
+  fillFleet("tools", e => !!e.tool);
+  fillFleet("studies", isStudy);
+}
+function fillFleet(elId, pred) {
+  const wrap = document.getElementById(elId);
+  if (!wrap) return;
+  ENGINES.filter(pred).forEach(e => {
+    const c = document.createElement("div");
+    c.className = "fcard";
+    const open = e.dash
+      ? `<a class="fcard-open" href="${e.dash}" target="_blank" rel="noopener">Open ${e.dashLabel || "dashboard"} ↗</a>`
+      : `<span class="fcard-open disabled">Digest-based</span>`;
+    c.innerHTML = `
+      <div class="fcard-top"><span class="fcard-glyph">${e.glyph}</span><span class="dot ${e.status}"></span></div>
+      <h4>${e.nav}</h4>
+      <p>${e.statusLabel}</p>
+      <span class="fcad">${e.cadence}</span>
+      <div class="fcard-foot">
+        ${open}
+        <button class="fcard-panel" type="button" data-open="${e.id}">Details →</button>
+      </div>`;
+    c.querySelector(".fcard-panel").addEventListener("click", () => select(e.id));
+    wrap.appendChild(c);
+  });
+}
+buildFleet();
+
+/* wire the overview quick-launch bar's digest button (dashboard links are plain anchors) */
+document.querySelectorAll(".launchbar [data-open]").forEach(b =>
+  b.addEventListener("click", () => select(b.dataset.open)));
+
+/* ---------- catalog + apps panels ---------- */
+function catalogHTML() {
+  const clusters = [...new Set(CATALOG.map(k => k.c))];
+  const active = CATALOG.filter(k => k.risk !== "x").length;
+  const auto   = CATALOG.filter(k => k.risk === "r").length;
+  const gone   = CATALOG.filter(k => k.risk === "x").length;
+  const rows = c => CATALOG.filter(k => k.c === c).map(k => `
+    <tr class="crow${k.risk === "x" ? " dim" : ""}">
+      <td class="cname"><code>${k.n}</code></td>
+      <td class="ccad">${k.cad}</td>
+      <td><span class="risk ${RISK[k.risk].cls}">${RISK[k.risk].t}</span></td>
+      <td class="ceng">${k.eng}</td>
+      <td class="cwhat">${k.w}</td>
+    </tr>`).join("");
+  return `
+    <div class="eyebrow">Full registry · source of truth is FLEET.md</div>
+    <h1>All skills &amp; automations</h1>
+    <p class="lede">Every skill Pete runs, scheduled or on demand, including the retired ones and what replaced them. The ten engines each have their own panel in the rail, and most have a live dashboard; everything else runs underneath them.</p>
+    <div class="metrics">
+      <div class="metric accent"><div class="mlabel">Active skills</div><div class="mval">${active}</div><div class="mnote">across 8 clusters</div></div>
+      <div class="metric"><div class="mlabel">On cron</div><div class="mval">12</div><div class="mnote">rest in the app Scheduled panel</div></div>
+      <div class="metric"><div class="mlabel">Autonomous</div><div class="mval">${auto}</div><div class="mnote">send or publish unreviewed</div></div>
+      <div class="metric"><div class="mlabel">Retired</div><div class="mval">${gone}</div><div class="mnote">toggle off in the app panel</div></div>
+    </div>
+    <div class="chips">
+      <button class="chip on" data-filter="all">All</button>
+      ${clusters.map(c => `<button class="chip" data-filter="${c}">${c}</button>`).join("")}
+    </div>
+    ${clusters.map(c => `
+      <div class="cgroup" data-cluster="${c}">
+        <div class="sec-head">${c}</div>
+        <div class="card tablecard">
+          <table class="ctable">
+            <thead><tr><th>Skill</th><th>Cadence</th><th>Risk</th><th>Engine</th><th>What it does</th></tr></thead>
+            <tbody>${rows(c)}</tbody>
+          </table>
+        </div>
+      </div>`).join("")}
+    <div class="wallbox" style="margin-top:18px"><b>The Wall</b> &nbsp;Three skills act without review: <code>sonja-morning-brief</code>, <code>daily-execution-column</code>, <code>sonja-weekly-content-queue</code>. Every engine is draft-only. Review the three regularly.</div>`;
+}
+function appsHTML() {
+  const S = {on:{c:"rg",t:"connected"}, warn:{c:"ra",t:"expiring"}, ext:{c:"ra",t:"manual"}, off:{c:"rx",t:"not connected"}};
+  return `
+    <div class="eyebrow">Integrations</div>
+    <h1>Apps &amp; connectors</h1>
+    <p class="lede">What the fleet can actually reach. Anything not on this list, an engine cannot touch.</p>
+    <div class="card tablecard">
+      <table class="ctable">
+        <thead><tr><th>App</th><th>Status</th><th>What it is used for</th></tr></thead>
+        <tbody>${APPS.map(a => `
+          <tr class="crow${a.s === "off" ? " dim" : ""}">
+            <td class="cname">${a.n}</td>
+            <td><span class="risk ${S[a.s].c}">${S[a.s].t}</span></td>
+            <td class="cwhat">${a.w}</td>
+          </tr>`).join("")}</tbody>
+      </table>
+    </div>
+    <div class="wallbox" style="margin-top:18px"><b>Do not buy</b> &nbsp;Make.com, GoHighLevel, ClickUp, and paid Notion all duplicate what the fleet already does. Dues &amp; Subscriptions is already $14,914 YTD against $1,401 in the bank.</div>`;
+}
+
+/* chip filtering, delegated so it survives re-render */
+document.addEventListener("click", ev => {
+  const chip = ev.target.closest(".chip");
+  if (!chip) return;
+  const view = chip.closest(".view");
+  view.querySelectorAll(".chip").forEach(c => c.classList.toggle("on", c === chip));
+  const f = chip.dataset.filter;
+  view.querySelectorAll(".cgroup").forEach(g => {
+    g.style.display = (f === "all" || g.dataset.cluster === f) ? "" : "none";
+  });
+});
+
+/* ---------- selection ---------- */
+function select(id) {
+  document.querySelectorAll(".nav-item").forEach(n => n.classList.toggle("active", n.dataset.target === id));
+  document.querySelectorAll(".view").forEach(v => v.classList.toggle("active", v.id === "view-" + id));
+  window.scrollTo({ top: 0, behavior: "auto" });
+}
+
+/* ---------- countdown + clock ---------- */
+function tick() {
+  const now = new Date();
+  const days = Math.max(0, Math.ceil((LAUNCH - now) / 864e5));
+  const cd = document.getElementById("cd-days");
+  if (cd) cd.textContent = "T-" + days;
+  const pill = document.getElementById("cd-pill");
+  if (pill) pill.innerHTML = `<span class="dot weekly"></span>T-${days} to launch`;
+  const clock = document.getElementById("clock");
+  clock.textContent = now.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" }).toUpperCase()
+    + " · " + now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+}
+tick();
+setInterval(tick, 30000);
+
+/* ---------- theme toggle ---------- */
+const root = document.documentElement;
+document.getElementById("themeBtn").addEventListener("click", () => {
+  const cur = root.getAttribute("data-theme");
+  const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  const isDark = cur ? cur === "dark" : prefersDark;
+  root.setAttribute("data-theme", isDark ? "light" : "dark");
+});
+</script>
+
+
